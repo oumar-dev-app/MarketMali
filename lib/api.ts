@@ -1,23 +1,24 @@
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  process.env.APP_URL ||
-  "http://localhost:3000";
+  "http://localhost:3000/api";
 
-function getApiUrl(endpoint: string) {
-  const baseUrl = API_URL.replace(/\/$/, "");
+function getBaseUrl() {
+  // Navigateur
+  if (typeof window !== "undefined") {
+    return "/api";
+  }
 
-  const path = endpoint.startsWith("/")
-    ? endpoint
-    : `/${endpoint}`;
-
-  return `${baseUrl}${path}`;
+  // Serveur
+  return API_URL;
 }
 
 export async function apiGet<T>(
   endpoint: string
 ): Promise<T> {
+  const baseUrl = getBaseUrl();
+
   const response = await fetch(
-    getApiUrl(endpoint),
+    `${baseUrl}${endpoint}`,
     {
       cache: "no-store",
     }
@@ -39,8 +40,10 @@ export async function apiPost<T>(
   endpoint: string,
   body: unknown
 ): Promise<T> {
+  const baseUrl = getBaseUrl();
+
   const response = await fetch(
-    getApiUrl(endpoint),
+    `${baseUrl}${endpoint}`,
     {
       method: "POST",
       headers: {

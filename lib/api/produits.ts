@@ -1,58 +1,33 @@
-const API_URL = "";
+import { apiGet } from "@/lib/api";
+
+interface ProduitResponse<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
 
 export async function getProduits(
   search?: string
 ) {
-
-  const url = new URL(
-    "/api/produits",
-    API_URL
-  );
-
-  if (search?.trim()) {
-    url.searchParams.set(
-      "search",
-      search.trim()
-    );
-  }
+  const endpoint = search?.trim()
+    ? `/produits?search=${encodeURIComponent(search.trim())}`
+    : "/produits";
 
   const response =
-    await fetch(
-      url.toString(),
-      {
-        cache: "no-store",
-      }
+    await apiGet<ProduitResponse<any[]>>(
+      endpoint
     );
 
-  if (!response.ok) {
-    throw new Error(
-      "Erreur récupération produits"
-    );
-  }
-
-  const data =
-    await response.json();
-
-  return data.data;
+  return response.data;
 }
 
 export async function getProduit(
   uuid: string
 ) {
-  const response = await fetch(
-    `${API_URL}/api/produits/${uuid}`,
-    {
-      cache: "no-store",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      "Erreur récupération du produit"
+  const response =
+    await apiGet<ProduitResponse<any>>(
+      `/produits/${encodeURIComponent(uuid)}`
     );
-  }
 
-  const data = await response.json();
-
-  return data.data;
+  return response.data;
 }
