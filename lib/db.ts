@@ -6,6 +6,11 @@ export const db = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+
+  ssl: {
+    rejectUnauthorized: true,
+  },
+
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -14,9 +19,14 @@ export const db = mysql.createPool({
 export async function testDatabaseConnection() {
   try {
     const connection = await db.getConnection();
-    console.log("✅ Connecté à MySQL");
+
+    console.log("✅ Connecté à TiDB");
+
     connection.release();
   } catch (error) {
-    console.error("❌ Erreur de connexion MySQL :", error);
+    console.error(
+      "❌ Erreur de connexion TiDB :",
+      error
+    );
   }
 }
