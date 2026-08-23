@@ -221,7 +221,7 @@ function LivraisonTimeline({
 
                             {hasNext && (
                                 <div
-                                    className={`absolute left-[15px] top-8 h-[calc(100%-8px)] w-0.5 ${completed &&
+                                    className={`absolute left-3.75 top-8 h-[calc(100%-8px)] w-0.5 ${completed &&
                                         currentIndex > index
                                         ? "bg-green-500"
                                         : "bg-gray-200"
@@ -403,7 +403,7 @@ export default function LivreurLivraisons() {
                         return;
                     }
 
-                    if (accuracy > 1000) {
+                    if (accuracy > 100000) {
                         console.warn(
                             `Position GPS ignorée : précision insuffisante (${Math.round(accuracy)} m).`
                         );

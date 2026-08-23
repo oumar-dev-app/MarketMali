@@ -174,11 +174,12 @@ export class ProduitRepository {
 
   }
 
-  static async search(
-    search?: string
-  ): Promise<any[]> {
+static async search(
+  search?: string,
+  categorieSlug?: string
+): Promise<any[]> {
 
-    let sql = `
+  let sql = `
     SELECT
       produits.*,
 
@@ -199,12 +200,11 @@ export class ProduitRepository {
     WHERE produits.status = 'active'
   `;
 
-    const params: any[] = [];
+  const params: any[] = [];
 
+  if (search) {
 
-    if (search) {
-
-      sql += `
+    sql += `
       AND (
         produits.nom LIKE ?
         OR produits.description LIKE ?
@@ -213,37 +213,37 @@ export class ProduitRepository {
       )
     `;
 
-      const value = `%${search}%`;
+    const value = `%${search}%`;
 
-      params.push(
-        value,
-        value,
-        value,
-        value
-      );
+    params.push(
+      value,
+      value,
+      value,
+      value
+    );
+  }
 
-    }
-
+  if (categorieSlug) {
 
     sql += `
+      AND categories.slug = ?
+    `;
+
+    params.push(categorieSlug);
+  }
+
+  sql += `
     ORDER BY produits.created_at DESC
   `;
 
+  const [rows] =
+    await db.query<any[]>(
+      sql,
+      params
+    );
 
-    const [rows] =
-      await db.query<any[]>(
-        sql,
-        params
-      );
-
-
-    return rows;
-
-  }
-
-
-
-
+  return rows;
+}
 
   static async findByUUID(
     uuid: string

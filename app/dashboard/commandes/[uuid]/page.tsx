@@ -156,10 +156,18 @@ function getStatusColor(status: string) {
 
 function getNextStatuses(status: string) {
     const transitions: Record<string, string[]> = {
-        pending: ["confirmed", "cancelled"],
-        confirmed: ["preparing", "cancelled"],
-        preparing: ["shipped", "cancelled"],
-        shipped: ["delivered"],
+        pending: [
+            "confirmed",
+            "cancelled",
+        ],
+
+        confirmed: [
+            "preparing",
+            "cancelled",
+        ],
+
+        preparing: [],
+        shipped: [],
         delivered: [],
         cancelled: [],
     };
@@ -564,30 +572,26 @@ export default function CommandeDetailPage() {
         }
     }, [uuid, router]);
 
-    const updateStatus = async () => {
-        if (!commande) {
-            return;
-        }
+const updateStatus = async () => {
+    if (!commande) {
+        return;
+    }
 
-        if (newStatus === commande.status) {
-            toast.info(
-                "La commande possède déjà ce statut."
-            );
+    if (newStatus === commande.status) {
+        toast.info(
+            "La commande possède déjà ce statut."
+        );
 
-            return;
-        }
+        return;
+    }
 
-        if (
-            newStatus === "cancelled" ||
-            newStatus === "delivered"
-        ) {
-            setConfirmAction(newStatus);
-            return;
-        }
+    if (newStatus === "cancelled") {
+        setConfirmAction("cancelled");
+        return;
+    }
 
-        await executeStatusUpdate();
-    };
-
+    await executeStatusUpdate();
+};
 
 
     const executeStatusUpdate = async () => {
@@ -1543,7 +1547,7 @@ export default function CommandeDetailPage() {
                                                 assigningLivreur ||
                                                 loadingLivreurs
                                             }
-                                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl  bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <Truck size={17} />
 

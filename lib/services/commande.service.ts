@@ -362,12 +362,40 @@ export class CommandeService {
                 statistics
             };
         }
-
         if (role === "client") {
 
-            return await CommandeRepository.findByClientId(
-                user_id
-            );
+            const commandes =
+                await CommandeRepository.findByClientId(
+                    user_id,
+                    limit,
+                    offset,
+                    search,
+                    status
+                );
+
+            const statistics =
+                await CommandeRepository.countStatusesByClient(
+                    user_id
+                );
+
+            return {
+                data: commandes,
+
+                pagination: {
+                    page,
+                    limit,
+
+                    total:
+                        statistics.total,
+
+                    totalPages:
+                        Math.ceil(
+                            statistics.total / limit
+                        )
+                },
+
+                statistics
+            };
         }
         throw new ForbiddenError(
             "Accès refusé."
@@ -772,12 +800,14 @@ export class CommandeService {
                 "Vous n'avez pas accès à cette commande."
             );
         }
-
-        // Le statut delivered est géré uniquement
-        // par LivraisonService.
-        if (status === "delivered") {
+        // Les statuts liés à la livraison ne sont pas modifiables
+        // par le vendeur depuis cet endpoint.
+        if (
+            status === "shipped" ||
+            status === "delivered"
+        ) {
             throw new ForbiddenError(
-                "Une commande ne peut être livrée que par le processus de livraison."
+                "Ce statut est géré par le processus de livraison."
             );
         }
 
@@ -793,7 +823,6 @@ export class CommandeService {
             CommandeStatus,
             CommandeStatus[]
         > = {
-
             pending: [
                 "confirmed",
                 "cancelled"
@@ -805,6 +834,7 @@ export class CommandeService {
             ],
 
             preparing: [
+                "shipped",
                 "cancelled"
             ],
 

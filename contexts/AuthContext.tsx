@@ -25,6 +25,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (token: string, user: User) => void;
+  updateUser: (user: User) => void;
   logout: () => void;
 }
 
@@ -148,6 +149,15 @@ export function AuthProvider({
     router.push("/login");
   }
 
+  function updateUser(updatedUser: User) {
+    localStorage.setItem(
+      "user",
+      JSON.stringify(updatedUser)
+    );
+
+    setUser(updatedUser);
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -155,6 +165,7 @@ export function AuthProvider({
         token,
         loading,
         login,
+        updateUser,
         logout,
       }}
     >

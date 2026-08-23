@@ -11,42 +11,40 @@ import {
 
 export type CartItem = {
   uuid: string;
-
   produit_id: number;
-
   boutique_id: number;
-
   nom: string;
-
   prix: number;
-
   image?: string | null;
-
   quantity: number;
+  stock: number;
 };
 
 
 
 type CartContextType = {
 
-    items: CartItem[];
+  items: CartItem[];
 
-    total: number;
+  total: number;
 
-    addToCart:
-        (item: Omit<CartItem, "quantity">) => boolean;
+  addToCart:
+  (
+    item: Omit<CartItem, "quantity">,
+    quantity?: number
+  ) => boolean;
 
-    removeFromCart:
-        (uuid: string) => void;
+  removeFromCart:
+  (uuid: string) => void;
 
-    increaseQuantity:
-        (uuid: string) => void;
+increaseQuantity:
+    (uuid: string) => void;
 
-    decreaseQuantity:
-        (uuid: string) => void;
+  decreaseQuantity:
+  (uuid: string) => void;
 
-    clearCart:
-        () => void;
+  clearCart:
+  () => void;
 
 };
 
@@ -70,22 +68,46 @@ export function CartProvider({
     useState<CartItem[]>([]);
 
 
+useEffect(() => {
 
-  useEffect(() => {
+  const saved =
+    localStorage.getItem("cart");
 
-    const saved =
-      localStorage.getItem("cart");
+  if (!saved) {
+    return;
+  }
 
+  try {
 
-    if (saved) {
+    const parsed =
+      JSON.parse(saved);
 
-      setItems(
-        JSON.parse(saved)
-      );
-
+    if (!Array.isArray(parsed)) {
+      return;
     }
 
-  }, []);
+    setItems(
+      parsed.map((item) => ({
+        ...item,
+        stock:
+          typeof item.stock === "number"
+            ? item.stock
+            : 999999,
+      }))
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Erreur lecture panier :",
+      error
+    );
+
+    localStorage.removeItem("cart");
+
+  }
+
+}, []);
 
 
 
@@ -99,55 +121,67 @@ export function CartProvider({
 
   }, [items]);
 
-  function addToCart(
-    item: Omit<CartItem, "quantity">
-  ): boolean {
+function addToCart(
+  item: Omit<CartItem, "quantity">,
+  quantity: number = 1
+): boolean {
 
-    if (
-      items.length > 0 &&
-      items.some(
-        p =>
-          p.boutique_id !==
-          item.boutique_id
-      )
-    ) {
-      return false;
+  if (
+    items.length > 0 &&
+    items.some(
+      (p) =>
+        p.boutique_id !== item.boutique_id
+    )
+  ) {
+    return false;
+  }
+
+  const quantityToAdd = Math.max(
+    1,
+    Math.floor(quantity)
+  );
+
+  setItems((old) => {
+
+    const existing = old.find(
+      (p) => p.uuid === item.uuid
+    );
+
+    if (existing) {
+
+      const newQuantity =
+        Math.min(
+          existing.quantity +
+            quantityToAdd,
+          item.stock
+        );
+
+      return old.map(
+        (p) =>
+          p.uuid === item.uuid
+            ? {
+                ...p,
+                quantity: newQuantity,
+                stock: item.stock,
+              }
+            : p
+      );
     }
 
-    setItems((old) => {
+    return [
+      ...old,
+      {
+        ...item,
+        quantity: Math.min(
+          quantityToAdd,
+          item.stock
+        ),
+      },
+    ];
+  });
 
-      const existing =
-        old.find(
-          p =>
-            p.uuid ===
-            item.uuid
-        );
-
-      if (existing) {
-
-        return old.map(
-          p =>
-            p.uuid === item.uuid
-              ? {
-                ...p,
-                quantity:
-                  p.quantity + 1,
-              }
-              : p
-        );
-      }
-
-      return [
-        ...old,
-        {
-          ...item,
-          quantity: 1,
-        }
-      ];
-    });
-
-    return true;
-  }
+  return true;
+}
 
 
 
@@ -168,25 +202,30 @@ export function CartProvider({
 
 
 
-  function increaseQuantity(
-    uuid: string
-  ) {
+function increaseQuantity(
+  uuid: string
+) {
 
-    setItems(
-      old =>
-        old.map(
-          item =>
-            item.uuid === uuid
-              ? {
-                ...item,
-                quantity:
-                  item.quantity + 1,
-              }
-              : item
-        )
-    );
+  setItems((old) =>
+    old.map((item) => {
 
-  }
+      if (item.uuid !== uuid) {
+        return item;
+      }
+
+      if (item.quantity >= item.stock) {
+        return item;
+      }
+
+      return {
+        ...item,
+        quantity: item.quantity + 1,
+      };
+
+    })
+  );
+
+}
 
 
 

@@ -11,17 +11,19 @@ export async function GET(
 
   return apiHandler(async () => {
 
-
     const search =
-      req.nextUrl.searchParams.get("search") ?? undefined;
+      req.nextUrl.searchParams.get("search")
+      ?? undefined;
 
+    const categorie =
+      req.nextUrl.searchParams.get("categorie")
+      ?? undefined;
 
     const produits =
-      search
-        ? await ProduitService.search(search)
-        : await ProduitService.findAllActive();
-
-
+      await ProduitService.search(
+        search,
+        categorie
+      );
 
     return NextResponse.json(
       {
@@ -42,6 +44,7 @@ export async function GET(
   });
 
 }
+
 export async function POST(
   req: NextRequest
 ) {

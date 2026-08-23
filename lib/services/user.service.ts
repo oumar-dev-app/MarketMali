@@ -5,6 +5,10 @@ import { ConflictError } from "../errors/ConflictError";
 import { ForbiddenError } from "../errors/ForbiddenError";
 import { LivreurRepository } from "../repositories/livreur.repository";
 import { BoutiqueRepository } from "../repositories/boutique.repository";
+import {
+  hashPassword,
+  comparePassword,
+} from "../utils/password";
 
 
 export class UserService {
@@ -343,5 +347,149 @@ export class UserService {
         }
         : null,
     };
+  }
+
+    static async updateOwnProfile(
+    userId: number,
+    data: {
+      nom?: string;
+      prenom?: string;
+      email?: string;
+      telephone?: string;
+      image?: string | null;
+    }
+  ) {
+    const user =
+      await UserRepository.findById(userId);
+
+    if (!user) {
+      throw new NotFoundError(
+        "Utilisateur introuvable."
+      );
+    }
+
+    if (user.status === "deleted") {
+      throw new ForbiddenError(
+        "Ce compte a été supprimé."
+      );
+    }
+
+    /*
+     * Vérifier l'email uniquement
+     * s'il est modifié.
+     */
+    if (
+      data.email &&
+      data.email !== user.email
+    ) {
+      const emailExists =
+        await UserRepository.findByEmail(
+          data.email
+        );
+
+      if (
+        emailExists &&
+        emailExists.id !== user.id
+      ) {
+        throw new ConflictError(
+          "Cette adresse e-mail est déjà utilisée."
+        );
+      }
+    }
+
+    /*
+     * Vérifier le téléphone uniquement
+     * s'il est modifié.
+     */
+    if (
+      data.telephone &&
+      data.telephone !== user.telephone
+    ) {
+      const telephoneExists =
+        await UserRepository.findByTelephone(
+          data.telephone
+        );
+
+      if (
+        telephoneExists &&
+        telephoneExists.id !== user.id
+      ) {
+        throw new ConflictError(
+          "Ce numéro de téléphone est déjà utilisé."
+        );
+      }
+    }
+
+    await UserRepository.update(
+      user.id,
+      data
+    );
+
+    const updatedUser =
+      await UserRepository.findById(
+        user.id
+      );
+
+    if (!updatedUser) {
+      throw new NotFoundError(
+        "Utilisateur introuvable après modification."
+      );
+    }
+
+    return UserMapper.toResponse(
+      updatedUser
+    );
+  }
+
+
+  static async changeOwnPassword(
+    userId: number,
+    oldPassword: string,
+    newPassword: string
+  ) {
+    const user =
+      await UserRepository.findById(userId);
+
+    if (!user) {
+      throw new NotFoundError(
+        "Utilisateur introuvable."
+      );
+    }
+
+    if (user.status === "deleted") {
+      throw new ForbiddenError(
+        "Ce compte a été supprimé."
+      );
+    }
+
+    const passwordCorrect =
+      await comparePassword(
+        oldPassword,
+        user.password
+      );
+
+    if (!passwordCorrect) {
+      throw new ForbiddenError(
+        "Ancien mot de passe incorrect."
+      );
+    }
+
+    if (oldPassword === newPassword) {
+      throw new ConflictError(
+        "Le nouveau mot de passe doit être différent de l'ancien."
+      );
+    }
+
+    const hashedPassword =
+      await hashPassword(
+        newPassword
+      );
+
+    await UserRepository.update(
+      user.id,
+      {
+        password: hashedPassword,
+      }
+    );
   }
 }

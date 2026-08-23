@@ -24,200 +24,200 @@ export class ProduitService {
 
 
 
- static async create(
-    data: CreateProduitDTO,
-    user_id: number,
-    role: string
-) {
-
-    const boutique =
-        await BoutiqueRepository.findByUserId(
-            user_id
-        );
-
-
-    if (!boutique) {
-
-        throw new NotFoundError(
-            "Boutique introuvable."
-        );
-
-    }
-
-
-    if (
-        role !== "admin" &&
-        role !== "super_admin" &&
-        boutique.user_id !== user_id
+    static async create(
+        data: CreateProduitDTO,
+        user_id: number,
+        role: string
     ) {
 
-        throw new ForbiddenError(
-            "Vous n'avez pas accès à cette boutique."
-        );
+        const boutique =
+            await BoutiqueRepository.findByUserId(
+                user_id
+            );
+
+
+        if (!boutique) {
+
+            throw new NotFoundError(
+                "Boutique introuvable."
+            );
+
+        }
+
+
+        if (
+            role !== "admin" &&
+            role !== "super_admin" &&
+            boutique.user_id !== user_id
+        ) {
+
+            throw new ForbiddenError(
+                "Vous n'avez pas accès à cette boutique."
+            );
+
+        }
+
+
+        const categorie =
+            await CategorieRepository.findById(
+                data.categorie_id
+            );
+
+
+        if (!categorie) {
+
+            throw new NotFoundError(
+                "Catégorie introuvable."
+            );
+
+        }
+
+
+        if (
+            categorie.boutique_id !== boutique.id
+        ) {
+
+            throw new ForbiddenError(
+                "Cette catégorie n'appartient pas à votre boutique."
+            );
+
+        }
+
+
+        let slug =
+            generateSlug(data.nom);
+
+
+        const exists =
+            await ProduitRepository.findBySlug(
+                slug,
+                boutique.id
+            );
+
+
+        if (exists) {
+
+            slug =
+                `${slug}-${Date.now()}`;
+
+        }
+
+
+        const uuid =
+            generateUUID();
+
+
+        const id =
+            await ProduitRepository.create({
+
+                uuid,
+
+                boutique_id:
+                    boutique.id,
+
+                categorie_id:
+                    data.categorie_id,
+
+                nom:
+                    data.nom,
+
+                slug,
+
+                description:
+                    data.description,
+
+                prix:
+                    data.prix,
+
+                stock:
+                    data.stock,
+
+                image:
+                    data.image
+
+            });
+
+
+
+        const produit =
+            await ProduitRepository.findById(
+                id
+            );
+
+
+        if (!produit) {
+
+            throw new NotFoundError(
+                "Produit introuvable après création."
+            );
+
+        }
+
+
+        return produitResponse(produit);
 
     }
 
-
-    const categorie =
-        await CategorieRepository.findById(
-            data.categorie_id
-        );
-
-
-    if (!categorie) {
-
-        throw new NotFoundError(
-            "Catégorie introuvable."
-        );
-
-    }
-
-
-    if (
-        categorie.boutique_id !== boutique.id
+    static async delete(
+        uuid: string,
+        user_id: number,
+        role: string
     ) {
 
-        throw new ForbiddenError(
-            "Cette catégorie n'appartient pas à votre boutique."
+        const produit =
+            await ProduitRepository.findByUUID(
+                uuid
+            );
+
+
+        if (!produit) {
+
+            throw new NotFoundError(
+                "Produit introuvable."
+            );
+
+        }
+
+
+        const boutique =
+            await BoutiqueRepository.findById(
+                produit.boutique_id
+            );
+
+
+        if (!boutique) {
+
+            throw new NotFoundError(
+                "Boutique introuvable."
+            );
+
+        }
+
+
+        if (
+            role !== "admin" &&
+            role !== "super_admin" &&
+            boutique.user_id !== user_id
+        ) {
+
+            throw new ForbiddenError(
+                "Vous n'avez pas accès."
+            );
+
+        }
+
+
+        await ProduitRepository.delete(
+            produit.id
         );
+
+
+        return {
+            message:
+                "Produit supprimé avec succès."
+        };
 
     }
-
-
-    let slug =
-        generateSlug(data.nom);
-
-
-    const exists =
-        await ProduitRepository.findBySlug(
-            slug,
-            boutique.id
-        );
-
-
-    if (exists) {
-
-        slug =
-            `${slug}-${Date.now()}`;
-
-    }
-
-
-    const uuid =
-        generateUUID();
-
-
-    const id =
-        await ProduitRepository.create({
-
-            uuid,
-
-            boutique_id:
-                boutique.id,
-
-            categorie_id:
-                data.categorie_id,
-
-            nom:
-                data.nom,
-
-            slug,
-
-            description:
-                data.description,
-
-            prix:
-                data.prix,
-
-            stock:
-                data.stock,
-
-            image:
-                data.image
-
-        });
-
-
-
-    const produit =
-        await ProduitRepository.findById(
-            id
-        );
-
-
-    if (!produit) {
-
-        throw new NotFoundError(
-            "Produit introuvable après création."
-        );
-
-    }
-
-
-    return produitResponse(produit);
-
-}
-
-static async delete(
-    uuid: string,
-    user_id: number,
-    role: string
-) {
-
-    const produit =
-        await ProduitRepository.findByUUID(
-            uuid
-        );
-
-
-    if (!produit) {
-
-        throw new NotFoundError(
-            "Produit introuvable."
-        );
-
-    }
-
-
-    const boutique =
-        await BoutiqueRepository.findById(
-            produit.boutique_id
-        );
-
-
-    if (!boutique) {
-
-        throw new NotFoundError(
-            "Boutique introuvable."
-        );
-
-    }
-
-
-    if (
-        role !== "admin" &&
-        role !== "super_admin" &&
-        boutique.user_id !== user_id
-    ) {
-
-        throw new ForbiddenError(
-            "Vous n'avez pas accès."
-        );
-
-    }
-
-
-    await ProduitRepository.delete(
-        produit.id
-    );
-
-
-    return {
-        message:
-            "Produit supprimé avec succès."
-    };
-
-}
 
     static async findByUUID(
         uuid: string
@@ -617,13 +617,16 @@ static async delete(
         };
 
     }
+
     static async search(
-        search?: string
+        search?: string,
+        categorieSlug?: string
     ) {
 
         const produits =
             await ProduitRepository.search(
-                search
+                search,
+                categorieSlug
             );
 
         return produits;

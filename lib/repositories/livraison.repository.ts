@@ -387,13 +387,13 @@ export class LivraisonRepository {
    * Avec les informations complètes de la commande,
    * du client et du livreur.
    */
-  static async findActiveByLivreurId(
-    livreur_id: number
-  ): Promise<LivraisonDetailRow[]> {
+static async findActiveByLivreurId(
+  livreur_id: number
+): Promise<LivraisonDetailRow[]> {
 
-    const [rows] =
-      await db.query<LivraisonDetailRow[]>(
-        `
+  const [rows] =
+    await db.query<LivraisonDetailRow[]>(
+      `
       SELECT
 
         l.*,
@@ -435,16 +435,17 @@ export class LivraisonRepository {
         AND l.status IN (
           'assigned',
           'picked_up',
-          'in_transit'
+          'in_transit',
+          'delivery_pending_confirmation'
         )
 
       ORDER BY l.assigned_at ASC
       `,
-        [livreur_id]
-      );
+      [livreur_id]
+    );
 
-    return rows;
-  }
+  return rows;
+} 
 
   /**
    * Mettre à jour le statut

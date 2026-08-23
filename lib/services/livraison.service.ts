@@ -7,6 +7,8 @@ import {
   LivraisonStatus,
 } from "../repositories/livraison.repository";
 
+
+
 import { CommandeRepository } from "../repositories/commande.repository";
 import { BoutiqueRepository } from "../repositories/boutique.repository";
 import { LivreurRepository } from "../repositories/livreur.repository";
@@ -16,6 +18,7 @@ import { ForbiddenError } from "../errors/ForbiddenError";
 
 import { CommandeStatus } from "../types/commande";
 import { NotificationService } from "./notification.service";
+import { CommandeStatutRepository } from "../repositories/commandeStatut.repository";
 
 
 export class LivraisonService {
@@ -426,15 +429,26 @@ export class LivraisonService {
         "cancelled"
       ],
 
-      delivery_pending_confirmation: [
-        "delivered"
-      ],
+      delivery_pending_confirmation: [],
 
       delivered: [],
 
       cancelled: []
     };
 
+    const currentStatus =
+      livraison.status;
+
+    const allowedTransitions =
+      transitions[currentStatus];
+
+    if (
+      !allowedTransitions.includes(status)
+    ) {
+      throw new ForbiddenError(
+        `Transition impossible : ${currentStatus} → ${status}.`
+      );
+    }
     /*
      * Une livraison ne peut être
      * validée que si la commande
@@ -700,9 +714,6 @@ export class LivraisonService {
 
       await connection.beginTransaction();
 
-      /*
-       * 1. Livraison définitivement livrée.
-       */
       await LivraisonRepository.updateStatus(
         livraison.id,
         "delivered",
@@ -716,6 +727,16 @@ export class LivraisonService {
       await CommandeRepository.updateStatus(
         commande.id,
         "delivered",
+        connection
+      );
+
+      /*
+       * 3. Ajouter l'historique de la commande.
+       */
+      await CommandeStatutRepository.create(
+        commande.id,
+        "delivered",
+        "Réception confirmée par le client.",
         connection
       );
 

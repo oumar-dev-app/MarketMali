@@ -1,50 +1,233 @@
 "use client";
 
+import { useState } from "react";
+import {
+  Minus,
+  Plus,
+  ShoppingCart,
+} from "lucide-react";
+
 import { useCart } from "@/contexts/CartContext";
 
 interface Props {
-    produit: {
-        uuid: string;
-        id: number;
-        boutique_id: number;
-        nom: string;
-        prix: string | number;
-        image?: string | null;
-    };
+  produit: {
+    uuid: string;
+    id: number;
+    boutique_id: number;
+    nom: string;
+    prix: string | number;
+    image?: string | null;
+    stock: number;
+  };
 }
 
 export default function AddToCartButton({
-    produit,
+  produit,
 }: Props) {
 
-    const { addToCart } = useCart();
+  const { addToCart } = useCart();
 
-    function handleClick() {
+  const [quantity, setQuantity] =
+    useState(1);
 
-        const added = addToCart({
+  const [message, setMessage] =
+    useState("");
 
-            uuid: produit.uuid,
-            produit_id: produit.id,
-            boutique_id: produit.boutique_id,
-            nom: produit.nom,
-            prix: Number(produit.prix),
-            image: produit.image,
+  function decrease() {
 
-        });
+    setQuantity((value) =>
+      Math.max(1, value - 1)
+    );
 
-        if (!added) {
-            alert(
-                "Votre panier contient déjà des produits d'une autre boutique. Videz votre panier avant d'ajouter ce produit."
-            );
-        }
+    setMessage("");
+  }
+
+  function increase() {
+
+    setQuantity((value) =>
+      Math.min(produit.stock, value + 1)
+    );
+
+    setMessage("");
+  }
+
+  function handleClick() {
+
+    const added = addToCart(
+      {
+        uuid: produit.uuid,
+        produit_id: produit.id,
+        boutique_id: produit.boutique_id,
+        nom: produit.nom,
+        prix: Number(produit.prix),
+        image: produit.image,
+        stock: produit.stock,
+      },
+      quantity
+    );
+
+    if (!added) {
+
+      setMessage(
+        "Votre panier contient déjà des produits d'une autre boutique. Videz votre panier avant d'ajouter ce produit."
+      );
+
+      return;
     }
 
-    return (
-        <button
-            onClick={handleClick}
-            className="mt-8 rounded-lg bg-green-600 px-6 py-3 font-semibold text-white transition hover:bg-green-700"
-        >
-            Ajouter au panier
-        </button>
+    setMessage(
+      `${quantity} produit${
+        quantity > 1 ? "s" : ""
+      } ajouté${
+        quantity > 1 ? "s" : ""
+      } au panier.`
     );
+
+  }
+
+  return (
+    <div className="w-full">
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+
+        {/* QUANTITÉ */}
+
+        <div
+          className="
+            flex
+            h-14
+            items-center
+            justify-between
+            rounded-2xl
+            border
+            border-gray-200
+            bg-white
+            px-2
+            sm:w-40
+          "
+        >
+
+          <button
+            type="button"
+            onClick={decrease}
+            disabled={quantity <= 1}
+            className="
+              flex
+              h-10
+              w-10
+              items-center
+              justify-center
+              rounded-xl
+              text-gray-600
+              transition
+              hover:bg-gray-100
+              disabled:cursor-not-allowed
+              disabled:opacity-30
+            "
+            aria-label="Diminuer la quantité"
+          >
+            <Minus size={18} />
+          </button>
+
+          <span
+            className="
+              min-w-8
+              text-center
+              text-base
+              font-extrabold
+              text-gray-900
+            "
+          >
+            {quantity}
+          </span>
+
+          <button
+            type="button"
+            onClick={increase}
+            disabled={
+              quantity >= produit.stock
+            }
+            className="
+              flex
+              h-10
+              w-10
+              items-center
+              justify-center
+              rounded-xl
+              text-gray-600
+              transition
+              hover:bg-gray-100
+              disabled:cursor-not-allowed
+              disabled:opacity-30
+            "
+            aria-label="Augmenter la quantité"
+          >
+            <Plus size={18} />
+          </button>
+
+        </div>
+
+        {/* AJOUT PANIER */}
+
+        <button
+          type="button"
+          onClick={handleClick}
+          className="
+            flex
+            h-14
+            flex-1
+            items-center
+            justify-center
+            gap-3
+            rounded-2xl
+            bg-green-700
+            px-6
+            text-sm
+            font-bold
+            text-white
+            shadow-sm
+            transition
+            hover:bg-green-800
+            hover:shadow-md
+            active:scale-[0.99]
+          "
+        >
+          <ShoppingCart size={19} />
+
+          Ajouter au panier
+        </button>
+
+      </div>
+
+      {/* STOCK */}
+
+      <p className="mt-2 text-xs text-gray-500">
+        {produit.stock} unité
+        {produit.stock > 1 ? "s" : ""} disponible
+        {produit.stock > 1 ? "s" : ""}
+      </p>
+
+      {/* MESSAGE */}
+
+      {message && (
+        <div
+          className="
+            mt-3
+            rounded-xl
+            border
+            border-green-100
+            bg-green-50
+            px-4
+            py-3
+            text-xs
+            font-semibold
+            text-green-700
+          "
+        >
+          {message}
+        </div>
+      )}
+
+    </div>
+  );
 }

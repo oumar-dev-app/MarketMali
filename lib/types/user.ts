@@ -43,6 +43,7 @@ export interface UserUpdate {
     prenom?: string;
     email?: string;
     telephone?: string | null;
+    password?: string;
     image?: string | null;
     role?: UserRole;
     status?: UserStatus;

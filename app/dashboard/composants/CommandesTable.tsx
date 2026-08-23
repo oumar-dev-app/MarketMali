@@ -279,44 +279,75 @@ export default function CommandesTable({
                   </td>
 
                   {/* Actions */}
+                  {/* Actions */}
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2">
-                      <select
-                        value={
-                          commande.status
-                        }
-                        onChange={(event) => {
-                          updateStatus(
-                            commande.uuid,
-                            event.target.value
-                          );
-                        }}
-                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      >
-                        <option value="pending">
-                          En attente
-                        </option>
 
-                        <option value="confirmed">
-                          Confirmée
-                        </option>
+                      {/* Modification du statut par le vendeur */}
+                      {(commande.status === "pending" ||
+                        commande.status === "confirmed") && (
+                          <select
+                            value={commande.status}
+                            onChange={(event) => {
+                              updateStatus(
+                                commande.uuid,
+                                event.target.value
+                              );
+                            }}
+                            disabled={
+                              commande.status !== "pending" &&
+                              commande.status !== "confirmed"
+                            }
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+                          >
+                            <option value={commande.status}>
+                              {statusConfig[commande.status]?.label ??
+                                commande.status}
+                            </option>
 
-                        <option value="preparing">
-                          En préparation
-                        </option>
+                            {commande.status === "pending" && (
+                              <>
+                                <option value="confirmed">
+                                  Confirmer
+                                </option>
 
-                        <option value="shipped">
-                          Expédiée
-                        </option>
+                                <option value="cancelled">
+                                  Annuler
+                                </option>
+                              </>
+                            )}
 
-                        <option value="delivered">
-                          Livrée
-                        </option>
+                            {commande.status === "confirmed" && (
+                              <>
+                                <option value="preparing">
+                                  Préparer
+                                </option>
 
-                        <option value="cancelled">
-                          Annulée
-                        </option>
-                      </select>
+                                <option value="cancelled">
+                                  Annuler
+                                </option>
+                              </>
+                            )}
+                          </select>
+                        )}
+
+                      {/* Commande déjà prise en charge par la livraison */}
+                      {(
+                        commande.status === "preparing" ||
+                        commande.status === "shipped" ||
+                        commande.status === "delivered"
+                      ) && (
+                          <span className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-500">
+                            Géré par la livraison
+                          </span>
+                        )}
+
+                      {/* Commande annulée */}
+                      {commande.status === "cancelled" && (
+                        <span className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+                          Commande annulée
+                        </span>
+                      )}
 
                       <Link
                         href={`/dashboard/commandes/${commande.uuid}`}
@@ -336,6 +367,7 @@ export default function CommandesTable({
                       >
                         Supprimer
                       </button>
+
                     </div>
                   </td>
                 </tr>

@@ -131,6 +131,7 @@ export default async function ProduitPage(
             nom: produit.nom,
             prix: produit.prix,
             image: produit.image,
+            stock: produit.stock,
           }}
         />
 

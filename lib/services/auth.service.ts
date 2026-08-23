@@ -7,6 +7,12 @@ import { UnauthorizedError } from "../errors/UnauthorizedError";
 import { ForbiddenError } from "../errors/ForbiddenError";
 import { ConflictError } from "../errors/ConflictError";
 import { InternalServerError } from "../errors/InternalServerError";
+import { EmailService } from "./email.service";
+import crypto from "crypto";
+
+import {
+  PasswordResetTokenRepository,
+} from "../repositories/password-reset-token.repository";
 
 
 export class AuthService {
@@ -133,5 +139,131 @@ export class AuthService {
       },
       token,
     };
+  }
+
+  static async forgotPassword(
+    email: string
+  ) {
+
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+    const user =
+      await UserRepository.findByEmail(
+        normalizedEmail
+      );
+
+    /*
+     * Pour des raisons de sécurité,
+     * on ne révèle pas si l'adresse existe.
+     */
+    if (!user) {
+      return;
+    }
+
+    /*
+     * Invalider les anciens tokens
+     */
+    await PasswordResetTokenRepository
+      .invalidateUserTokens(user.id);
+
+    /*
+     * Générer un token aléatoire
+     */
+    const token =
+      crypto.randomBytes(32).toString("hex");
+
+    /*
+     * Stocker uniquement le hash
+     */
+    const tokenHash =
+      crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+    /*
+     * Expiration : 30 minutes
+     */
+    const expiresAt =
+      new Date(
+        Date.now() + 30 * 60 * 1000
+      );
+
+    await PasswordResetTokenRepository.create(
+      user.id,
+      tokenHash,
+      expiresAt
+    );
+
+    /*
+     * Pour le moment, on retourne le token
+     * uniquement pour permettre les tests.
+     *
+     * Cette partie sera remplacée par
+     * l'envoi réel de l'e-mail.
+     */
+    const appUrl =
+      process.env.APP_URL ||
+      "http://localhost:3000";
+
+    const resetLink =
+      `${appUrl}/reset-password?token=${token}`;
+
+    await EmailService.sendPasswordResetEmail(
+      user.email,
+      user.prenom,
+      resetLink
+    );
+
+    return;
+  }
+
+
+  static async resetPassword(
+    token: string,
+    newPassword: string
+  ) {
+
+    const tokenHash =
+      crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+    const resetToken =
+      await PasswordResetTokenRepository
+        .findValidToken(tokenHash);
+
+    if (!resetToken) {
+      throw new UnauthorizedError(
+        "Le lien de réinitialisation est invalide ou expiré."
+      );
+    }
+
+    const hashedPassword =
+      await hashPassword(newPassword);
+
+    await UserRepository.update(
+      resetToken.user_id,
+      {
+        password: hashedPassword,
+      }
+    );
+
+    /*
+     * Le token devient inutilisable
+     */
+    await PasswordResetTokenRepository
+      .markAsUsed(resetToken.id);
+
+    /*
+     * Invalider également les éventuels
+     * autres tokens de cet utilisateur.
+     */
+    await PasswordResetTokenRepository
+      .invalidateUserTokens(
+        resetToken.user_id
+      );
   }
 }
