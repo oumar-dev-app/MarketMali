@@ -403,7 +403,7 @@ export default function LivreurLivraisons() {
                         return;
                     }
 
-                    if (accuracy > 100000) {
+                    if (accuracy > 500) {
                         console.warn(
                             `Position GPS ignorée : précision insuffisante (${Math.round(accuracy)} m).`
                         );
