@@ -76,10 +76,8 @@ export default function AddToCartButton({
     }
 
     setMessage(
-      `${quantity} produit${
-        quantity > 1 ? "s" : ""
-      } ajouté${
-        quantity > 1 ? "s" : ""
+      `${quantity} produit${quantity > 1 ? "s" : ""
+      } ajouté${quantity > 1 ? "s" : ""
       } au panier.`
     );
 
@@ -87,43 +85,43 @@ export default function AddToCartButton({
 
   return (
     <div className="w-full">
-
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex w-full flex-col gap-3 sm:flex-row">
 
         {/* QUANTITÉ */}
-
         <div
           className="
-            flex
-            h-14
-            items-center
-            justify-between
-            rounded-2xl
-            border
-            border-gray-200
-            bg-white
-            px-2
-            sm:w-40
-          "
+          flex
+          h-14
+          w-full
+          shrink-0
+          items-center
+          justify-between
+          rounded-2xl
+          border
+          border-gray-200
+          bg-white
+          px-2
+          sm:w-40
+        "
         >
-
           <button
             type="button"
             onClick={decrease}
             disabled={quantity <= 1}
             className="
-              flex
-              h-10
-              w-10
-              items-center
-              justify-center
-              rounded-xl
-              text-gray-600
-              transition
-              hover:bg-gray-100
-              disabled:cursor-not-allowed
-              disabled:opacity-30
-            "
+            flex
+            h-10
+            w-10
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            text-gray-600
+            transition
+            hover:bg-gray-100
+            disabled:cursor-not-allowed
+            disabled:opacity-30
+          "
             aria-label="Diminuer la quantité"
           >
             <Minus size={18} />
@@ -131,12 +129,13 @@ export default function AddToCartButton({
 
           <span
             className="
-              min-w-8
-              text-center
-              text-base
-              font-extrabold
-              text-gray-900
-            "
+            min-w-8
+            shrink-0
+            text-center
+            text-base
+            font-extrabold
+            text-gray-900
+          "
           >
             {quantity}
           </span>
@@ -144,63 +143,69 @@ export default function AddToCartButton({
           <button
             type="button"
             onClick={increase}
-            disabled={
-              quantity >= produit.stock
-            }
+            disabled={quantity >= produit.stock}
             className="
-              flex
-              h-10
-              w-10
-              items-center
-              justify-center
-              rounded-xl
-              text-gray-600
-              transition
-              hover:bg-gray-100
-              disabled:cursor-not-allowed
-              disabled:opacity-30
-            "
+            flex
+            h-10
+            w-10
+            shrink-0
+            items-center
+            justify-center
+            rounded-xl
+            text-gray-600
+            transition
+            hover:bg-gray-100
+            disabled:cursor-not-allowed
+            disabled:opacity-30
+          "
             aria-label="Augmenter la quantité"
           >
             <Plus size={18} />
           </button>
-
         </div>
 
         {/* AJOUT PANIER */}
-
         <button
           type="button"
           onClick={handleClick}
           className="
-            flex
-            h-14
-            flex-1
-            items-center
-            justify-center
-            gap-3
-            rounded-2xl
-            bg-green-700
-            px-6
-            text-sm
-            font-bold
-            text-white
-            shadow-sm
-            transition
-            hover:bg-green-800
-            hover:shadow-md
-            active:scale-[0.99]
-          "
+    flex
+    h-14
+    w-full
+    min-w-0
+    flex-1
+    items-center
+    justify-center
+    gap-2
+    whitespace-nowrap
+    rounded-2xl
+    bg-green-700
+    px-4
+    text-sm
+    font-bold
+    text-white
+    shadow-sm
+    transition
+    hover:bg-green-800
+    hover:shadow-md
+    active:scale-[0.99]
+    sm:gap-3
+    sm:px-6
+  "
         >
-          <ShoppingCart size={19} />
+          <ShoppingCart
+            size={19}
+            className="shrink-0"
+          />
 
-          Ajouter au panier
+          <span className="truncate">
+            Ajouter au panier
+          </span>
         </button>
 
       </div>
 
       {/* STOCK */}
-
       <p className="mt-2 text-xs text-gray-500">
         {produit.stock} unité
         {produit.stock > 1 ? "s" : ""} disponible
@@ -208,26 +213,24 @@ export default function AddToCartButton({
       </p>
 
       {/* MESSAGE */}
-
       {message && (
         <div
           className="
-            mt-3
-            rounded-xl
-            border
-            border-green-100
-            bg-green-50
-            px-4
-            py-3
-            text-xs
-            font-semibold
-            text-green-700
-          "
+          mt-3
+          rounded-xl
+          border
+          border-green-100
+          bg-green-50
+          px-4
+          py-3
+          text-xs
+          font-semibold
+          text-green-700
+        "
         >
           {message}
         </div>
       )}
-
     </div>
   );
 }
