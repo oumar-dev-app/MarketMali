@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { apiGet } from "@/lib/api";
 
 import Navbar from "@/components/Navbar";
 import CategoryCard from "@/components/CategoryCard";
@@ -35,18 +36,11 @@ interface Produit {
 
 async function getCategories(): Promise<Categorie[]> {
   try {
-    const response = await fetch(
-      "http://localhost:3000/api/categories",
-      {
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const result = await response.json();
+    const result =
+      await apiGet<{
+        success: boolean;
+        data: Categorie[];
+      }>("/categories");
 
     return Array.isArray(result.data)
       ? result.data
@@ -63,18 +57,11 @@ async function getCategories(): Promise<Categorie[]> {
 
 async function getBoutiques(): Promise<Boutique[]> {
   try {
-    const response = await fetch(
-      "http://localhost:3000/api/boutiques",
-      {
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const result = await response.json();
+    const result =
+      await apiGet<{
+        success: boolean;
+        data: Boutique[];
+      }>("/boutiques");
 
     return Array.isArray(result.data)
       ? result.data
@@ -91,18 +78,11 @@ async function getBoutiques(): Promise<Boutique[]> {
 
 async function getProduits(): Promise<Produit[]> {
   try {
-    const response = await fetch(
-      "http://localhost:3000/api/produits",
-      {
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) {
-      return [];
-    }
-
-    const result = await response.json();
+    const result =
+      await apiGet<{
+        success: boolean;
+        data: Produit[];
+      }>("/produits");
 
     return Array.isArray(result.data)
       ? result.data
@@ -116,7 +96,6 @@ async function getProduits(): Promise<Produit[]> {
     return [];
   }
 }
-
 export default async function HomePage() {
   const [
     categories,
