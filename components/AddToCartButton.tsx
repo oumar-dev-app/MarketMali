@@ -85,7 +85,7 @@ export default function AddToCartButton({
 
   return (
     <div className="w-full">
-      <div className="flex w-full flex-col gap-3 sm:flex-row">
+      <div className="flex w-full flex-col gap-3">
 
         {/* QUANTITÉ */}
         <div
@@ -93,7 +93,6 @@ export default function AddToCartButton({
           flex
           h-14
           w-full
-          shrink-0
           items-center
           justify-between
           rounded-2xl
@@ -101,7 +100,6 @@ export default function AddToCartButton({
           border-gray-200
           bg-white
           px-2
-          sm:w-40
         "
         >
           <button
@@ -129,8 +127,8 @@ export default function AddToCartButton({
 
           <span
             className="
-            min-w-8
-            shrink-0
+            min-w-10
+            flex-1
             text-center
             text-base
             font-extrabold
@@ -169,40 +167,36 @@ export default function AddToCartButton({
           type="button"
           onClick={handleClick}
           className="
-    flex
-    h-14
-    w-full
-    min-w-0
-    flex-1
-    items-center
-    justify-center
-    gap-2
-    whitespace-nowrap
-    rounded-2xl
-    bg-green-700
-    px-4
-    text-sm
-    font-bold
-    text-white
-    shadow-sm
-    transition
-    hover:bg-green-800
-    hover:shadow-md
-    active:scale-[0.99]
-    sm:gap-3
-    sm:px-6
-  "
+          flex
+          h-14
+          w-full
+          shrink-0
+          items-center
+          justify-center
+          gap-2
+          overflow-hidden
+          rounded-2xl
+          bg-green-700
+          px-4
+          text-sm
+          font-bold
+          text-white
+          shadow-sm
+          transition
+          hover:bg-green-800
+          hover:shadow-md
+          active:scale-[0.99]
+        "
         >
           <ShoppingCart
             size={19}
             className="shrink-0"
           />
 
-          <span className="truncate">
+          <span className="whitespace-nowrap">
             Ajouter au panier
           </span>
         </button>
-
       </div>
 
       {/* STOCK */}
@@ -217,6 +211,7 @@ export default function AddToCartButton({
         <div
           className="
           mt-3
+          w-full
           rounded-xl
           border
           border-green-100
@@ -225,6 +220,7 @@ export default function AddToCartButton({
           py-3
           text-xs
           font-semibold
+          leading-5
           text-green-700
         "
         >
