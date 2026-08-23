@@ -1036,7 +1036,7 @@ const updateStatus = async () => {
                                     onChange={(e) =>
                                         setNewStatus(e.target.value)
                                     }
-                                    className="rounded-xl border border-gray-300 bg-white h-14 shrink-0 whitespace-nowrap overflow-hidden px-4 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                    className="rounded-xl border border-gray-300 bg-white h-14 shrink-0 whitespace-nowrap overflow-hidden px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 >
                                     <option value={commande.status}>
                                         {getStatusLabel(commande.status)}
@@ -1506,7 +1506,7 @@ const updateStatus = async () => {
                                                 loadingLivreurs ||
                                                 assigningLivreur
                                             }
-                                            className="w-full rounded-xl border border-gray-300 bg-white px-4 h-14 shrink-0 whitespace-nowrap overflow-hidden py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
+                                            className="w-full rounded-xl border border-gray-300 bg-white px-3 h-14 shrink-0 whitespace-nowrap overflow-hidden py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-100"
                                         >
                                             <option value="">
                                                 {loadingLivreurs
