@@ -151,6 +151,97 @@ export default function UtilisateursPage() {
   const [confirmUser, setConfirmUser] =
     useState<ManagedUser | null>(null);
 
+  async function activateUser(
+    item: ManagedUser
+  ) {
+    if (
+      updatingUser ||
+      item.status !== "pending" ||
+      item.id === user?.id
+    ) {
+      return;
+    }
+
+    if (
+      user?.role === "admin" &&
+      (
+        item.role === "admin" ||
+        item.role === "super_admin"
+      )
+    ) {
+      toast.error(
+        "Vous ne pouvez pas modifier ce compte."
+      );
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        `Voulez-vous activer le compte de ${item.prenom} ${item.nom} ?`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setUpdatingUser(item.uuid);
+
+      const response =
+        await fetch(
+          `/api/utilisateurs/uuid/${item.uuid}/activate`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+        toast.error(
+          data.message ??
+          "Impossible d'activer le compte."
+        );
+        return;
+      }
+
+      toast.success(
+        data.message ??
+        "Utilisateur activé avec succès."
+      );
+
+      setUsers((current) =>
+        current.map(
+          (currentUser) =>
+            currentUser.uuid === item.uuid
+              ? {
+                ...currentUser,
+                status: "active",
+              }
+              : currentUser
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Erreur activation utilisateur :",
+        error
+      );
+
+      toast.error(
+        "Une erreur est survenue."
+      );
+    } finally {
+      setUpdatingUser(null);
+    }
+  }
 
   async function toggleUserStatus(
     item: ManagedUser
@@ -913,25 +1004,69 @@ export default function UtilisateursPage() {
 
                         ) : (
 
-                          <button
-                            type="button"
-                            disabled={
-                              updatingUser === item.uuid
-                            }
-                            onClick={() =>
-                              setConfirmUser(item)
-                            }
-                            className={`rounded-lg px-3 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${item.status === "blocked"
-                              ? "bg-green-50 text-green-700 hover:bg-green-100"
-                              : "bg-red-50 text-red-700 hover:bg-red-100"
-                              }`}
-                          >
-                            {updatingUser === item.uuid
-                              ? "Traitement..."
-                              : item.status === "blocked"
-                                ? "Débloquer"
-                                : "Bloquer"}
-                          </button>
+                          <div className="flex items-center gap-2">
+
+                            {/* Compte en attente : Activer */}
+                            {item.status === "pending" && (
+                              <button
+                                type="button"
+                                disabled={
+                                  updatingUser === item.uuid
+                                }
+                                onClick={() =>
+                                  activateUser(item)
+                                }
+                                className="inline-flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <FaCheckCircle />
+
+                                {updatingUser === item.uuid
+                                  ? "Activation..."
+                                  : "Activer"}
+                              </button>
+                            )}
+
+                            {/* Compte bloqué : Débloquer */}
+                            {item.status === "blocked" && (
+                              <button
+                                type="button"
+                                disabled={
+                                  updatingUser === item.uuid
+                                }
+                                onClick={() =>
+                                  setConfirmUser(item)
+                                }
+                                className="inline-flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <FaCheckCircle />
+
+                                {updatingUser === item.uuid
+                                  ? "Traitement..."
+                                  : "Débloquer"}
+                              </button>
+                            )}
+
+                            {/* Compte actif : Bloquer */}
+                            {item.status === "active" && (
+                              <button
+                                type="button"
+                                disabled={
+                                  updatingUser === item.uuid
+                                }
+                                onClick={() =>
+                                  setConfirmUser(item)
+                                }
+                                className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <FaBan />
+
+                                {updatingUser === item.uuid
+                                  ? "Traitement..."
+                                  : "Bloquer"}
+                              </button>
+                            )}
+
+                          </div>
 
                         )}
 
@@ -999,15 +1134,12 @@ export default function UtilisateursPage() {
                 type="button"
                 disabled={!!updatingUser}
                 onClick={async () => {
-                  await toggleUserStatus(
-                    confirmUser
-                  );
-
+                  await toggleUserStatus(confirmUser);
                   setConfirmUser(null);
                 }}
                 className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${confirmUser.status === "blocked"
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-red-600 hover:bg-red-700"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-red-600 hover:bg-red-700"
                   }`}
               >
                 {updatingUser
