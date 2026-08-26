@@ -182,7 +182,7 @@ export default function ComptePage() {
       if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
-            "Impossible de mettre à jour votre profil."
+          "Impossible de mettre à jour votre profil."
         );
       }
 
@@ -255,7 +255,7 @@ export default function ComptePage() {
       if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
-            "Impossible de modifier le mot de passe."
+          "Impossible de modifier le mot de passe."
         );
       }
 
@@ -357,7 +357,7 @@ export default function ComptePage() {
 
         <section className="mb-8 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
 
-          <div className="h-1 bg-gradient-to-r from-[#14a800] via-[#fcd116] to-[#ce1126]" />
+          <div className="h-1 bg-linear-to-r from-[#14a800] via-[#fcd116] to-[#ce1126]" />
 
           <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
 
@@ -445,19 +445,20 @@ export default function ComptePage() {
           </Link>
 
 
-          <div
-            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+          <Link
+            href="/notifications"
+            className="group rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-yellow-200 hover:shadow-md"
           >
-
             <div className="flex items-center justify-between">
 
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-yellow-50 text-yellow-600">
                 <Bell size={20} />
               </div>
 
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-[11px] font-semibold text-gray-500">
-                Bientôt
-              </span>
+              <ChevronRight
+                size={18}
+                className="text-gray-300 transition group-hover:translate-x-1 group-hover:text-yellow-600"
+              />
 
             </div>
 
@@ -466,11 +467,10 @@ export default function ComptePage() {
             </h2>
 
             <p className="mt-1 text-sm leading-6 text-gray-500">
-              Retrouvez prochainement toutes vos
-              notifications MarketMali.
+              Consultez vos notifications et les dernières
+              informations concernant votre compte.
             </p>
-
-          </div>
+          </Link>
 
         </section>
 

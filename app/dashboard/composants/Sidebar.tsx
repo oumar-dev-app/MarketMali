@@ -23,6 +23,7 @@ import {
   Users,
   X,
   ChevronRight,
+  UserRoundCheck,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +61,11 @@ const menuByRole: Record<
       label: "Utilisateurs",
       href: "/dashboard/utilisateurs",
       icon: Users,
+    },
+    {
+      label: "Demandes de rôles",
+      href: "/dashboard/demandes-roles",
+      icon: UserRoundCheck,
     },
     {
       label: "Boutiques",
@@ -108,6 +114,11 @@ const menuByRole: Record<
       label: "Boutiques",
       href: "/dashboard/boutiques",
       icon: Store,
+    },
+    {
+      label: "Demandes de rôles",
+      href: "/dashboard/demandes-roles",
+      icon: UserRoundCheck,
     },
     {
       label: "Catégories",

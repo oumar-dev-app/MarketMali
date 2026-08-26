@@ -89,16 +89,16 @@ export class UserRepository {
         return rows.length ? rows[0] : null;
     }
 
-static async create(
-    data: UserCreate,
-    connection?: PoolConnection
-): Promise<number> {
+    static async create(
+        data: UserCreate,
+        connection?: PoolConnection
+    ): Promise<number> {
 
-    const executor = connection ?? db;
+        const executor = connection ?? db;
 
-    const [result] =
-        await executor.execute<ResultSetHeader>(
-            `
+        const [result] =
+            await executor.execute<ResultSetHeader>(
+                `
             INSERT INTO users
             (
                 uuid,
@@ -112,20 +112,20 @@ static async create(
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `,
-            [
-                data.uuid,
-                data.nom,
-                data.prenom,
-                data.email,
-                data.telephone ?? null,
-                data.password,
-                data.role ?? "client",
-                data.status ?? "pending",
-            ]
-        );
+                [
+                    data.uuid,
+                    data.nom,
+                    data.prenom,
+                    data.email,
+                    data.telephone ?? null,
+                    data.password,
+                    data.role ?? "client",
+                    data.status ?? "pending",
+                ]
+            );
 
-    return result.insertId;
-}
+        return result.insertId;
+    }
 
     static async createWithConnection(
         data: UserCreate,
@@ -256,6 +256,72 @@ static async create(
             [id]
         );
 
+    }
+
+    static async updateRole(
+        id: number,
+        role: User["role"],
+        connection?: PoolConnection
+    ): Promise<void> {
+
+        const executor = connection ?? db;
+
+        const [result] =
+            await executor.execute<ResultSetHeader>(
+                `
+                UPDATE users
+                SET role = ?
+                WHERE id = ?
+                `,
+                [
+                    role,
+                    id,
+                ]
+            );
+
+        if (result.affectedRows !== 1) {
+            throw new Error(
+                "Impossible de modifier le rôle de l'utilisateur."
+            );
+        }
+    }
+
+    static async activate(
+        id: number,
+        connection?: PoolConnection
+    ): Promise<void> {
+
+        const executor = connection ?? db;
+
+        const [result] =
+            await executor.execute<ResultSetHeader>(
+                `
+            UPDATE users
+            SET status = 'active'
+            WHERE id = ?
+            `,
+                [id]
+            );
+
+        if (result.affectedRows !== 1) {
+            throw new Error(
+                "Impossible d'activer le compte de l'utilisateur."
+            );
+        }
+    }
+
+    static async findAdministrators(): Promise<User[]> {
+        const [rows] = await db.query<UserRow[]>(
+            `
+        SELECT *
+        FROM users
+        WHERE role IN ('admin', 'super_admin')
+        AND status = 'active'
+        ORDER BY id ASC
+        `
+        );
+
+        return rows;
     }
 
 }

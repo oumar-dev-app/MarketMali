@@ -20,6 +20,8 @@ interface LivreurForm {
     nom: string;
     prenom: string;
     telephone: string;
+    email: string;
+    password: string;
     vehicule: string;
 }
 
@@ -55,6 +57,8 @@ export default function LivreursPage() {
         nom: "",
         prenom: "",
         telephone: "",
+        email: "",
+        password: "",
         vehicule: "",
     });
 
@@ -158,15 +162,15 @@ export default function LivreursPage() {
 
                     const matchesStatus =
                         statusFilter ===
-                            "all" ||
+                        "all" ||
                         livreur.status ===
-                            statusFilter;
+                        statusFilter;
 
                     const matchesAvailability =
                         availabilityFilter ===
-                            "all" ||
+                        "all" ||
                         livreur.disponibilite ===
-                            availabilityFilter;
+                        availabilityFilter;
 
                     return (
                         matchesSearch &&
@@ -192,9 +196,9 @@ export default function LivreursPage() {
         livreurs.filter(
             (livreur) =>
                 livreur.status ===
-                    "active" &&
+                "active" &&
                 livreur.disponibilite ===
-                    "available"
+                "available"
         ).length;
 
     const unavailableCount =
@@ -221,9 +225,10 @@ export default function LivreursPage() {
             nom: "",
             prenom: "",
             telephone: "",
+            email: "",
+            password: "",
             vehicule: "",
         });
-
         setError("");
         setSuccess("");
 
@@ -243,10 +248,10 @@ export default function LivreursPage() {
         setForm({
             nom: livreur.nom,
             prenom: livreur.prenom,
-            telephone:
-                livreur.telephone,
-            vehicule:
-                livreur.vehicule ?? "",
+            telephone: livreur.telephone,
+            email: "",
+            password: "",
+            vehicule: livreur.vehicule ?? "",
         });
 
         setError("");
@@ -292,13 +297,9 @@ export default function LivreursPage() {
 
             const payload = {
                 nom: form.nom.trim(),
-                prenom:
-                    form.prenom.trim(),
-                telephone:
-                    form.telephone.trim(),
-                vehicule:
-                    form.vehicule.trim() ||
-                    null,
+                prenom: form.prenom.trim(),
+                telephone: form.telephone.trim(),
+                vehicule: form.vehicule.trim() || null,
             };
 
             if (
@@ -310,6 +311,35 @@ export default function LivreursPage() {
                     "Le nom, le prénom et le téléphone sont obligatoires."
                 );
                 return;
+            }
+
+            if (!editingLivreur) {
+                const email =
+                    form.email.trim().toLowerCase();
+
+                const password =
+                    form.password;
+
+                if (!email) {
+                    setError(
+                        "L'adresse e-mail du livreur est obligatoire."
+                    );
+                    return;
+                }
+
+                if (!password) {
+                    setError(
+                        "Le mot de passe du livreur est obligatoire."
+                    );
+                    return;
+                }
+
+                if (password.length < 6) {
+                    setError(
+                        "Le mot de passe doit contenir au moins 6 caractères."
+                    );
+                    return;
+                }
             }
 
             let response: Response;
@@ -377,12 +407,12 @@ export default function LivreursPage() {
                             Authorization:
                                 `Bearer ${token}`,
                         },
-                        body:
-                            JSON.stringify({
-                                boutique_id:
-                                    boutique.id,
-                                ...payload,
-                            }),
+                        body: JSON.stringify({
+                            boutique_id: boutique.id,
+                            ...payload,
+                            email: form.email.trim().toLowerCase(),
+                            password: form.password,
+                        }),
                     }
                 );
             }
@@ -500,12 +530,12 @@ export default function LivreursPage() {
                     prev.map(
                         (item) =>
                             item.uuid ===
-                            livreur.uuid
+                                livreur.uuid
                                 ? {
-                                      ...item,
-                                      disponibilite:
-                                          next,
-                                  }
+                                    ...item,
+                                    disponibilite:
+                                        next,
+                                }
                                 : item
                     )
             );
@@ -897,12 +927,12 @@ export default function LivreursPage() {
                 <div className="mt-4 border-t border-gray-100 pt-4 text-sm text-gray-500">
                     {filteredLivreurs.length} livreur
                     {filteredLivreurs.length >
-                    1
+                        1
                         ? "s"
                         : ""}{" "}
                     affiché
                     {filteredLivreurs.length >
-                    1
+                        1
                         ? "s"
                         : ""}
                 </div>
@@ -949,7 +979,7 @@ export default function LivreursPage() {
                         <tbody className="divide-y divide-gray-100">
 
                             {filteredLivreurs.length ===
-                            0 ? (
+                                0 ? (
                                 <tr>
                                     <td
                                         colSpan={6}
@@ -1024,9 +1054,9 @@ export default function LivreursPage() {
                                                             e
                                                                 .target
                                                                 .value as
-                                                                | "active"
-                                                                | "inactive"
-                                                                | "suspended"
+                                                            | "active"
+                                                            | "inactive"
+                                                            | "suspended"
                                                         )
                                                     }
                                                     className={`rounded-full border px-3 py-1.5 text-xs font-semibold outline-none ${statusColors[
@@ -1073,15 +1103,14 @@ export default function LivreursPage() {
                                                             livreur
                                                         )
                                                     }
-                                                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                                        livreur.disponibilite ===
+                                                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${livreur.disponibilite ===
                                                         "available"
-                                                            ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-                                                            : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
-                                                    }`}
+                                                        ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                                                        : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+                                                        }`}
                                                 >
                                                     {livreur.disponibilite ===
-                                                    "available"
+                                                        "available"
                                                         ? "Disponible"
                                                         : "Indisponible"}
                                                 </button>
@@ -1264,6 +1293,51 @@ export default function LivreursPage() {
                                     />
                                 </div>
 
+                                {!editingLivreur && (
+                                    <>
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                                E-mail *
+                                            </label>
+
+                                            <input
+                                                type="email"
+                                                value={form.email}
+                                                onChange={(e) =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        email: e.target.value,
+                                                    }))
+                                                }
+                                                placeholder="livreur@example.com"
+                                                autoComplete="email"
+                                                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                                                Mot de passe *
+                                            </label>
+
+                                            <input
+                                                type="password"
+                                                value={form.password}
+                                                onChange={(e) =>
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        password: e.target.value,
+                                                    }))
+                                                }
+                                                placeholder="Minimum 6 caractères"
+                                                autoComplete="new-password"
+                                                minLength={6}
+                                                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+
                                 <div>
                                     <label className="mb-2 block text-sm font-medium text-gray-700">
                                         Véhicule
@@ -1321,8 +1395,8 @@ export default function LivreursPage() {
                                     {saving
                                         ? "Enregistrement..."
                                         : editingLivreur
-                                        ? "Enregistrer"
-                                        : "Créer le livreur"}
+                                            ? "Enregistrer"
+                                            : "Créer le livreur"}
                                 </button>
 
                             </div>

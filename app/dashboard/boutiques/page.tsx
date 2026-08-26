@@ -106,17 +106,26 @@ export default function BoutiquesPage() {
   const [deletingUuid, setDeletingUuid] =
     useState<string | null>(null);
 
-  const fetchBoutiques = async () => {
-    try {
-      setLoading(true);
-      setError("");
 
-      const token =
-        localStorage.getItem("token");
+ const fetchBoutiques = async () => {
+  try {
+    setLoading(true);
+    setError("");
 
-      const response = await fetch(
+    const token =
+      localStorage.getItem("token");
+
+    if (!token) {
+      throw new Error(
+        "Vous devez être connecté."
+      );
+    }
+
+    const response =
+      await fetch(
         "/api/dashboard/boutiques",
         {
+          method: "GET",
           headers: {
             Authorization:
               `Bearer ${token}`,
@@ -124,39 +133,39 @@ export default function BoutiquesPage() {
         }
       );
 
-      const result =
-        await response.json();
+    const result =
+      await response.json();
 
-      if (
-        !response.ok ||
-        !result.success
-      ) {
-        throw new Error(
-          result.message ||
-            "Impossible de récupérer les boutiques."
-        );
-      }
-
-      setBoutiques(
-        Array.isArray(result.data)
-          ? result.data
-          : []
+    if (
+      !response.ok ||
+      !result.success
+    ) {
+      throw new Error(
+        result.message ||
+          "Impossible de récupérer les boutiques."
       );
-    } catch (error) {
-      console.error(
-        "Erreur chargement boutiques:",
-        error
-      );
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Une erreur est survenue."
-      );
-    } finally {
-      setLoading(false);
     }
-  };
+
+    setBoutiques(
+      Array.isArray(result.data)
+        ? result.data
+        : []
+    );
+  } catch (error) {
+    console.error(
+      "Erreur chargement boutiques:",
+      error
+    );
+
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Une erreur est survenue."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchBoutiques();
@@ -190,7 +199,7 @@ export default function BoutiquesPage() {
           const matchesStatus =
             statusFilter === "all" ||
             boutique.status ===
-              statusFilter;
+            statusFilter;
 
           return (
             matchesSearch &&
@@ -245,7 +254,7 @@ export default function BoutiquesPage() {
       ) {
         throw new Error(
           result.message ||
-            "Impossible de supprimer la boutique."
+          "Impossible de supprimer la boutique."
         );
       }
 
@@ -530,11 +539,10 @@ export default function BoutiquesPage() {
                 onClick={() =>
                   setStatusFilter("all")
                 }
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
-                  statusFilter === "all"
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter === "all"
                     ? "bg-gray-900 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
+                  }`}
               >
                 Toutes
               </button>
@@ -545,12 +553,11 @@ export default function BoutiquesPage() {
                     "active"
                   )
                 }
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
-                  statusFilter ===
-                  "active"
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
+                    "active"
                     ? "bg-emerald-600 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
+                  }`}
               >
                 Actives
               </button>
@@ -561,12 +568,11 @@ export default function BoutiquesPage() {
                     "pending"
                   )
                 }
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
-                  statusFilter ===
-                  "pending"
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
+                    "pending"
                     ? "bg-amber-500 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
+                  }`}
               >
                 En attente
               </button>
@@ -577,12 +583,11 @@ export default function BoutiquesPage() {
                     "blocked"
                   )
                 }
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
-                  statusFilter ===
-                  "blocked"
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
+                    "blocked"
                     ? "bg-red-600 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
+                  }`}
               >
                 Bloquées
               </button>
@@ -605,7 +610,7 @@ export default function BoutiquesPage() {
             <p className="text-xs text-gray-500 mt-1">
               {filteredBoutiques.length} résultat
               {filteredBoutiques.length !==
-              1
+                1
                 ? "s"
                 : ""}
             </p>
@@ -616,7 +621,7 @@ export default function BoutiquesPage() {
         {/* EMPTY */}
 
         {filteredBoutiques.length ===
-        0 ? (
+          0 ? (
           <div className="py-20 px-6 text-center">
 
             <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
@@ -635,19 +640,19 @@ export default function BoutiquesPage() {
 
             {(search ||
               statusFilter !==
-                "all") && (
-              <button
-                onClick={() => {
-                  setSearch("");
-                  setStatusFilter(
-                    "all"
-                  );
-                }}
-                className="mt-5 text-sm font-medium text-gray-900 underline underline-offset-4"
-              >
-                Réinitialiser les filtres
-              </button>
-            )}
+              "all") && (
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter(
+                      "all"
+                    );
+                  }}
+                  className="mt-5 text-sm font-medium text-gray-900 underline underline-offset-4"
+                >
+                  Réinitialiser les filtres
+                </button>
+              )}
 
           </div>
         ) : (

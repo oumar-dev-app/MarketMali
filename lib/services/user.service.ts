@@ -184,6 +184,82 @@ export class UserService {
     );
   }
 
+  static async activate(
+    uuid: string,
+    requesterId: number,
+    requesterRole: string
+  ) {
+
+    /*
+     * Seul le super-admin peut activer
+     * un compte en attente.
+     */
+    if (requesterRole !== "super_admin") {
+      throw new ForbiddenError(
+        "Seul le super-administrateur peut activer un compte."
+      );
+    }
+
+    const user =
+      await UserRepository.findByUUID(
+        uuid
+      );
+
+    if (!user) {
+      throw new NotFoundError(
+        "Utilisateur introuvable."
+      );
+    }
+
+    /*
+     * Le super-admin ne peut pas
+     * activer son propre compte.
+     */
+    if (user.id === requesterId) {
+      throw new ForbiddenError(
+        "Vous ne pouvez pas modifier votre propre compte."
+      );
+    }
+
+    /*
+     * Un compte supprimé ne peut pas
+     * être activé par cette méthode.
+     */
+    if (user.status === "deleted") {
+      throw new ForbiddenError(
+        "Impossible d'activer un utilisateur supprimé."
+      );
+    }
+
+    /*
+     * Le compte doit être en attente.
+     */
+    if (user.status !== "pending") {
+      throw new ConflictError(
+        "Cet utilisateur n'est pas en attente d'activation."
+      );
+    }
+
+    await UserRepository.activate(
+      user.id
+    );
+
+    const updatedUser =
+      await UserRepository.findById(
+        user.id
+      );
+
+    if (!updatedUser) {
+      throw new NotFoundError(
+        "Utilisateur introuvable après activation."
+      );
+    }
+
+    return UserMapper.toResponse(
+      updatedUser
+    );
+  }
+
   static async findForManagement(
     requesterRole: string
   ) {
@@ -349,7 +425,7 @@ export class UserService {
     };
   }
 
-    static async updateOwnProfile(
+  static async updateOwnProfile(
     userId: number,
     data: {
       nom?: string;

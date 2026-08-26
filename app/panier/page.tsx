@@ -194,7 +194,7 @@ export default function PagePanier() {
         ) {
           throw new Error(
             data.message ||
-              "Impossible de récupérer les tarifs."
+            "Impossible de récupérer les tarifs."
           );
         }
 
@@ -344,7 +344,7 @@ export default function PagePanier() {
       ) {
         throw new Error(
           data.message ||
-            "Impossible de créer la commande."
+          "Impossible de créer la commande."
         );
       }
 
@@ -432,6 +432,12 @@ export default function PagePanier() {
       </main>
     );
   }
+
+  const tarifSelectionne =
+    tarifsLivraison.find(
+      (tarif) =>
+        tarif.zone === zoneLivraison
+    );
 
   const totalGeneral =
     total + tarifLivraison;
@@ -972,7 +978,7 @@ export default function PagePanier() {
               {/* POSITION */}
 
               {latitude !== null &&
-              longitude !== null ? (
+                longitude !== null ? (
                 <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4">
                   <div className="flex items-center gap-2">
                     <CheckCircle2
@@ -1009,10 +1015,10 @@ export default function PagePanier() {
                         Précision :
                       </span>{" "}
                       {gpsPrecision !==
-                      null
+                        null
                         ? `${Math.round(
-                            gpsPrecision
-                          )} m`
+                          gpsPrecision
+                        )} m`
                         : "-"}
                     </div>
                   </div>
@@ -1087,12 +1093,13 @@ export default function PagePanier() {
                     </span>
 
                     <span className="font-bold text-gray-900">
-                      {tarifLivraison >
-                      0
-                        ? `${tarifLivraison.toLocaleString(
+                      {!tarifSelectionne
+                        ? "À calculer"
+                        : tarifLivraison === 0
+                          ? "Gratuit"
+                          : `${tarifLivraison.toLocaleString(
                             "fr-FR"
-                          )} FCFA`
-                        : "À calculer"}
+                          )} FCFA`}
                     </span>
                   </div>
                 </div>

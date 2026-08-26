@@ -3,7 +3,8 @@ import { RowDataPacket } from "mysql2";
 export type NotificationType =
   | "new_order"
   | "order_status"
-  | "order_cancelled";
+  | "order_cancelled"
+  | "role_request";
 
 export interface Notification {
   id: number;
@@ -30,4 +31,4 @@ export interface NotificationCreate {
 
 export interface NotificationRow
   extends Notification,
-    RowDataPacket {}
+  RowDataPacket { }

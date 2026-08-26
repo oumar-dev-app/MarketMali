@@ -66,9 +66,34 @@ export async function POST(
     const body =
       await req.json();
 
+    /*
+     * Le serveur détermine lui-même
+     * la boutique de l'utilisateur.
+     *
+     * On ne fait pas confiance à
+     * boutique_id envoyé par le client.
+     */
+    const boutique =
+      await BoutiqueRepository.findByUserId(
+        user.id
+      );
+
+    if (!boutique) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Aucune boutique associée à cet utilisateur."
+        },
+        {
+          status: 404
+        }
+      );
+    }
+
     const tarif =
       await TarifLivraisonService.create(
-        body.boutique_id,
+        boutique.id,
         user.id,
         user.role,
         body.zone,
@@ -88,4 +113,3 @@ export async function POST(
     );
   });
 }
-

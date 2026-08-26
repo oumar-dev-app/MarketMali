@@ -2,6 +2,7 @@ import { TarifLivraisonRepository } from "../repositories/tarifLivraison.reposit
 import { BoutiqueRepository } from "../repositories/boutique.repository";
 import { NotFoundError } from "../errors/NotFoundError";
 import { ForbiddenError } from "../errors/ForbiddenError";
+import { ConflictError } from "../errors/ConflictError";
 
 export class TarifLivraisonService {
 
@@ -12,7 +13,9 @@ export class TarifLivraisonService {
   ) {
 
     const boutique =
-      await BoutiqueRepository.findById(boutique_id);
+      await BoutiqueRepository.findById(
+        boutique_id
+      );
 
     if (!boutique) {
       throw new NotFoundError(
@@ -35,25 +38,32 @@ export class TarifLivraisonService {
     );
   }
 
-  static async findAvailableByBoutique(
-    boutique_id: number
-  ) {
 
-    const boutique =
-      await BoutiqueRepository.findById(
-        boutique_id
-      );
+static async findAvailableByBoutique(
+  boutique_id: number
+) {
 
-    if (!boutique) {
-      throw new NotFoundError(
-        "Boutique introuvable."
-      );
-    }
-
-    return await TarifLivraisonRepository.findByBoutiqueId(
+  const boutique =
+    await BoutiqueRepository.findById(
       boutique_id
     );
+
+  if (!boutique) {
+    throw new NotFoundError(
+      "Boutique introuvable."
+    );
   }
+
+  if (boutique.status !== "active") {
+    throw new NotFoundError(
+      "Boutique indisponible."
+    );
+  }
+
+  return await TarifLivraisonRepository.findByBoutiqueId(
+    boutique_id
+  );
+}
 
   static async create(
     boutique_id: number,
@@ -64,7 +74,9 @@ export class TarifLivraisonService {
   ) {
 
     const boutique =
-      await BoutiqueRepository.findById(boutique_id);
+      await BoutiqueRepository.findById(
+        boutique_id
+      );
 
     if (!boutique) {
       throw new NotFoundError(
@@ -100,6 +112,18 @@ export class TarifLivraisonService {
       );
     }
 
+    const tarifExistant =
+      await TarifLivraisonRepository.findByBoutiqueAndZone(
+        boutique_id,
+        zoneNormalisee
+      );
+
+    if (tarifExistant) {
+      throw new ConflictError(
+        `Un tarif de livraison existe déjà pour la zone "${zoneNormalisee}".`
+      );
+    }
+
     const id =
       await TarifLivraisonRepository.create({
         boutique_id,
@@ -107,7 +131,9 @@ export class TarifLivraisonService {
         frais
       });
 
-    return await TarifLivraisonRepository.findById(id);
+    return await TarifLivraisonRepository.findById(
+      id
+    );
   }
 
 
@@ -122,7 +148,9 @@ export class TarifLivraisonService {
   ) {
 
     const tarif =
-      await TarifLivraisonRepository.findById(id);
+      await TarifLivraisonRepository.findById(
+        id
+      );
 
     if (!tarif) {
       throw new NotFoundError(
@@ -156,7 +184,11 @@ export class TarifLivraisonService {
       frais?: number;
     } = {};
 
+    /*
+     * Modification de la zone
+     */
     if (data.zone !== undefined) {
+
       const zoneNormalisee =
         data.zone.trim();
 
@@ -166,11 +198,34 @@ export class TarifLivraisonService {
         );
       }
 
+      /*
+       * Vérifier qu'une autre ligne
+       * n'utilise pas déjà cette zone.
+       */
+      const tarifExistant =
+        await TarifLivraisonRepository.findByBoutiqueAndZone(
+          tarif.boutique_id,
+          zoneNormalisee
+        );
+
+      if (
+        tarifExistant &&
+        tarifExistant.id !== tarif.id
+      ) {
+        throw new ConflictError(
+          `Un tarif de livraison existe déjà pour la zone "${zoneNormalisee}".`
+        );
+      }
+
       updateData.zone =
         zoneNormalisee;
     }
 
+    /*
+     * Modification des frais
+     */
     if (data.frais !== undefined) {
+
       if (
         !Number.isFinite(data.frais) ||
         data.frais < 0
@@ -182,6 +237,17 @@ export class TarifLivraisonService {
 
       updateData.frais =
         data.frais;
+    }
+
+    /*
+     * Rien à modifier
+     */
+    if (
+      Object.keys(updateData).length === 0
+    ) {
+      throw new ForbiddenError(
+        "Aucune donnée à modifier."
+      );
     }
 
     await TarifLivraisonRepository.update(
@@ -202,7 +268,9 @@ export class TarifLivraisonService {
   ) {
 
     const tarif =
-      await TarifLivraisonRepository.findById(id);
+      await TarifLivraisonRepository.findById(
+        id
+      );
 
     if (!tarif) {
       throw new NotFoundError(

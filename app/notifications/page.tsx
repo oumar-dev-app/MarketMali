@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Clock,
   ArrowLeft,
+  Store,
 } from "lucide-react";
 
 import Navbar from "@/components/Navbar";
@@ -84,7 +85,7 @@ export default function NotificationsPage() {
       if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
-            "Impossible de charger les notifications."
+          "Impossible de charger les notifications."
         );
       }
 
@@ -146,7 +147,7 @@ export default function NotificationsPage() {
       if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
-            "Impossible de marquer la notification comme lue."
+          "Impossible de marquer la notification comme lue."
         );
       }
 
@@ -154,11 +155,11 @@ export default function NotificationsPage() {
         current.map((item) =>
           item.uuid === notification.uuid
             ? {
-                ...item,
-                lu: 1,
-                read_at:
-                  new Date().toISOString(),
-              }
+              ...item,
+              lu: 1,
+              read_at:
+                new Date().toISOString(),
+            }
             : item
         )
       );
@@ -182,8 +183,15 @@ export default function NotificationsPage() {
     await markAsRead(notification);
 
     /**
-     * Si la notification est liée à une commande,
-     * on ouvre directement la page de cette commande.
+     * Notification concernant une demande de rôle.
+     */
+    if (notification.type === "role_request") {
+      router.push("/demande-role");
+      return;
+    }
+
+    /**
+     * Notification liée à une commande.
      */
     if (notification.commande_uuid) {
       router.push(
@@ -227,7 +235,7 @@ export default function NotificationsPage() {
       if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
-            "Impossible de marquer les notifications comme lues."
+          "Impossible de marquer les notifications comme lues."
         );
       }
 
@@ -277,13 +285,17 @@ export default function NotificationsPage() {
           <AlertCircle size={20} />
         );
 
+      case "role_request":
+        return (
+          <Store size={20} />
+        );
+
       default:
         return (
           <Bell size={20} />
         );
     }
   }
-
   /**
    * =========================================================
    * STYLE ICÔNE
@@ -302,6 +314,9 @@ export default function NotificationsPage() {
 
       case "order_cancelled":
         return "bg-red-50 text-[#ce1126]";
+
+      case "role_request":
+        return "bg-green-50 text-[#14a800]";
 
       default:
         return "bg-gray-100 text-gray-600";
@@ -474,11 +489,10 @@ export default function NotificationsPage() {
 
                 <p className="text-xs text-gray-500">
                   {unreadCount > 0
-                    ? `${unreadCount} non lue${
-                        unreadCount > 1
-                          ? "s"
-                          : ""
-                      }`
+                    ? `${unreadCount} non lue${unreadCount > 1
+                      ? "s"
+                      : ""
+                    }`
                     : "Toutes lues"}
                 </p>
               </div>
@@ -616,7 +630,8 @@ export default function NotificationsPage() {
 
                 const isClickable =
                   Boolean(
-                    notification.commande_uuid
+                    notification.commande_uuid ||
+                    notification.type === "role_request"
                   );
 
                 return (
@@ -639,15 +654,13 @@ export default function NotificationsPage() {
                       shadow-sm
                       transition
                       sm:p-5
-                      ${
-                        isUnread
-                          ? "border-green-100 bg-white hover:-translate-y-0.5 hover:border-green-200 hover:shadow-md"
-                          : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-md"
+                      ${isUnread
+                        ? "border-green-100 bg-white hover:-translate-y-0.5 hover:border-green-200 hover:shadow-md"
+                        : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-md"
                       }
-                      ${
-                        !isClickable
-                          ? "cursor-default"
-                          : "cursor-pointer"
+                      ${!isClickable
+                        ? "cursor-default"
+                        : "cursor-pointer"
                       }
                     `}
                   >
@@ -664,8 +677,8 @@ export default function NotificationsPage() {
                           justify-center
                           rounded-xl
                           ${getNotificationIconStyle(
-                            notification.type
-                          )}
+                          notification.type
+                        )}
                         `}
                       >
                         {getNotificationIcon(
@@ -682,10 +695,9 @@ export default function NotificationsPage() {
                               className={`
                                 truncate
                                 text-sm
-                                ${
-                                  isUnread
-                                    ? "font-bold text-gray-950"
-                                    : "font-semibold text-gray-800"
+                                ${isUnread
+                                  ? "font-bold text-gray-950"
+                                  : "font-semibold text-gray-800"
                                 }
                               `}
                             >
@@ -714,9 +726,16 @@ export default function NotificationsPage() {
 
                         <div className="mt-3 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2">
+
                             {notification.commande_uuid && (
                               <span className="rounded-full bg-gray-50 px-3 py-1 text-[11px] font-semibold text-gray-500">
                                 Commande
+                              </span>
+                            )}
+
+                            {notification.type === "role_request" && (
+                              <span className="rounded-full bg-green-50 px-3 py-1 text-[11px] font-bold text-[#14a800]">
+                                Opportunité MarketMali
                               </span>
                             )}
 
@@ -732,14 +751,10 @@ export default function NotificationsPage() {
                                 Lue
                               </span>
                             )}
+
                           </div>
 
-                          {isClickable && (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#14a800] transition group-hover:translate-x-0.5">
-                              Voir la commande
-                              <ChevronRight size={15} />
-                            </span>
-                          )}
+
                         </div>
                       </div>
                     </div>
