@@ -286,6 +286,34 @@ export class UserRepository {
         }
     }
 
+    static async findAdministrators(): Promise<User[]> {
+        const [rows] = await db.query<UserRow[]>(
+            `
+        SELECT *
+        FROM users
+        WHERE role IN ('admin', 'super_admin')
+        AND status = 'active'
+        ORDER BY id ASC
+        `
+        );
+
+        return rows;
+    }
+
+    static async findSuperAdministrators(): Promise<User[]> {
+        const [rows] = await db.query<UserRow[]>(
+            `
+        SELECT *
+        FROM users
+        WHERE role = 'super_admin'
+        AND status = 'active'
+        ORDER BY id ASC
+        `
+        );
+
+        return rows;
+    }
+
     static async activate(
         id: number,
         connection?: PoolConnection
@@ -310,18 +338,6 @@ export class UserRepository {
         }
     }
 
-    static async findAdministrators(): Promise<User[]> {
-        const [rows] = await db.query<UserRow[]>(
-            `
-        SELECT *
-        FROM users
-        WHERE role IN ('admin', 'super_admin')
-        AND status = 'active'
-        ORDER BY id ASC
-        `
-        );
 
-        return rows;
-    }
 
 }

@@ -5,6 +5,7 @@ import { generateSlug } from "../utils/slug";
 import { ConflictError } from "../errors/ConflictError";
 import { NotFoundError } from "../errors/NotFoundError";
 import { ForbiddenError } from "../errors/ForbiddenError";
+import { NotificationService } from "./notification.service";
 
 import { UserRepository } from "../repositories/user.repository";
 
@@ -46,16 +47,10 @@ export class BoutiqueService {
 
 
 
-    if (
-      user.role !== "vendeur" &&
-      user.role !== "admin" &&
-      user.role !== "super_admin"
-    ) {
-
+    if (user.role !== "vendeur") {
       throw new ForbiddenError(
-        "Vous n'avez pas l'autorisation de créer une boutique."
+        "Seuls les vendeurs approuvés peuvent créer une boutique."
       );
-
     }
 
 
@@ -151,6 +146,21 @@ export class BoutiqueService {
       throw new NotFoundError(
         "Impossible de récupérer la boutique."
       );
+
+    }
+
+    const superAdmins =
+      await UserRepository.findSuperAdministrators();
+
+    for (const admin of superAdmins) {
+
+      await NotificationService.create({
+        user_id: admin.id,
+        type: "boutique_pending",
+        titre: "Nouvelle boutique à valider",
+        message:
+          `La boutique "${boutique.nom}" vient d'être créée par ${user.prenom} ${user.nom} et attend votre validation.`,
+      });
 
     }
 
@@ -378,23 +388,23 @@ export class BoutiqueService {
   }
 
   static async findByUUIDForDashboard(
-  uuid: string,
-  user_id: number,
-  role: string
-) {
+    uuid: string,
+    user_id: number,
+    role: string
+  ) {
 
-  const boutique =
-    await this.verifyOwnership(
-      uuid,
-      user_id,
-      role
+    const boutique =
+      await this.verifyOwnership(
+        uuid,
+        user_id,
+        role
+      );
+
+    return boutiqueResponse(
+      boutique
     );
 
-  return boutiqueResponse(
-    boutique
-  );
-
-}
+  }
 
 
   static async findByUser(
@@ -461,67 +471,99 @@ export class BoutiqueService {
 
 
 
-  static async activate(
-    uuid: string,
-    role: string
-  ) {
+static async activate(
+  uuid: string,
+  role: string
+) {
+
+  // Seul le super administrateur peut activer une boutique
+  if (role !== "super_admin") {
+
+    throw new ForbiddenError(
+      "Seul le super administrateur peut activer une boutique."
+    );
+
+  }
 
 
-    if (
-      role !== "admin" &&
-      role !== "super_admin"
-    ) {
-
-      throw new ForbiddenError(
-        "Accès refusé."
-      );
-
-    }
+  // Récupération de la boutique
+  const boutique =
+    await BoutiqueRepository.findByUUID(
+      uuid
+    );
 
 
+  if (!boutique) {
 
-    const boutique =
-      await BoutiqueRepository.findByUUID(
-        uuid
-      );
+    throw new NotFoundError(
+      "Boutique introuvable."
+    );
 
-
-    if (!boutique) {
-
-      throw new NotFoundError(
-        "Boutique introuvable."
-      );
-
-    }
+  }
 
 
+  // Vérifier que la boutique est bien en attente
+  if (boutique.status !== "pending") {
 
-    await BoutiqueRepository.activate(
+    throw new ConflictError(
+      "Cette boutique n'est pas en attente d'activation."
+    );
+
+  }
+
+
+  // Activation de la boutique
+  await BoutiqueRepository.activate(
+    boutique.id
+  );
+
+
+  // Récupération du vendeur propriétaire
+  const vendeur =
+    await UserRepository.findById(
+      boutique.user_id
+    );
+
+
+  if (vendeur) {
+
+    await NotificationService.create({
+
+      user_id: vendeur.id,
+
+      type: "boutique_activated",
+
+      titre: "Votre boutique a été activée",
+
+      message:
+        `Bonne nouvelle ! Votre boutique "${boutique.nom}" a été activée. Elle est maintenant visible sur le marketplace.`,
+
+    });
+
+  }
+
+
+  // Récupération de la boutique mise à jour
+  const updated =
+    await BoutiqueRepository.findById(
       boutique.id
     );
 
 
+  if (!updated) {
 
-    const updated =
-      await BoutiqueRepository.findById(
-        boutique.id
-      );
-
-
-    if (!updated) {
-
-      throw new NotFoundError(
-        "Impossible de récupérer la boutique."
-      );
-
-    }
-
-
-    return boutiqueResponse(
-      updated
+    throw new NotFoundError(
+      "Impossible de récupérer la boutique."
     );
 
   }
+
+
+  return boutiqueResponse(
+    updated
+  );
+
+}
 
 
 

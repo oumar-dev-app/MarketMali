@@ -97,7 +97,7 @@ export default function DemandeRolePage() {
       if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
-            "Impossible de charger vos demandes."
+          "Impossible de charger vos demandes."
         );
       }
 
@@ -167,7 +167,7 @@ export default function DemandeRolePage() {
       if (!response.ok || !data.success) {
         throw new Error(
           data.message ||
-            "Impossible d'envoyer la demande."
+          "Impossible d'envoyer la demande."
         );
       }
 
@@ -175,6 +175,10 @@ export default function DemandeRolePage() {
         type === "vendeur"
           ? "Votre demande pour devenir vendeur a été envoyée. Elle sera examinée par notre équipe."
           : "Votre demande pour devenir livreur a été envoyée. Elle sera examinée par notre équipe."
+      );
+
+      window.dispatchEvent(
+        new Event("notifications:refresh")
       );
 
       await loadDemandes();

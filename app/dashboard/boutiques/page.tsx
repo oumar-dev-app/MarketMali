@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   FaStore,
@@ -106,66 +107,148 @@ export default function BoutiquesPage() {
   const [deletingUuid, setDeletingUuid] =
     useState<string | null>(null);
 
+  const [actionUuid, setActionUuid] =
+    useState<string | null>(null);
 
- const fetchBoutiques = async () => {
-  try {
-    setLoading(true);
-    setError("");
-
-    const token =
-      localStorage.getItem("token");
-
-    if (!token) {
-      throw new Error(
-        "Vous devez être connecté."
+  const activateBoutique = async (
+    boutique: Boutique
+  ) => {
+    const confirmation =
+      window.confirm(
+        `Voulez-vous activer la boutique "${boutique.nom}" ?`
       );
+
+    if (!confirmation) {
+      return;
     }
 
-    const response =
-      await fetch(
-        "/api/dashboard/boutiques",
-        {
-          method: "GET",
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
-        }
+    try {
+      setActionUuid(boutique.uuid);
+
+      const token =
+        localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error(
+          "Vous devez être connecté."
+        );
+      }
+
+      const response =
+        await fetch(
+          `/api/dashboard/boutiques/${boutique.uuid}/activate`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !result.success
+      ) {
+        throw new Error(
+          result.message ||
+          "Impossible d'activer la boutique."
+        );
+      }
+
+      setBoutiques((current) =>
+        current.map((item) =>
+          item.uuid === boutique.uuid
+            ? {
+              ...item,
+              status: "active",
+              activation_expires_at: null,
+            }
+            : item
+        )
       );
 
-    const result =
-      await response.json();
+    } catch (error) {
 
-    if (
-      !response.ok ||
-      !result.success
-    ) {
-      throw new Error(
-        result.message ||
+      console.error(
+        "Erreur activation boutique:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue."
+      );
+
+    } finally {
+      setActionUuid(null);
+    }
+  };
+
+
+  const fetchBoutiques = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const token =
+        localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error(
+          "Vous devez être connecté."
+        );
+      }
+
+      const response =
+        await fetch(
+          "/api/dashboard/boutiques",
+          {
+            method: "GET",
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !result.success
+      ) {
+        throw new Error(
+          result.message ||
           "Impossible de récupérer les boutiques."
+        );
+      }
+
+      setBoutiques(
+        Array.isArray(result.data)
+          ? result.data
+          : []
       );
+    } catch (error) {
+      console.error(
+        "Erreur chargement boutiques:",
+        error
+      );
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setBoutiques(
-      Array.isArray(result.data)
-        ? result.data
-        : []
-    );
-  } catch (error) {
-    console.error(
-      "Erreur chargement boutiques:",
-      error
-    );
-
-    setError(
-      error instanceof Error
-        ? error.message
-        : "Une erreur est survenue."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchBoutiques();
@@ -540,8 +623,8 @@ export default function BoutiquesPage() {
                   setStatusFilter("all")
                 }
                 className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter === "all"
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
               >
                 Toutes
@@ -554,9 +637,9 @@ export default function BoutiquesPage() {
                   )
                 }
                 className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
-                    "active"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  "active"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
               >
                 Actives
@@ -569,9 +652,9 @@ export default function BoutiquesPage() {
                   )
                 }
                 className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
-                    "pending"
-                    ? "bg-amber-500 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  "pending"
+                  ? "bg-amber-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
               >
                 En attente
@@ -584,9 +667,9 @@ export default function BoutiquesPage() {
                   )
                 }
                 className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
-                    "blocked"
-                    ? "bg-red-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  "blocked"
+                  ? "bg-red-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
               >
                 Bloquées
@@ -840,6 +923,8 @@ export default function BoutiquesPage() {
 
                           {/* ACTIONS */}
 
+                          {/* ACTIONS */}
+
                           <td className="px-6 py-5">
 
                             <div className="flex justify-end items-center gap-1.5 opacity-80 group-hover:opacity-100">
@@ -860,17 +945,32 @@ export default function BoutiquesPage() {
                                 <FaEdit className="text-sm" />
                               </Link>
 
+                              {boutique.status === "pending" && (
+                                <button
+                                  type="button"
+                                  title="Activer la boutique"
+                                  disabled={actionUuid === boutique.uuid}
+                                  onClick={() =>
+                                    activateBoutique(boutique)
+                                  }
+                                  className="w-9 h-9 rounded-lg flex items-center justify-center text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition disabled:opacity-40"
+                                >
+                                  {actionUuid === boutique.uuid ? (
+                                    <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <FaCheckCircle className="text-sm" />
+                                  )}
+                                </button>
+                              )}
+
                               <button
                                 type="button"
                                 title="Supprimer"
                                 disabled={
-                                  deletingUuid ===
-                                  boutique.uuid
+                                  deletingUuid === boutique.uuid
                                 }
                                 onClick={() =>
-                                  deleteBoutique(
-                                    boutique
-                                  )
+                                  deleteBoutique(boutique)
                                 }
                                 className="w-9 h-9 rounded-lg flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-40"
                               >
@@ -1025,6 +1125,25 @@ export default function BoutiquesPage() {
                           <FaEdit />
                           Modifier
                         </Link>
+
+                        {boutique.status === "pending" && (
+                          <button
+                            type="button"
+                            disabled={actionUuid === boutique.uuid}
+                            onClick={() =>
+                              activateBoutique(boutique)
+                            }
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-medium disabled:opacity-40"
+                          >
+                            {actionUuid === boutique.uuid ? (
+                              <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <FaCheckCircle />
+                            )}
+
+                            Activer
+                          </button>
+                        )}
 
                         <button
                           type="button"

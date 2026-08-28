@@ -91,14 +91,34 @@ export default function Navbar() {
       return;
     }
 
+    // Chargement initial
     loadUnreadNotifications();
 
+    // Actualisation automatique toutes les 30 secondes
     const interval = setInterval(
       loadUnreadNotifications,
       30000
     );
 
-    return () => clearInterval(interval);
+    // Actualisation immédiate lorsqu'une nouvelle
+    // notification vient d'être créée dans l'interface
+    function handleNotificationRefresh() {
+      loadUnreadNotifications();
+    }
+
+    window.addEventListener(
+      "notifications:refresh",
+      handleNotificationRefresh
+    );
+
+    return () => {
+      clearInterval(interval);
+
+      window.removeEventListener(
+        "notifications:refresh",
+        handleNotificationRefresh
+      );
+    };
   }, [token, user]);
 
   return (
@@ -383,10 +403,9 @@ export default function Navbar() {
                       text-gray-400
                       transition-transform
                       md:block
-                      ${
-                        profileOpen
-                          ? "rotate-180"
-                          : ""
+                      ${profileOpen
+                        ? "rotate-180"
+                        : ""
                       }
                     `}
                   />
@@ -608,7 +627,7 @@ export default function Navbar() {
             RECHERCHE MOBILE
         ====================================================== */}
 
- {/*        <div className="pb-3 lg:hidden">
+        {/*        <div className="pb-3 lg:hidden">
           <SearchBar />
         </div> */}
 

@@ -4,7 +4,9 @@ export type NotificationType =
   | "new_order"
   | "order_status"
   | "order_cancelled"
-  | "role_request";
+  | "role_request"
+  | "boutique_pending"
+  | "boutique_activated";
 
 export interface Notification {
   id: number;
