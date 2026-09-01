@@ -64,14 +64,22 @@ export default function LivreurQrScanner({
     try {
       await stopScanner();
 
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error(
+          "Session d'authentification introuvable. Veuillez vous reconnecter."
+        );
+      }
+
       const response = await fetch(
         `/api/livraisons/${livraisonUuid}/verify-pickup`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-          credentials: "include",
           body: JSON.stringify({
             qrToken,
           }),
@@ -83,7 +91,7 @@ export default function LivreurQrScanner({
       if (!response.ok || !data.success) {
         throw new Error(
           data?.message ||
-            "Le QR code est invalide."
+          "Le QR code est invalide."
         );
       }
 

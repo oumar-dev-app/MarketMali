@@ -9,6 +9,7 @@ import {
     Clock,
     MapPin,
     Package,
+    QrCode,
     Store,
     Truck,
     User,
@@ -1349,41 +1350,16 @@ export default function CommandeDetailPage() {
                                     </h2>
                                 </div>
                             </div>
-
                             {commande.livreur ? (
                                 <>
                                     <div className="rounded-xl bg-gray-50 p-4">
+                                        {/* Informations livreur */}
 
-                                        <div className="flex items-start justify-between gap-3">
-
-                                            <div>
-                                                <p className="font-semibold text-gray-900">
-                                                    {commande.livreur.prenom}{" "}
-                                                    {commande.livreur.nom}
-                                                </p>
-
-                                                <p className="mt-1 text-sm text-gray-500">
-                                                    {commande.livreur.telephone}
-                                                </p>
-                                            </div>
-
-                                            <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700">
-                                                Affecté
-                                            </span>
-                                        </div>
-
-                                        {commande.livreur.vehicule && (
-                                            <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
-                                                <Truck size={16} />
-
-                                                <span>
-                                                    {commande.livreur.vehicule}
-                                                </span>
-                                            </div>
-                                        )}
+                                        ...
 
                                         <div className="mt-3 border-t border-gray-200 pt-3 space-y-2">
 
+                                            {/* Disponibilité */}
                                             <div className="flex items-center justify-between">
                                                 <span className="text-xs text-gray-500">
                                                     Disponibilité
@@ -1396,6 +1372,7 @@ export default function CommandeDetailPage() {
                                                 </span>
                                             </div>
 
+                                            {/* Statut livraison */}
                                             {commande.livraison_status && (
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs text-gray-500">
@@ -1409,10 +1386,22 @@ export default function CommandeDetailPage() {
                                                     </span>
                                                 </div>
                                             )}
-
                                         </div>
                                     </div>
 
+                                    {/* Réafficher le QR */}
+                                    {commande.livraison_status === "assigned" && qrToken && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowQrModal(true)}
+                                            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
+                                        >
+                                            <QrCode size={17} />
+                                            Afficher le QR de récupération
+                                        </button>
+                                    )}
+
+                                    {/* Retirer le livreur */}
                                     <button
                                         type="button"
                                         onClick={unassignLivreur}
@@ -1420,7 +1409,6 @@ export default function CommandeDetailPage() {
                                         className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         <XCircle size={17} />
-
                                         {assigningLivreur
                                             ? "Traitement..."
                                             : "Retirer le livreur"}
@@ -1681,7 +1669,6 @@ export default function CommandeDetailPage() {
                                     type="button"
                                     onClick={() => {
                                         setShowQrModal(false);
-                                        setQrToken(null);
                                     }}
                                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
                                     aria-label="Fermer"
@@ -1768,7 +1755,6 @@ export default function CommandeDetailPage() {
                                 type="button"
                                 onClick={() => {
                                     setShowQrModal(false);
-                                    setQrToken(null);
                                 }}
                                 className="mt-6 w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
                             >
