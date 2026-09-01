@@ -481,7 +481,7 @@ export default function CommandesPage() {
                 )}
             </div>
         </main>
-    
+
     );
 }
 
@@ -507,8 +507,8 @@ function StatCard({
             type="button"
             onClick={onClick}
             className={[
-                "group rounded-2xl border bg-white p-4 text-left shadow-sm",
-                "transition duration-200 hover:-translate-y-0.5 hover:shadow-md",
+                "group relative overflow-hidden rounded-2xl border bg-white p-4 text-left shadow-sm",
+                "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
                 "focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2",
                 "sm:p-5",
                 active
@@ -518,19 +518,31 @@ function StatCard({
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-2xl font-bold text-gray-950 sm:text-3xl">
+                    <p className="text-2xl font-black tracking-tight text-gray-950 sm:text-3xl">
                         {value}
                     </p>
 
-                    <p className="mt-1 text-xs font-medium text-gray-500 sm:text-sm">
+                    <p className="mt-1 text-xs font-semibold text-gray-500 sm:text-sm">
                         {label}
                     </p>
                 </div>
 
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600 transition group-hover:bg-green-100">
+                <div
+                    className={[
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                        "transition-all duration-200",
+                        active
+                            ? "bg-green-600 text-white"
+                            : "bg-green-50 text-green-600 group-hover:bg-green-100",
+                    ].join(" ")}
+                >
                     {icon}
                 </div>
             </div>
+
+            {active && (
+                <div className="absolute bottom-0 left-0 h-1 w-full bg-green-600" />
+            )}
         </button>
     );
 }
@@ -647,108 +659,135 @@ function CommandeCard({
     commande: Commande;
 }) {
     return (
-        <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition duration-200 hover:shadow-md">
+        <article className="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg">
 
             <div className="p-5 sm:p-6">
 
                 {/* TOP */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
 
-                    <div className="min-w-0">
-                        <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
 
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600">
-                                <FaStore size={15} />
-                            </div>
 
-                            <div className="min-w-0">
-                                <p className="truncate text-sm font-bold text-gray-950 sm:text-base">
-                                    {commande.boutique.nom}
-                                </p>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600">
+                            <FaStore size={16} />
+                        </div>
 
-                                <p className="mt-0.5 text-xs text-gray-500">
-                                    Commande #
-                                    {commande.uuid.slice(
-                                        0,
-                                        8
-                                    )}
-                                </p>
-                            </div>
+
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-gray-950 sm:text-base">
+                                {commande.boutique.nom}
+                            </p>
+
+                            <p className="mt-0.5 text-xs text-gray-500">
+                                Commande #
+                                <span className="font-semibold text-gray-600">
+                                    {commande.uuid.slice(0, 8)}
+                                </span>
+                            </p>
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-start gap-2 sm:items-end">
-
-                        <p className="text-lg font-bold text-green-700 sm:text-xl">
+                    <div className="flex flex-row items-center justify-between gap-3 sm:flex-col sm:items-end">
+                        <p className="text-lg font-black tracking-tight text-green-700 sm:text-xl">
                             {Number(
                                 commande.total
-                            ).toLocaleString(
-                                "fr-FR"
-                            )}{" "}
+                            ).toLocaleString("fr-FR")}{" "}
                             FCFA
                         </p>
 
                         <CommandeStatusBadge
-                            status={
-                                commande.status
-                            }
+                            status={commande.status}
                         />
                     </div>
                 </div>
 
                 {/* DETAILS */}
-                <div className="mt-5 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 text-xs text-gray-500 sm:grid-cols-2 sm:text-sm">
+                <div className="mt-5 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-3">
 
-                    <span className="flex items-center gap-2">
-                        <FaCalendarAlt className="shrink-0 text-gray-400" />
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-400">
+                            <FaCalendarAlt size={13} />
+                        </div>
 
-                        <span>
-                            {new Date(
-                                commande.created_at
-                            ).toLocaleDateString(
-                                "fr-FR",
-                                {
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                }
-                            )}
-                        </span>
-                    </span>
+                        <div>
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                Date
+                            </p>
 
-                    <span className="flex items-center gap-2">
-                        <FaShoppingBag className="shrink-0 text-gray-400" />
+                            <p className="mt-0.5 text-xs font-semibold text-gray-700 sm:text-sm">
+                                {new Date(
+                                    commande.created_at
+                                ).toLocaleDateString(
+                                    "fr-FR",
+                                    {
+                                        day: "numeric",
+                                        month: "long",
+                                        year: "numeric",
+                                    }
+                                )}
+                            </p>
+                        </div>
+                    </div>
 
-                        <span>
-                            {commande.nombre_articles}{" "}
-                            {commande.nombre_articles >
-                                1
-                                ? "articles"
-                                : "article"}
-                        </span>
-                    </span>
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-400">
+                            <FaShoppingBag size={13} />
+                        </div>
+
+                        <div>
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                Articles
+                            </p>
+
+                            <p className="mt-0.5 text-xs font-semibold text-gray-700 sm:text-sm">
+                                {commande.nombre_articles}{" "}
+                                {commande.nombre_articles > 1
+                                    ? "articles"
+                                    : "article"}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-400">
+                            <FaClock size={13} />
+                        </div>
+
+                        <div>
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                Mise à jour
+                            </p>
+
+                            <p className="mt-0.5 text-xs font-semibold text-gray-700 sm:text-sm">
+                                {new Date(
+                                    commande.updated_at
+                                ).toLocaleDateString("fr-FR")}
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* FOOTER */}
                 <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
 
-                    <p className="text-xs text-gray-400">
-                        Mise à jour :{" "}
-                        {new Date(
-                            commande.updated_at
-                        ).toLocaleDateString(
-                            "fr-FR"
-                        )}
-                    </p>
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <FaStore size={11} />
+
+                        <span>
+                            Boutique :{" "}
+                            <span className="font-semibold text-gray-500">
+                                {commande.boutique.nom}
+                            </span>
+                        </span>
+                    </div>
 
                     <Link
                         href={`/commandes/${commande.uuid}`}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-200 hover:bg-green-700 hover:shadow focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-green-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 sm:w-auto"
                     >
                         Voir le détail
-                        <FaChevronRight
-                            size={11}
-                        />
+                        <FaChevronRight size={11} />
                     </Link>
                 </div>
             </div>
