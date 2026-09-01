@@ -7,6 +7,8 @@ import {
   CommandeStatus
 } from "@/lib/types/commande";
 
+
+
 export const PATCH = apiHandler(
   async (
     req: Request,
@@ -22,6 +24,8 @@ export const PATCH = apiHandler(
 
     const { uuid } =
       await context.params;
+
+    console.log("UUID :", uuid);
 
     const body =
       await req.json();

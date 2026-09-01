@@ -22,11 +22,24 @@ export const POST = apiHandler(
     const { uuid } =
       await context.params;
 
+    const body =
+      await req.json();
+
+    const method =
+      body?.method;
+
+    const otp =
+      typeof body?.otp === "string"
+        ? body.otp
+        : undefined;
+
     const result =
       await LivraisonService.confirmDeliveryByClient(
         uuid,
         user.id,
-        user.role
+        user.role,
+        method,
+        otp
       );
 
     return NextResponse.json({

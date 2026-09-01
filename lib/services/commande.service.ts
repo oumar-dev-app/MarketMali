@@ -8,7 +8,7 @@ import { NotificationService } from "./notification.service";
 import { generateUUID } from "../utils/uuid";
 import { LivreurRepository } from "../repositories/livreur.repository";
 import { LivraisonRepository } from "../repositories/livraison.repository";
-
+import { LivraisonSecuriteService } from "./livraison-securite.service";
 import { NotFoundError } from "../errors/NotFoundError";
 import { ForbiddenError } from "../errors/ForbiddenError";
 
@@ -521,6 +521,8 @@ export class CommandeService {
         const connection =
             await db.getConnection();
 
+        let qrToken: string;
+
         try {
 
             await connection.beginTransaction();
@@ -554,14 +556,19 @@ export class CommandeService {
                 connection
             );
 
+
             // Vérifier s'il existe déjà une livraison
-            const livraison =
+            let livraison =
                 await LivraisonRepository.findByCommandeId(
-                    commande.id
+                    commande.id,
+                    connection
                 );
 
             // Créer ou réaffecter la livraison
-            if (livraison) {
+            if (
+                livraison &&
+                livraison.status !== "cancelled"
+            ) {
 
                 await LivraisonRepository.updateLivreur(
                     livraison.id,
@@ -569,7 +576,6 @@ export class CommandeService {
                     connection
                 );
 
-                // Une réaffectation remet la livraison à "assigned"
                 await LivraisonRepository.updateStatus(
                     livraison.id,
                     "assigned",
@@ -577,17 +583,47 @@ export class CommandeService {
                     connection
                 );
 
+                livraison =
+                    await LivraisonRepository.findById(
+                        livraison.id,
+                        connection
+                    );
+
             } else {
 
-                await LivraisonRepository.create(
-                    {
-                        uuid: generateUUID(),
-                        commande_id: commande.id,
-                        livreur_id: livreur.id
-                    },
-                    connection
+                const livraisonId =
+                    await LivraisonRepository.create(
+                        {
+                            uuid: generateUUID(),
+                            commande_id: commande.id,
+                            livreur_id: livreur.id
+                        },
+                        connection
+                    );
+
+                livraison =
+                    await LivraisonRepository.findById(
+                        livraisonId,
+                        connection
+                    );
+            }
+
+            if (!livraison) {
+                throw new NotFoundError(
+                    "Impossible de récupérer la livraison créée."
                 );
             }
+
+            // Générer le QR et l'OTP de sécurité.
+            // Les valeurs en clair sont retournées uniquement
+            // par le service et les hash sont enregistrés en base.
+            const securite =
+                await LivraisonSecuriteService.generatePickupQr(
+                    livraison.id,
+                    connection
+                );
+
+            qrToken = securite.qrToken;
 
             // Le nouveau livreur devient indisponible
             await LivreurRepository.updateDisponibilite(
@@ -629,7 +665,9 @@ export class CommandeService {
                 prenom: livreur.prenom,
                 telephone: livreur.telephone,
                 vehicule: livreur.vehicule
-            }
+            },
+
+            qrToken
         };
     }
 

@@ -15,6 +15,8 @@ import {
     XCircle,
 } from "lucide-react";
 
+import QRCode from "react-qr-code";
+
 import { toast } from "sonner";
 
 interface Produit {
@@ -58,6 +60,9 @@ interface Commande {
     longitude?: number | null;
     gps_precision?: number | null;
 
+    livraison_uuid?: string | null;
+    livraison_status?: string | null;
+
     boutique: Boutique;
     client?: Client;
     livreur?: Livreur | null;
@@ -81,6 +86,15 @@ const statusLabels: Record<string, string> = {
     shipped: "Expédiée",
     delivered: "Livrée",
     cancelled: "Annulée",
+};
+
+const livraisonStatusLabels: Record<string, string> = {
+    assigned: "En attente de récupération",
+    picked_up: "Colis récupéré",
+    in_transit: "En cours de livraison",
+    delivery_pending_confirmation: "En attente de confirmation",
+    delivered: "Livraison confirmée",
+    cancelled: "Livraison annulée",
 };
 
 const statusColors: Record<string, string> = {
@@ -120,6 +134,18 @@ const statusSteps = [
     },
 ];
 
+function getLivraisonStatusLabel(
+    status: string | null | undefined
+) {
+    if (!status) {
+        return "Aucune livraison";
+    }
+
+    return (
+        livraisonStatusLabels[status] ??
+        status
+    );
+}
 
 function formatPrice(value: string | number) {
     return `${Number(value).toLocaleString("fr-FR")} FCFA`;
@@ -210,6 +236,9 @@ export default function CommandeDetailPage() {
 
     const [assigningLivreur, setAssigningLivreur] =
         useState(false);
+
+    const [qrToken, setQrToken] = useState<string | null>(null);
+    const [showQrModal, setShowQrModal] = useState(false);
 
     const [confirmAction, setConfirmAction] =
         useState<"cancelled" | "delivered" | null>(null);
@@ -397,6 +426,13 @@ export default function CommandeDetailPage() {
                 "Livreur affecté à la commande."
             );
 
+            if (typeof data.qrToken === "string" && data.qrToken.trim()) {
+
+                setQrToken(data.qrToken);
+
+                setShowQrModal(true);
+            }
+
             await fetchCommande();
 
             setSelectedLivreur("");
@@ -485,113 +521,26 @@ export default function CommandeDetailPage() {
     };
 
 
-
-    useEffect(() => {
-        const fetchCommande = async () => {
-            try {
-                setLoading(true);
-
-                const token =
-                    localStorage.getItem("token");
-
-                if (!token) {
-                    router.push("/login");
-                    return;
-                }
-
-                const [commandeResponse, historiqueResponse] =
-                    await Promise.all([
-                        fetch(
-                            `/api/dashboard/commandes/uuid/${uuid}`,
-                            {
-                                headers: {
-                                    Authorization:
-                                        `Bearer ${token}`,
-                                },
-                            }
-                        ),
-
-                        fetch(
-                            `/api/dashboard/commandes/uuid/${uuid}/historique`,
-                            {
-                                headers: {
-                                    Authorization:
-                                        `Bearer ${token}`,
-                                },
-                            }
-                        ),
-                    ]);
-
-                const commandeData =
-                    await commandeResponse.json();
-
-                const historiqueData =
-                    await historiqueResponse.json();
-
-                if (
-                    !commandeResponse.ok ||
-                    !commandeData.success
-                ) {
-                    toast.error(
-                        commandeData.message ??
-                        "Impossible de récupérer la commande."
-                    );
-
-                    return;
-                }
-
-                setCommande(
-                    commandeData.data
-                );
-
-                setNewStatus(
-                    commandeData.data.status
-                );
-
-                if (historiqueData.success) {
-                    setHistorique(
-                        historiqueData.data
-                    );
-                }
-            } catch (error) {
-                console.error(
-                    "Erreur chargement commande :",
-                    error
-                );
-
-                toast.error(
-                    "Une erreur est survenue lors du chargement."
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (uuid) {
-            fetchCommande();
+    const updateStatus = async () => {
+        if (!commande) {
+            return;
         }
-    }, [uuid, router]);
 
-const updateStatus = async () => {
-    if (!commande) {
-        return;
-    }
+        if (newStatus === commande.status) {
+            toast.info(
+                "La commande possède déjà ce statut."
+            );
 
-    if (newStatus === commande.status) {
-        toast.info(
-            "La commande possède déjà ce statut."
-        );
+            return;
+        }
 
-        return;
-    }
+        if (newStatus === "cancelled") {
+            setConfirmAction("cancelled");
+            return;
+        }
 
-    if (newStatus === "cancelled") {
-        setConfirmAction("cancelled");
-        return;
-    }
-
-    await executeStatusUpdate();
-};
+        await executeStatusUpdate();
+    };
 
 
     const executeStatusUpdate = async () => {
@@ -696,11 +645,6 @@ const updateStatus = async () => {
         }
     }, [uuid]);
 
-    useEffect(() => {
-        if (uuid) {
-            fetchCommande();
-        }
-    }, [uuid]);
 
     useEffect(() => {
         fetchLivreurs();
@@ -1438,14 +1382,34 @@ const updateStatus = async () => {
                                             </div>
                                         )}
 
-                                        <div className="mt-3 flex items-center justify-between border-t border-gray-200 pt-3">
-                                            <span className="text-xs text-gray-500">
-                                                Disponibilité
-                                            </span>
+                                        <div className="mt-3 border-t border-gray-200 pt-3 space-y-2">
 
-                                            <span className="text-xs font-semibold text-gray-700">
-                                                Indisponible
-                                            </span>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs text-gray-500">
+                                                    Disponibilité
+                                                </span>
+
+                                                <span className="text-xs font-semibold text-gray-700">
+                                                    {commande.livreur.disponibilite === "available"
+                                                        ? "Disponible"
+                                                        : "Indisponible"}
+                                                </span>
+                                            </div>
+
+                                            {commande.livraison_status && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-gray-500">
+                                                        Statut livraison
+                                                    </span>
+
+                                                    <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                                        {getLivraisonStatusLabel(
+                                                            commande.livraison_status
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            )}
+
                                         </div>
                                     </div>
 
@@ -1685,6 +1649,136 @@ const updateStatus = async () => {
                     </aside>
                 </div>
             </div>
+
+            {/* Modal QR de récupération */}
+            {showQrModal && qrToken && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+
+                        {/* En-tête */}
+                        <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
+                            <div className="flex items-start justify-between gap-4">
+
+                                <div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
+                                            <Truck size={21} />
+                                        </div>
+
+                                        <div>
+                                            <h2 className="text-lg font-bold text-gray-900">
+                                                QR de récupération
+                                            </h2>
+
+                                            <p className="mt-0.5 text-xs text-gray-500">
+                                                Validation de la remise du colis
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowQrModal(false);
+                                        setQrToken(null);
+                                    }}
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                                    aria-label="Fermer"
+                                >
+                                    <XCircle size={20} />
+                                </button>
+
+                            </div>
+                        </div>
+
+                        {/* Contenu */}
+                        <div className="px-5 py-6 sm:px-6">
+
+                            {/* Informations */}
+                            <div className="rounded-2xl bg-orange-50 p-4">
+                                <div className="flex items-start gap-3">
+
+                                    <Truck
+                                        size={20}
+                                        className="mt-0.5 shrink-0 text-orange-600"
+                                    />
+
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-orange-900">
+                                            Livreur affecté
+                                        </p>
+
+                                        {commande.livreur && (
+                                            <p className="mt-1 text-sm text-orange-800">
+                                                {commande.livreur.prenom}{" "}
+                                                {commande.livreur.nom}
+                                            </p>
+                                        )}
+
+                                        <p className="mt-1 break-all text-xs text-orange-700">
+                                            Commande #{commande.uuid}
+                                        </p>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            {/* QR Code */}
+                            <div className="mt-6 flex justify-center">
+                                <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+                                    <QRCode
+                                        value={qrToken}
+                                        size={240}
+                                        bgColor="#ffffff"
+                                        fgColor="#111827"
+                                        level="H"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Instruction */}
+                            <div className="mt-6 text-center">
+                                <h3 className="text-base font-bold text-gray-900">
+                                    Présentez ce QR au livreur
+                                </h3>
+
+                                <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-gray-500">
+                                    Le livreur doit scanner ce QR code
+                                    depuis son application pour confirmer
+                                    la récupération du colis.
+                                </p>
+                            </div>
+
+                            {/* Alerte sécurité */}
+                            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                <p className="text-xs font-semibold text-amber-800">
+                                    ⚠️ Important
+                                </p>
+
+                                <p className="mt-1 text-xs leading-5 text-amber-700">
+                                    Ne partagez pas ce QR code avec une
+                                    personne qui n'est pas le livreur
+                                    affecté à cette commande.
+                                </p>
+                            </div>
+
+                            {/* Bouton */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowQrModal(false);
+                                    setQrToken(null);
+                                }}
+                                className="mt-6 w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+                            >
+                                Fermer
+                            </button>
+
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

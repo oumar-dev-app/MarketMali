@@ -489,10 +489,6 @@ export default function GestionLivraisons() {
                             Livrées
                         </p>
 
-                        <option value="delivery_pending_confirmation">
-                            En attente de confirmation
-                        </option>
-
                         <p className="mt-2 text-2xl font-bold text-green-600">
                             {
                                 statistiques.delivered

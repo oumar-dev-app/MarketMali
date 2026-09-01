@@ -260,7 +260,13 @@ export default function CommandeDetailPage() {
   const [confirmingDelivery, setConfirmingDelivery] =
     useState(false);
 
-  async function confirmDelivery() {
+  const [deliveryOtp, setDeliveryOtp] =
+    useState("");
+
+  const [showOtpConfirmation, setShowOtpConfirmation] =
+    useState(false);
+
+  function confirmDelivery() {
     if (confirmingDelivery) {
       return;
     }
@@ -273,11 +279,29 @@ export default function CommandeDetailPage() {
       return;
     }
 
-    const confirmed = window.confirm(
-      "Confirmez-vous avoir bien reçu votre commande ?"
-    );
+    setDeliveryOtp("");
+    setShowOtpConfirmation(true);
+  }
 
-    if (!confirmed) {
+  async function submitDeliveryConfirmation() {
+    if (confirmingDelivery) {
+      return;
+    }
+
+    if (
+      !livraisonUuid ||
+      livraisonStatus !==
+      "delivery_pending_confirmation"
+    ) {
+      return;
+    }
+
+    const otp = deliveryOtp.trim();
+
+    if (!/^\d{6}$/.test(otp)) {
+      alert(
+        "Veuillez saisir le code de confirmation à 6 chiffres."
+      );
       return;
     }
 
@@ -293,7 +317,6 @@ export default function CommandeDetailPage() {
         );
 
         router.push("/login");
-
         return;
       }
 
@@ -302,8 +325,13 @@ export default function CommandeDetailPage() {
         {
           method: "POST",
           headers: {
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
+          body: JSON.stringify({
+            method: "otp",
+            otp,
+          }),
         }
       );
 
@@ -327,6 +355,13 @@ export default function CommandeDetailPage() {
       );
 
       setLivraisonStatus("delivered");
+      setShowOtpConfirmation(false);
+      setDeliveryOtp("");
+
+      alert(
+        "Réception confirmée. Merci !"
+      );
+
     } catch (error) {
       console.error(
         "Erreur confirmation livraison :",
@@ -336,7 +371,7 @@ export default function CommandeDetailPage() {
       alert(
         error instanceof Error
           ? error.message
-          : "Une erreur est survenue lors de la confirmation."
+          : "Impossible de confirmer la réception."
       );
     } finally {
       setConfirmingDelivery(false);
@@ -736,13 +771,18 @@ export default function CommandeDetailPage() {
         {needsConfirmation && (
           <section className="mb-6 overflow-hidden rounded-3xl border border-orange-200 bg-white shadow-sm">
             <div className="border-l-4 border-orange-500 p-5 sm:p-6">
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+              <div className="flex flex-col gap-6">
+
+                {/* En-tête */}
                 <div className="flex items-start gap-4">
+
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
                     <Truck size={22} />
                   </div>
 
-                  <div>
+                  <div className="min-w-0 flex-1">
+
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-bold text-gray-950">
                         Votre colis a été remis
@@ -754,32 +794,144 @@ export default function CommandeDetailPage() {
                     </div>
 
                     <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
-                      Le livreur indique avoir remis votre
-                      commande. Confirmez la réception uniquement
-                      si vous avez bien reçu votre colis.
+                      Le livreur indique avoir remis votre commande.
+                      Pour terminer la livraison, saisissez le code de
+                      confirmation à 6 chiffres communiqué lors de la remise
+                      du colis.
                     </p>
+
                   </div>
+
                 </div>
 
-                <button
-                  type="button"
-                  onClick={confirmDelivery}
-                  disabled={confirmingDelivery}
-                  className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                >
-                  {confirmingDelivery ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                      Confirmation...
-                    </>
-                  ) : (
-                    <>
+                {/* Confirmation OTP */}
+                {!showOtpConfirmation ? (
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+
+                    <button
+                      type="button"
+                      onClick={confirmDelivery}
+                      disabled={confirmingDelivery}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                    >
                       <Check size={17} />
                       Confirmer la réception
-                    </>
-                  )}
-                </button>
+                    </button>
+
+                  </div>
+
+                ) : (
+
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+
+                    <div className="mx-auto max-w-md">
+
+                      {/* Titre OTP */}
+                      <div className="text-center">
+
+                        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                          <Check size={20} />
+                        </div>
+
+                        <h3 className="mt-3 text-base font-bold text-gray-900">
+                          Confirmer la réception
+                        </h3>
+
+                        <p className="mt-1 text-sm leading-5 text-gray-500">
+                          Entrez le code à 6 chiffres communiqué pour
+                          confirmer définitivement la réception.
+                        </p>
+
+                      </div>
+
+                      {/* Champ OTP */}
+                      <div className="mt-5">
+
+                        <label
+                          htmlFor="delivery-otp"
+                          className="mb-2 block text-center text-xs font-bold uppercase tracking-wide text-gray-600"
+                        >
+                          Code de confirmation
+                        </label>
+
+                        <input
+                          id="delivery-otp"
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          maxLength={6}
+                          value={deliveryOtp}
+                          onChange={(event) => {
+                            const value =
+                              event.target.value
+                                .replace(/\D/g, "")
+                                .slice(0, 6);
+
+                            setDeliveryOtp(value);
+                          }}
+                          placeholder="••••••"
+                          disabled={confirmingDelivery}
+                          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-gray-900 outline-none transition placeholder:text-gray-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        />
+
+                      </div>
+
+                      {/* Boutons */}
+                      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row">
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowOtpConfirmation(false);
+                            setDeliveryOtp("");
+                          }}
+                          disabled={confirmingDelivery}
+                          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Annuler
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={submitDeliveryConfirmation}
+                          disabled={
+                            confirmingDelivery ||
+                            deliveryOtp.length !== 6
+                          }
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+
+                          {confirmingDelivery ? (
+                            <>
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                              Vérification...
+                            </>
+                          ) : (
+                            <>
+                              <Check size={17} />
+                              Valider la réception
+                            </>
+                          )}
+
+                        </button>
+
+                      </div>
+
+                      {/* Information sécurité */}
+                      <p className="mt-4 text-center text-[11px] leading-4 text-gray-400">
+                        Ne communiquez jamais ce code à une autre personne.
+                        Il permet de confirmer définitivement la livraison.
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                )}
+
               </div>
+
             </div>
           </section>
         )}

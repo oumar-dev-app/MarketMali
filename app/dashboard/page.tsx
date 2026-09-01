@@ -36,8 +36,10 @@ interface LivraisonLivreur {
   | "assigned"
   | "picked_up"
   | "in_transit"
+  | "delivery_pending_confirmation"
   | "delivered"
   | "cancelled";
+
 
   commentaire: string | null;
 
@@ -221,6 +223,10 @@ function LivreurDashboard({
     ) ??
     livraisons.find(
       (item) =>
+        item.status === "delivery_pending_confirmation"
+    ) ??
+    livraisons.find(
+      (item) =>
         item.status === "picked_up"
     ) ??
     livraisons.find(
@@ -248,6 +254,9 @@ function LivreurDashboard({
 
       case "in_transit":
         return "En livraison";
+
+      case "delivery_pending_confirmation":
+        return "En attente de confirmation";
 
       case "delivered":
         return "Livrée";
@@ -279,6 +288,9 @@ function LivreurDashboard({
 
       case "in_transit":
         return "bg-indigo-100 text-indigo-700";
+
+      case "delivery_pending_confirmation":
+        return "bg-orange-100 text-orange-700";
 
       case "delivered":
         return "bg-green-100 text-green-700";

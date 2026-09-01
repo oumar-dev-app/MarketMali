@@ -1,5 +1,5 @@
 "use client";
-
+import LivreurQrScanner from "./LivreurQrScanner";
 import {
     useEffect,
     useRef,
@@ -14,11 +14,13 @@ import {
     Navigation,
     Package,
     Phone,
+    QrCode,
     RefreshCw,
     Truck,
     XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+
 
 interface Livraison {
     id: number;
@@ -336,6 +338,9 @@ export default function LivreurLivraisons() {
 
     const [cancelReason, setCancelReason] =
         useState("");
+
+    const [qrScannerLivraison, setQrScannerLivraison] =
+        useState<Livraison | null>(null);
 
     const [onglet, setOnglet] =
         useState<Onglet>("active");
@@ -835,19 +840,15 @@ export default function LivreurLivraisons() {
         switch (status) {
             case "assigned":
                 return {
-                    status:
-                        "picked_up" as const,
-                    label:
-                        "Récupérer la commande",
-                    icon: Package,
+                    status: "assigned" as const,
+                    label: "Scanner le QR du colis",
+                    icon: QrCode,
                 };
 
             case "picked_up":
                 return {
-                    status:
-                        "in_transit" as const,
-                    label:
-                        "Démarrer la livraison",
+                    status: "in_transit" as const,
+                    label: "Démarrer la livraison",
                     icon: Navigation,
                 };
 
@@ -855,8 +856,7 @@ export default function LivreurLivraisons() {
                 return {
                     status:
                         "delivery_pending_confirmation" as const,
-                    label:
-                        "Déclarer la remise",
+                    label: "Déclarer la remise",
                     icon: Check,
                 };
 
@@ -1549,12 +1549,19 @@ export default function LivreurLivraisons() {
                                                                     updating ===
                                                                     livraison.uuid
                                                                 }
-                                                                onClick={() =>
-                                                                    updateStatus(
-                                                                        livraison,
-                                                                        action.status
-                                                                    )
-                                                                }
+                                                                onClick={() => {
+                                                                    if (livraison.status === "assigned") {
+                                                                        setQrScannerLivraison(livraison);
+                                                                        return;
+                                                                    }
+
+                                                                    if (action) {
+                                                                        updateStatus(
+                                                                            livraison,
+                                                                            action.status
+                                                                        );
+                                                                    }
+                                                                }}
                                                                 className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                                                             >
                                                                 <ActionIcon
@@ -1745,6 +1752,29 @@ export default function LivreurLivraisons() {
                     </div>
                 )}
             </div>
+
+            {qrScannerLivraison && (
+                <LivreurQrScanner
+                    livraisonUuid={
+                        qrScannerLivraison.uuid
+                    }
+                    onSuccess={async () => {
+                        setQrScannerLivraison(null);
+
+                        await Promise.all([
+                            loadLivraisons(false),
+                            loadHistorique(false),
+                        ]);
+
+                        toast.success(
+                            "Colis récupéré. La livraison peut maintenant être démarrée."
+                        );
+                    }}
+                    onClose={() => {
+                        setQrScannerLivraison(null);
+                    }}
+                />
+            )}
         </main>
     );
 }

@@ -50,6 +50,7 @@ export interface LivraisonDetailRow
   longitude: number | null;
   gps_precision: number | null;
 
+  client_id: number;
   client_uuid: string;
   client_nom: string;
   client_prenom: string;
@@ -107,17 +108,21 @@ export class LivraisonRepository {
    * Récupérer une livraison par son ID
    */
   static async findById(
-    id: number
+    id: number,
+    connection?: PoolConnection
   ): Promise<LivraisonRow | null> {
 
+    const executor =
+      connection ?? db;
+
     const [rows] =
-      await db.query<LivraisonRow[]>(
+      await executor.query<LivraisonRow[]>(
         `
-        SELECT *
-        FROM livraisons
-        WHERE id = ?
-        LIMIT 1
-        `,
+      SELECT *
+      FROM livraisons
+      WHERE id = ?
+      LIMIT 1
+      `,
         [id]
       );
 
@@ -141,6 +146,7 @@ export class LivraisonRepository {
           l.*,
 
           c.uuid AS commande_uuid,
+          c.client_id AS client_id,
           c.total AS commande_total,
           c.status AS commande_status,
 
@@ -387,13 +393,13 @@ export class LivraisonRepository {
    * Avec les informations complètes de la commande,
    * du client et du livreur.
    */
-static async findActiveByLivreurId(
-  livreur_id: number
-): Promise<LivraisonDetailRow[]> {
+  static async findActiveByLivreurId(
+    livreur_id: number
+  ): Promise<LivraisonDetailRow[]> {
 
-  const [rows] =
-    await db.query<LivraisonDetailRow[]>(
-      `
+    const [rows] =
+      await db.query<LivraisonDetailRow[]>(
+        `
       SELECT
 
         l.*,
@@ -441,11 +447,11 @@ static async findActiveByLivreurId(
 
       ORDER BY l.assigned_at ASC
       `,
-      [livreur_id]
-    );
+        [livreur_id]
+      );
 
-  return rows;
-} 
+    return rows;
+  }
 
   /**
    * Mettre à jour le statut
@@ -508,7 +514,7 @@ static async findActiveByLivreurId(
 
         break;
 
-          case "delivery_pending_confirmation":
+      case "delivery_pending_confirmation":
 
         query = `
           UPDATE livraisons
