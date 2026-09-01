@@ -16,6 +16,7 @@ import {
 
 import { useAuth } from "@/contexts/AuthContext";
 import CommandeStatusBadge from "@/components/CommandeStatusBadge";
+import Navbar from "@/components/Navbar";
 
 interface Boutique {
     nom: string;
@@ -257,185 +258,230 @@ export default function CommandesPage() {
     }
 
     return (
-        <main className="min-h-screen bg-[#f7f8fa]">
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
 
-                {/* HEADER */}
-                <div className="mb-8">
-                    <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-600">
-                            <FaShoppingBag size={19} />
+        <main className="min-h-screen bg-[#f7f8fa]">
+            <Navbar />
+
+            {/* =====================================================
+            PAGE HEADER
+        ===================================================== */}
+            <header className="border-b border-gray-100 bg-white">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                    <div className="flex min-h-[150px] flex-col justify-center gap-5 py-7 sm:flex-row sm:items-center sm:justify-between">
+
+                        <div className="flex min-w-0 items-center gap-4">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-600 shadow-sm">
+                                <FaShoppingBag size={23} />
+                            </div>
+
+                            <div className="min-w-0">
+                                <div className="mb-1 flex items-center gap-2 text-xs font-medium text-gray-400">
+                                    <Link
+                                        href="/"
+                                        className="transition hover:text-green-600"
+                                    >
+                                        Accueil
+                                    </Link>
+
+                                    <FaChevronRight size={9} />
+
+                                    <span className="text-gray-500">
+                                        Mes commandes
+                                    </span>
+                                </div>
+
+                                <h1 className="text-2xl font-black tracking-tight text-gray-950 sm:text-3xl">
+                                    Mes commandes
+                                </h1>
+
+                                <p className="mt-1 text-sm leading-6 text-gray-500 sm:text-base">
+                                    Retrouvez, suivez et gérez toutes vos commandes.
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="min-w-0">
-                            <h1 className="text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
-                                Mes commandes
-                            </h1>
+                        <Link
+                            href="/produits"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gray-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 sm:w-auto"
+                        >
+                            <FaShoppingBag size={14} />
+                            Continuer mes achats
+                        </Link>
+                    </div>
+                </div>
+            </header>
 
-                            <p className="mt-1 text-sm leading-6 text-gray-500 sm:text-base">
-                                Retrouvez et suivez toutes vos commandes.
+            {/* =====================================================
+            CONTENT
+        ===================================================== */}
+            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+
+                {/* STATISTIQUES */}
+                <section className="mb-8">
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-base font-bold text-gray-950">
+                                Vue d’ensemble
+                            </h2>
+
+                            <p className="mt-0.5 text-xs text-gray-500">
+                                État actuel de vos commandes
                             </p>
                         </div>
                     </div>
-                </div>
 
-                {/* STATISTIQUES */}
-                <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
 
-                    <StatCard
-                        value={statistics.total}
-                        label="Commandes"
-                        icon={<FaBoxOpen />}
-                        active={
-                            activeFilter === "all"
-                        }
-                        onClick={() =>
-                            setActiveFilter("all")
-                        }
-                    />
-
-                    <StatCard
-                        value={statistics.pending}
-                        label="En attente"
-                        icon={<FaClock />}
-                        active={
-                            activeFilter === "pending"
-                        }
-                        onClick={() =>
-                            setActiveFilter("pending")
-                        }
-                    />
-
-                    <StatCard
-                        value={
-                            statistics.in_progress
-                        }
-                        label="En cours"
-                        icon={<FaTruck />}
-                        active={
-                            activeFilter ===
-                            "in_progress"
-                        }
-                        onClick={() =>
-                            setActiveFilter(
-                                "in_progress"
-                            )
-                        }
-                    />
-
-                    <StatCard
-                        value={
-                            statistics.delivered
-                        }
-                        label="Livrées"
-                        icon={<FaCheckCircle />}
-                        active={
-                            activeFilter ===
-                            "delivered"
-                        }
-                        onClick={() =>
-                            setActiveFilter(
-                                "delivered"
-                            )
-                        }
-                    />
-                </div>
-
-                {/* FILTRES */}
-                <div className="mb-6">
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                        <FilterButton
-                            active={
-                                activeFilter === "all"
-                            }
+                        <StatCard
+                            value={statistics.total}
+                            label="Commandes"
+                            icon={<FaBoxOpen />}
+                            active={activeFilter === "all"}
                             onClick={() =>
                                 setActiveFilter("all")
                             }
-                        >
-                            Toutes
-                        </FilterButton>
+                        />
 
-                        <FilterButton
+                        <StatCard
+                            value={statistics.pending}
+                            label="En attente"
+                            icon={<FaClock />}
                             active={
-                                activeFilter ===
-                                "pending"
+                                activeFilter === "pending"
                             }
                             onClick={() =>
-                                setActiveFilter(
-                                    "pending"
-                                )
+                                setActiveFilter("pending")
                             }
-                        >
-                            En attente
-                        </FilterButton>
+                        />
 
-                        <FilterButton
+                        <StatCard
+                            value={statistics.in_progress}
+                            label="En cours"
+                            icon={<FaTruck />}
                             active={
-                                activeFilter ===
-                                "in_progress"
+                                activeFilter === "in_progress"
                             }
                             onClick={() =>
-                                setActiveFilter(
-                                    "in_progress"
-                                )
+                                setActiveFilter("in_progress")
                             }
-                        >
-                            En cours
-                        </FilterButton>
+                        />
 
-                        <FilterButton
+                        <StatCard
+                            value={statistics.delivered}
+                            label="Livrées"
+                            icon={<FaCheckCircle />}
                             active={
-                                activeFilter ===
-                                "delivered"
+                                activeFilter === "delivered"
                             }
                             onClick={() =>
-                                setActiveFilter(
-                                    "delivered"
-                                )
+                                setActiveFilter("delivered")
                             }
-                        >
-                            Livrées
-                        </FilterButton>
+                        />
+                    </div>
+                </section>
 
-                        <FilterButton
-                            active={
-                                activeFilter ===
-                                "cancelled"
-                            }
-                            onClick={() =>
-                                setActiveFilter(
-                                    "cancelled"
-                                )
-                            }
-                        >
-                            Annulées
-                        </FilterButton>
+                {/* =================================================
+                FILTRES
+            ================================================= */}
+                <section className="mb-6">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
+                        <div className="flex gap-2 overflow-x-auto">
+
+                            <FilterButton
+                                active={activeFilter === "all"}
+                                onClick={() =>
+                                    setActiveFilter("all")
+                                }
+                            >
+                                Toutes
+                            </FilterButton>
+
+                            <FilterButton
+                                active={
+                                    activeFilter === "pending"
+                                }
+                                onClick={() =>
+                                    setActiveFilter("pending")
+                                }
+                            >
+                                En attente
+                            </FilterButton>
+
+                            <FilterButton
+                                active={
+                                    activeFilter === "in_progress"
+                                }
+                                onClick={() =>
+                                    setActiveFilter("in_progress")
+                                }
+                            >
+                                En cours
+                            </FilterButton>
+
+                            <FilterButton
+                                active={
+                                    activeFilter === "delivered"
+                                }
+                                onClick={() =>
+                                    setActiveFilter("delivered")
+                                }
+                            >
+                                Livrées
+                            </FilterButton>
+
+                            <FilterButton
+                                active={
+                                    activeFilter === "cancelled"
+                                }
+                                onClick={() =>
+                                    setActiveFilter("cancelled")
+                                }
+                            >
+                                Annulées
+                            </FilterButton>
+
+                        </div>
+                    </div>
+                </section>
+
+                {/* =================================================
+                TITRE LISTE
+            ================================================= */}
+                <div className="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-950">
+                            {activeFilter === "all"
+                                ? "Toutes vos commandes"
+                                : "Commandes filtrées"}
+                        </h2>
+
+                        <p className="mt-0.5 text-xs text-gray-500">
+                            {commandesFiltrees.length}{" "}
+                            {commandesFiltrees.length > 1
+                                ? "commandes"
+                                : "commande"}
+                        </p>
                     </div>
                 </div>
 
-                {/* LISTE */}
+                {/* =================================================
+                LISTE
+            ================================================= */}
                 {commandesFiltrees.length === 0 ? (
-                    <EmptyState
-                        filter={activeFilter}
-                    />
+                    <EmptyState filter={activeFilter} />
                 ) : (
                     <div className="space-y-4">
-                        {commandesFiltrees.map(
-                            (commande) => (
-                                <CommandeCard
-                                    key={
-                                        commande.uuid
-                                    }
-                                    commande={
-                                        commande
-                                    }
-                                />
-                            )
-                        )}
+                        {commandesFiltrees.map((commande) => (
+                            <CommandeCard
+                                key={commande.uuid}
+                                commande={commande}
+                            />
+                        ))}
                     </div>
                 )}
             </div>
         </main>
+    
     );
 }
 
@@ -676,7 +722,7 @@ function CommandeCard({
                         <span>
                             {commande.nombre_articles}{" "}
                             {commande.nombre_articles >
-                            1
+                                1
                                 ? "articles"
                                 : "article"}
                         </span>
