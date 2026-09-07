@@ -244,9 +244,11 @@ export default function CommandeDetailPage() {
     const [confirmAction, setConfirmAction] =
         useState<"cancelled" | "delivered" | null>(null);
 
-    const fetchCommande = async () => {
+    const fetchCommande = async (silent = false) => {
         try {
-            setLoading(true);
+            if (!silent) {
+                setLoading(true);
+            }
 
             const token =
                 localStorage.getItem("token");
@@ -325,7 +327,9 @@ export default function CommandeDetailPage() {
             );
 
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     };
 
@@ -501,6 +505,9 @@ export default function CommandeDetailPage() {
                 "Livreur retiré de la commande."
             );
 
+            setQrToken(null);
+            setShowQrModal(false);
+
             await fetchCommande();
 
             await fetchLivreurs();
@@ -646,6 +653,86 @@ export default function CommandeDetailPage() {
         }
     }, [uuid]);
 
+    useEffect(() => {
+        if (
+            !uuid ||
+            !qrToken ||
+            commande?.livraison_status !== "assigned"
+        ) {
+            return;
+        }
+
+        const interval = setInterval(async () => {
+            try {
+                const token =
+                    localStorage.getItem("token");
+
+                if (!token) {
+                    return;
+                }
+
+                const response = await fetch(
+                    `/api/dashboard/commandes/uuid/${uuid}`,
+                    {
+                        headers: {
+                            Authorization:
+                                `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                const data =
+                    await response.json();
+
+                if (
+                    !response.ok ||
+                    !data.success ||
+                    !data.data
+                ) {
+                    return;
+                }
+
+                const nouvelleCommande =
+                    data.data as Commande;
+
+                setCommande(nouvelleCommande);
+
+                /*
+                 * Le livreur vient de scanner
+                 * le QR de récupération.
+                 *
+                 * Le backend fait :
+                 *
+                 * assigned → picked_up
+                 */
+                if (
+                    nouvelleCommande.livraison_status ===
+                    "picked_up"
+                ) {
+                    setShowQrModal(false);
+                    setQrToken(null);
+
+                    toast.success(
+                        "Le livreur a récupéré la commande."
+                    );
+                }
+
+            } catch (error) {
+                console.error(
+                    "Erreur vérification QR :",
+                    error
+                );
+            }
+        }, 3000);
+
+        return () => {
+            clearInterval(interval);
+        };
+    }, [
+        uuid,
+        qrToken,
+        commande?.livraison_status,
+    ]);
 
     useEffect(() => {
         fetchLivreurs();
