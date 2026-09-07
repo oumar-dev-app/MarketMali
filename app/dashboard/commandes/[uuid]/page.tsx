@@ -1746,24 +1746,23 @@ export default function CommandeDetailPage() {
                     <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
 
                         {/* En-tête */}
-                        <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
-                            <div className="flex items-start justify-between gap-4">
 
-                                <div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
-                                            <Truck size={21} />
-                                        </div>
+                        <div className="border-b border-gray-100 px-5 py-3 sm:px-6">
+                            <div className="flex items-center justify-between gap-4">
 
-                                        <div>
-                                            <h2 className="text-lg font-bold text-gray-900">
-                                                QR de récupération
-                                            </h2>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                                        <Truck size={18} />
+                                    </div>
 
-                                            <p className="mt-0.5 text-xs text-gray-500">
-                                                Validation de la remise du colis
-                                            </p>
-                                        </div>
+                                    <div>
+                                        <h2 className="text-base font-bold text-gray-900">
+                                            QR de récupération
+                                        </h2>
+
+                                        <p className="mt-0.5 text-xs text-gray-500">
+                                            Validation de la remise du colis
+                                        </p>
                                     </div>
                                 </div>
 
@@ -1772,10 +1771,10 @@ export default function CommandeDetailPage() {
                                     onClick={() => {
                                         setShowQrModal(false);
                                     }}
-                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
                                     aria-label="Fermer"
                                 >
-                                    <XCircle size={20} />
+                                    <XCircle size={18} />
                                 </button>
 
                             </div>
