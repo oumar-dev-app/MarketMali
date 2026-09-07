@@ -667,7 +667,7 @@ function CommandeCard({
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
 
                     <div className="flex min-w-0 items-center gap-3">
-
+        
 
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600">
                             <FaStore size={16} />

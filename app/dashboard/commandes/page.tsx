@@ -9,6 +9,18 @@ interface Commande {
     frais_livraison: string;
     status: string;
 
+    livraison: {
+        uuid: string | null;
+        status:
+        | "assigned"
+        | "picked_up"
+        | "in_transit"
+        | "delivery_pending_confirmation"
+        | "delivered"
+        | "cancelled"
+        | null;
+    };
+
     adresse_livraison: string | null;
     latitude: string | null;
     longitude: string | null;
@@ -287,6 +299,20 @@ export default function CommandesPage() {
             const commentaire =
                 commentaires[uuid]?.trim() || null;
 
+            const commande = commandes.find(
+                (item) => item.uuid === uuid
+            );
+
+            if (!commande) {
+                setError(
+                    "Commande introuvable."
+                );
+                return;
+            }
+
+            const ancienStatus =
+                commande.status;
+
             const response = await fetch(
                 `/api/dashboard/commandes/uuid/${uuid}/status`,
                 {
@@ -302,9 +328,13 @@ export default function CommandesPage() {
                 }
             );
 
-            const result = await response.json();
+            const result =
+                await response.json();
 
-            if (!response.ok || !result.success) {
+            if (
+                !response.ok ||
+                !result.success
+            ) {
                 setError(
                     result.message ||
                     "Impossible de modifier le statut."
@@ -312,6 +342,9 @@ export default function CommandesPage() {
                 return;
             }
 
+            /*
+             * Mise à jour de la commande
+             */
             setCommandes((prev) =>
                 prev.map((commande) =>
                     commande.uuid === uuid
@@ -322,6 +355,55 @@ export default function CommandesPage() {
                         : commande
                 )
             );
+
+            /*
+             * Mise à jour des statistiques
+             */
+            if (
+                ancienStatus !== status
+            ) {
+                setStatistics((prev) => {
+                    const next = {
+                        ...prev,
+                    };
+
+                    if (
+                        ancienStatus in next &&
+                        typeof next[
+                        ancienStatus as keyof CommandeStatistics
+                        ] === "number"
+                    ) {
+                        next[
+                            ancienStatus as keyof CommandeStatistics
+                        ] = Math.max(
+                            0,
+                            Number(
+                                next[
+                                ancienStatus as keyof CommandeStatistics
+                                ]
+                            ) - 1
+                        );
+                    }
+
+                    if (
+                        status in next &&
+                        typeof next[
+                        status as keyof CommandeStatistics
+                        ] === "number"
+                    ) {
+                        next[
+                            status as keyof CommandeStatistics
+                        ] =
+                            Number(
+                                next[
+                                status as keyof CommandeStatistics
+                                ]
+                            ) + 1;
+                    }
+
+                    return next;
+                });
+            }
 
             setCommentaires((prev) => ({
                 ...prev,
@@ -335,6 +417,7 @@ export default function CommandesPage() {
             setTimeout(() => {
                 setSuccess("");
             }, 3000);
+
         } catch (error) {
             console.error(
                 "Erreur modification statut :",
@@ -388,6 +471,31 @@ export default function CommandesPage() {
                     "Impossible de supprimer la commande."
                 );
                 return;
+            }
+
+            const commande = commandes.find(
+                (item) => item.uuid === uuid
+            );
+
+            if (commande) {
+                setStatistics((prev) => ({
+                    ...prev,
+                    total: Math.max(
+                        0,
+                        prev.total - 1
+                    ),
+                    [commande.status]:
+                        commande.status in prev
+                            ? Math.max(
+                                0,
+                                Number(
+                                    prev[
+                                    commande.status as keyof CommandeStatistics
+                                    ]
+                                ) - 1
+                            )
+                            : 0,
+                }));
             }
 
             setCommandes((prev) =>

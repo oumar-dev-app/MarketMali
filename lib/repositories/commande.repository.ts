@@ -71,13 +71,13 @@ export class CommandeRepository {
 
   }
 
-static async findByUUID(
-  uuid: string
-): Promise<CommandeDetailRow | null> {
+  static async findByUUID(
+    uuid: string
+  ): Promise<CommandeDetailRow | null> {
 
-const [rows] =
-  await db.query<CommandeDetailRow[]>(
-    `
+    const [rows] =
+      await db.query<CommandeDetailRow[]>(
+        `
     SELECT
 
       c.*,
@@ -126,13 +126,13 @@ const [rows] =
 
     LIMIT 1
     `,
-    [uuid]
-  );
+        [uuid]
+      );
 
-  return rows.length
-    ? rows[0]
-    : null;
-}
+    return rows.length
+      ? rows[0]
+      : null;
+  }
 
   static async countPendingByUser(
     user_id: number
@@ -627,6 +627,9 @@ const [rows] =
     c.created_at,
     c.updated_at,
 
+    liv.uuid AS livraison_uuid,
+    liv.status AS livraison_status,
+
     b.nom AS boutique_nom,
     b.slug AS boutique_slug,
 
@@ -642,6 +645,9 @@ const [rows] =
 
     INNER JOIN users u
     ON c.client_id = u.id
+
+    LEFT JOIN livraisons liv
+    ON liv.commande_id = c.id
 
     WHERE b.user_id = ?
     `;
@@ -683,9 +689,10 @@ const [rows] =
     }
 
     sql += `
-ORDER BY c.created_at DESC
-LIMIT ? OFFSET ?
-`;
+    ORDER BY c.created_at DESC
+    LIMIT ? OFFSET ?
+    `;
+
     params.push(
       limit,
       offset
@@ -701,31 +708,64 @@ LIMIT ? OFFSET ?
       uuid: commande.uuid,
 
       total: commande.total,
+
       frais_livraison:
         commande.frais_livraison,
-      status: commande.status,
+
+      status:
+        commande.status,
 
       zone_livraison:
         commande.zone_livraison,
 
-      adresse_livraison: commande.adresse_livraison,
-      latitude: commande.latitude,
-      longitude: commande.longitude,
-      gps_precision: commande.gps_precision,
+      adresse_livraison:
+        commande.adresse_livraison,
 
-      created_at: commande.created_at,
-      updated_at: commande.updated_at,
+      latitude:
+        commande.latitude,
+
+      longitude:
+        commande.longitude,
+
+      gps_precision:
+        commande.gps_precision,
+
+      created_at:
+        commande.created_at,
+
+      updated_at:
+        commande.updated_at,
+
+      livraison: {
+        uuid:
+          commande.livraison_uuid ??
+          null,
+
+        status:
+          commande.livraison_status ??
+          null
+      },
 
       boutique: {
-        nom: commande.boutique_nom,
-        slug: commande.boutique_slug
+        nom:
+          commande.boutique_nom,
+
+        slug:
+          commande.boutique_slug
       },
 
       client: {
-        nom: commande.client_nom,
-        prenom: commande.client_prenom,
-        telephone: commande.client_telephone,
-        email: commande.client_email
+        nom:
+          commande.client_nom,
+
+        prenom:
+          commande.client_prenom,
+
+        telephone:
+          commande.client_telephone,
+
+        email:
+          commande.client_email
       }
     }));
 
@@ -891,6 +931,43 @@ LIMIT ? OFFSET ?
     }));
 
   }
+
+  static async countStatuses(): Promise<{
+  total: number;
+  pending: number;
+  confirmed: number;
+  preparing: number;
+  shipped: number;
+  delivered: number;
+  cancelled: number;
+}> {
+  const [rows] =
+    await db.query<any[]>(
+      `
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed,
+        SUM(CASE WHEN status = 'preparing' THEN 1 ELSE 0 END) AS preparing,
+        SUM(CASE WHEN status = 'shipped' THEN 1 ELSE 0 END) AS shipped,
+        SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) AS delivered,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled
+      FROM commandes
+      `
+    );
+
+  const row = rows[0];
+
+  return {
+    total: Number(row.total),
+    pending: Number(row.pending),
+    confirmed: Number(row.confirmed),
+    preparing: Number(row.preparing),
+    shipped: Number(row.shipped),
+    delivered: Number(row.delivered),
+    cancelled: Number(row.cancelled)
+  };
+}
 
   static async create(
     data: {

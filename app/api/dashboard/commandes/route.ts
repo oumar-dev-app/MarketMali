@@ -8,21 +8,15 @@ export const GET = apiHandler(
   async (req: Request) => {
 
     const user = await getAuthUser(req);
-
     const { searchParams } = new URL(req.url);
-
     const page =
       Number(searchParams.get("page")) || 1;
-
     const limit =
       Number(searchParams.get("limit")) || 10;
-
     const search =
       searchParams.get("search") || "";
-
     const status =
       searchParams.get("status") || undefined;
-
     const result =
       await CommandeService.findByUser(
         user.id,

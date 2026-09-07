@@ -14,6 +14,41 @@ export async function GET(
     const user =
       vendeurMiddleware(req);
 
+    /*
+     * Administrateurs :
+     * accès à tous les livreurs
+     * de toutes les boutiques.
+     */
+    if (
+      user.role === "admin" ||
+      user.role === "super_admin"
+    ) {
+
+      const livreurs =
+        await LivreurService.findAll(
+          user.id,
+          user.role
+        );
+
+      return NextResponse.json(
+        {
+          success: true,
+          message:
+            livreurs.length
+              ? "Tous les livreurs ont été récupérés avec succès."
+              : "Aucun livreur enregistré.",
+          data: livreurs
+        },
+        {
+          status: 200
+        }
+      );
+    }
+
+    /*
+     * Vendeur :
+     * uniquement les livreurs de sa boutique.
+     */
     const boutique =
       await BoutiqueRepository.findByUserId(
         user.id
@@ -54,7 +89,6 @@ export async function GET(
     );
   });
 }
-
 
 export async function POST(
   req: NextRequest

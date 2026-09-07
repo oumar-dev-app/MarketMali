@@ -2,203 +2,338 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+    AlertCircle,
     CheckCircle,
     Clock,
+    Eye,
     MapPin,
+    MoreVertical,
+    Navigation,
     Package,
     RefreshCw,
     Search,
+    Settings2,
     Truck,
     User,
+    X,
     XCircle,
 } from "lucide-react";
-import { toast } from "sonner";
+
+type LivraisonStatus =
+    | "assigned"
+    | "picked_up"
+    | "in_transit"
+    | "delivery_pending_confirmation"
+    | "delivered"
+    | "cancelled";
+
+type StatutFiltre = LivraisonStatus | "all";
+
+type ActionType = "details" | "gps" | "manage" | null;
 
 interface Livraison {
     id: number;
     uuid: string;
-    commande_id: number;
-    livreur_id: number;
-
-    status:
-    | "assigned"
-    | "picked_up"
-    | "in_transit"
-    | "delivered"
-    | "cancelled"
-    | "delivery_pending_confirmation";
-
-    commentaire: string | null;
-
-    assigned_at: string | null;
-    picked_up_at: string | null;
-    in_transit_at: string | null;
-    delivery_pending_confirmation_at: string | null;
-    delivered_at: string | null;
-    cancelled_at: string | null;
 
     commande_uuid: string;
-    commande_total: string;
+    commande_total: number | string;
+    frais_livraison: number | string;
     commande_status: string;
 
-    zone_livraison: string;
-    adresse_livraison: string | null;
+    client_nom?: string | null;
+    client_prenom?: string | null;
+    client_telephone?: string | null;
 
-    latitude: number | null;
-    longitude: number | null;
+    livreur_uuid?: string | null;
+    livreur_nom?: string | null;
+    livreur_prenom?: string | null;
+    livreur_telephone?: string | null;
 
-    client_nom: string;
-    client_prenom: string;
-    client_telephone: string;
+    zone_livraison?: string | null;
+    adresse_livraison?: string | null;
 
-    livreur_uuid: string;
-    livreur_nom: string;
-    livreur_prenom: string;
-    livreur_telephone: string;
-    livreur_vehicule: string | null;
+    status: LivraisonStatus;
+
+    latitude?: number | string | null;
+    longitude?: number | string | null;
+    precision_gps?: number | string | null;
+
+    created_at?: string;
+    updated_at?: string;
 }
 
-type StatutFiltre =
-    | "all"
-    | Livraison["status"];
-
-const livraisonLabels: Record<
-    Livraison["status"],
-    string
-> = {
+const STATUS_LABELS: Record<LivraisonStatus, string> = {
     assigned: "Assignée",
     picked_up: "Récupérée",
-    in_transit: "En livraison",
-    delivered: "Livrée",
-    cancelled: "Annulée",
-    delivery_pending_confirmation:
-        "En attente de confirmation",
-};
-
-const commandeLabels: Record<
-    string,
-    string
-> = {
-    pending: "En attente",
-    confirmed: "Confirmée",
-    preparing: "En préparation",
-    shipped: "Expédiée",
+    in_transit: "En transit",
+    delivery_pending_confirmation: "À confirmer",
     delivered: "Livrée",
     cancelled: "Annulée",
 };
 
-const livraisonColors: Record<
-    Livraison["status"],
-    string
-> = {
-    assigned:
-        "bg-yellow-50 text-yellow-700 border-yellow-200",
+function formatPrice(value: number | string | null | undefined) {
+    const amount = Number(value ?? 0);
 
-    picked_up:
-        "bg-blue-50 text-blue-700 border-blue-200",
-
-    in_transit:
-        "bg-indigo-50 text-indigo-700 border-indigo-200",
-
-    delivered:
-        "bg-green-50 text-green-700 border-green-200",
-
-    cancelled:
-        "bg-red-50 text-red-700 border-red-200",
-
-    delivery_pending_confirmation:
-        "bg-orange-50 text-orange-700 border-orange-200",
-};
-
-function formatPrice(
-    value: string | number
-) {
-    return `${Number(value).toLocaleString(
-        "fr-FR"
-    )} FCFA`;
+    return (
+        new Intl.NumberFormat("fr-FR", {
+            maximumFractionDigits: 0,
+        }).format(amount) + " FCFA"
+    );
 }
 
-function formatDate(
-    value: string | null
-) {
-    if (!value) {
-        return "-";
+function formatDate(value?: string) {
+    if (!value) return "—";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "—";
     }
 
-    return new Date(value).toLocaleString(
-        "fr-FR",
-        {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        }
-    );
+    return new Intl.DateTimeFormat("fr-FR", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    }).format(date);
 }
 
-function getCommandeLabel(
-    status: string
-) {
-    return (
-        commandeLabels[status] ??
-        status
-    );
+function formatDateTime(value?: string) {
+    if (!value) return "—";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "—";
+    }
+
+    return new Intl.DateTimeFormat("fr-FR", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date);
+}
+
+function getCommandeLabel(livraison: Livraison) {
+    if (!livraison.commande_uuid) {
+        return "Commande";
+    }
+
+    return `#${livraison.commande_uuid
+        .slice(0, 8)
+        .toUpperCase()}`;
+}
+
+function getClientName(livraison: Livraison) {
+    const name = [
+        livraison.client_prenom,
+        livraison.client_nom,
+    ]
+        .filter(Boolean)
+        .join(" ");
+
+    return name || "Client";
+}
+
+function getLivreurName(livraison: Livraison) {
+    const name = [
+        livraison.livreur_prenom,
+        livraison.livreur_nom,
+    ]
+        .filter(Boolean)
+        .join(" ");
+
+    return name || "Non assigné";
+}
+
+function getStatusClasses(status: LivraisonStatus) {
+    switch (status) {
+        case "assigned":
+            return "bg-blue-50 text-blue-700 ring-blue-200";
+
+        case "picked_up":
+            return "bg-indigo-50 text-indigo-700 ring-indigo-200";
+
+        case "in_transit":
+            return "bg-purple-50 text-purple-700 ring-purple-200";
+
+        case "delivery_pending_confirmation":
+            return "bg-orange-50 text-orange-700 ring-orange-200";
+
+        case "delivered":
+            return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+
+        case "cancelled":
+            return "bg-red-50 text-red-700 ring-red-200";
+
+        default:
+            return "bg-gray-50 text-gray-700 ring-gray-200";
+    }
 }
 
 function StatusIcon({
     status,
-    size = 15,
+    className = "h-4 w-4",
 }: {
-    status: Livraison["status"];
-    size?: number;
+    status: LivraisonStatus;
+    className?: string;
 }) {
-    if (status === "delivered") {
-        return <CheckCircle size={size} />;
-    }
+    switch (status) {
+        case "assigned":
+            return <Clock className={className} />;
 
-    if (status === "cancelled") {
-        return <XCircle size={size} />;
-    }
+        case "picked_up":
+            return <Package className={className} />;
 
-    if (status === "in_transit") {
-        return <Truck size={size} />;
-    }
+        case "in_transit":
+            return <Truck className={className} />;
 
-    if (status === "picked_up") {
-        return <Package size={size} />;
-    }
+        case "delivery_pending_confirmation":
+            return <AlertCircle className={className} />;
 
-    if (
-        status === "delivery_pending_confirmation"
-    ) {
-        return <Clock size={size} />;
-    }
+        case "delivered":
+            return <CheckCircle className={className} />;
 
-    return <Clock size={size} />;
+        case "cancelled":
+            return <XCircle className={className} />;
+
+        default:
+            return <Clock className={className} />;
+    }
+}
+
+function StatCard({
+    label,
+    value,
+    icon,
+    description,
+    variant = "gray",
+}: {
+    label: string;
+    value: number;
+    icon: React.ReactNode;
+    description: string;
+    variant?: "gray" | "blue" | "orange" | "green";
+}) {
+    const variants = {
+        gray: {
+            card: "border-gray-200",
+            icon: "bg-gray-100 text-gray-700",
+            value: "text-gray-900",
+        },
+        blue: {
+            card: "border-blue-200",
+            icon: "bg-blue-50 text-blue-600",
+            value: "text-blue-700",
+        },
+        orange: {
+            card: "border-orange-200",
+            icon: "bg-orange-50 text-orange-600",
+            value: "text-orange-700",
+        },
+        green: {
+            card: "border-emerald-200",
+            icon: "bg-emerald-50 text-emerald-600",
+            value: "text-emerald-700",
+        },
+    };
+
+    const current = variants[variant];
+
+    return (
+        <div
+            className={`rounded-2xl border bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${current.card}`}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {label}
+                    </p>
+
+                    <p
+                        className={`mt-2 text-2xl font-bold tracking-tight ${current.value}`}
+                    >
+                        {value}
+                    </p>
+
+                    <p className="mt-1 text-xs text-gray-500">
+                        {description}
+                    </p>
+                </div>
+
+                <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${current.icon}`}
+                >
+                    {icon}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function EmptyState({
+    hasFilters,
+    onReset,
+}: {
+    hasFilters: boolean;
+    onReset: () => void;
+}) {
+    return (
+        <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gray-100 text-gray-500">
+                <Truck className="h-7 w-7" />
+            </div>
+
+            <h3 className="mt-5 text-base font-bold text-gray-900">
+                Aucune livraison trouvée
+            </h3>
+
+            <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
+                {hasFilters
+                    ? "Aucune livraison ne correspond aux critères de recherche sélectionnés."
+                    : "Les livraisons apparaîtront ici dès qu'elles seront créées."}
+            </p>
+
+            {hasFilters && (
+                <button
+                    type="button"
+                    onClick={onReset}
+                    className="mt-5 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800"
+                >
+                    Réinitialiser les filtres
+                </button>
+            )}
+        </div>
+    );
 }
 
 export default function GestionLivraisons() {
-    const [livraisons, setLivraisons] =
-        useState<Livraison[]>([]);
+    const [livraisons, setLivraisons] = useState<
+        Livraison[]
+    >([]);
 
-    const [loading, setLoading] =
-        useState(true);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const [refreshing, setRefreshing] =
-        useState(false);
-
-    const [search, setSearch] =
-        useState("");
-
-    const [statutFiltre, setStatutFiltre] =
+    const [search, setSearch] = useState("");
+    const [statut, setStatut] =
         useState<StatutFiltre>("all");
 
+    const [openMenuUuid, setOpenMenuUuid] =
+        useState<string | null>(null);
+
+    const [selectedLivraison, setSelectedLivraison] =
+        useState<Livraison | null>(null);
+
+    const [activeAction, setActiveAction] =
+        useState<ActionType>(null);
+
     const loadLivraisons = async (
-        isRefresh = false
+        showRefresh = false
     ) => {
         try {
-            if (isRefresh) {
+            if (showRefresh) {
                 setRefreshing(true);
             } else {
                 setLoading(true);
@@ -207,56 +342,42 @@ export default function GestionLivraisons() {
             const token =
                 localStorage.getItem("token");
 
-            if (!token) {
-                toast.error(
-                    "Session utilisateur introuvable."
-                );
-                return;
-            }
-
-            const response =
-                await fetch(
-                    "/api/dashboard/livraisons",
-                    {
-                        headers: {
-                            Authorization:
-                                `Bearer ${token}`,
-                        },
-                    }
-                );
-
-            const data =
-                await response.json();
-
-            if (
-                !response.ok ||
-                !data.success
-            ) {
-                toast.error(
-                    data.message ??
-                    "Impossible de récupérer les livraisons."
-                );
-                return;
-            }
-
-            setLivraisons(
-                data.data ?? []
+            const response = await fetch(
+                "/api/dashboard/livraisons",
+                {
+                    headers: token
+                        ? {
+                            Authorization: `Bearer ${token}`,
+                        }
+                        : {},
+                    cache: "no-store",
+                }
             );
 
-            if (isRefresh) {
-                toast.success(
-                    "Livraisons actualisées."
+            if (!response.ok) {
+                throw new Error(
+                    "Impossible de récupérer les livraisons."
                 );
             }
+
+            const result = await response.json();
+
+            const data = Array.isArray(result)
+                ? result
+                : Array.isArray(result?.data)
+                    ? result.data
+                    : Array.isArray(result?.livraisons)
+                        ? result.livraisons
+                        : [];
+
+            setLivraisons(data);
         } catch (error) {
             console.error(
-                "Erreur chargement livraisons :",
+                "Erreur chargement livraisons:",
                 error
             );
 
-            toast.error(
-                "Une erreur est survenue."
-            );
+            setLivraisons([]);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -267,305 +388,271 @@ export default function GestionLivraisons() {
         loadLivraisons();
     }, []);
 
-    const livraisonsFiltrees =
-        useMemo(() => {
-            const recherche =
-                search
-                    .trim()
-                    .toLowerCase();
+    const stats = useMemo(() => {
+        const total = livraisons.length;
 
-            return livraisons.filter(
-                (livraison) => {
-                    const correspondStatut =
-                        statutFiltre ===
-                        "all" ||
-                        livraison.status ===
-                        statutFiltre;
+        const enCours = livraisons.filter((item) =>
+            [
+                "assigned",
+                "picked_up",
+                "in_transit",
+            ].includes(item.status)
+        ).length;
 
-                    if (
-                        !correspondStatut
-                    ) {
-                        return false;
-                    }
-
-                    if (!recherche) {
-                        return true;
-                    }
-
-                    const texte = [
-                        livraison.commande_id,
-                        livraison.commande_uuid,
-                        livraison.client_nom,
-                        livraison.client_prenom,
-                        livraison.client_telephone,
-                        livraison.livreur_nom,
-                        livraison.livreur_prenom,
-                        livraison.livreur_telephone,
-                        livraison.adresse_livraison,
-                        livraison.zone_livraison,
-                    ]
-                        .filter(Boolean)
-                        .join(" ")
-                        .toLowerCase();
-
-                    return texte.includes(
-                        recherche
-                    );
-                }
-            );
-        }, [
-            livraisons,
-            search,
-            statutFiltre,
-        ]);
-
-    const statistiques = {
-        total: livraisons.length,
-
-        assigned: livraisons.filter(
-            (item) =>
-                item.status ===
-                "assigned"
-        ).length,
-
-        picked_up: livraisons.filter(
-            (item) =>
-                item.status ===
-                "picked_up"
-        ).length,
-
-        in_transit: livraisons.filter(
-            (item) =>
-                item.status ===
-                "in_transit"
-        ).length,
-
-        delivered: livraisons.filter(
-            (item) =>
-                item.status ===
-                "delivered"
-        ).length,
-
-        cancelled: livraisons.filter(
-            (item) =>
-                item.status ===
-                "cancelled"
-        ).length,
-
-        pending_confirmation: livraisons.filter(
+        const aConfirmer = livraisons.filter(
             (item) =>
                 item.status ===
                 "delivery_pending_confirmation"
-        ).length,
+        ).length;
+
+        const livrees = livraisons.filter(
+            (item) => item.status === "delivered"
+        ).length;
+
+        return {
+            total,
+            enCours,
+            aConfirmer,
+            livrees,
+        };
+    }, [livraisons]);
+
+    const filteredLivraisons = useMemo(() => {
+        const normalizedSearch = search
+            .trim()
+            .toLowerCase();
+
+        return livraisons.filter((livraison) => {
+            const matchesStatus =
+                statut === "all" ||
+                livraison.status === statut;
+
+            if (!matchesStatus) {
+                return false;
+            }
+
+            if (!normalizedSearch) {
+                return true;
+            }
+
+            const searchableText = [
+                livraison.uuid,
+                livraison.commande_uuid,
+                getCommandeLabel(livraison),
+                getClientName(livraison),
+                getLivreurName(livraison),
+                livraison.client_telephone,
+                livraison.livreur_telephone,
+                livraison.zone_livraison,
+                livraison.adresse_livraison,
+                STATUS_LABELS[livraison.status],
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return searchableText.includes(
+                normalizedSearch
+            );
+        });
+    }, [livraisons, search, statut]);
+
+    const hasFilters =
+        search.trim().length > 0 || statut !== "all";
+
+    const resetFilters = () => {
+        setSearch("");
+        setStatut("all");
     };
 
-    if (loading) {
-        return (
-            <main className="min-h-full bg-gray-50 p-4 sm:p-6">
-                <div className="mx-auto max-w-7xl">
-                    <div className="h-8 w-72 animate-pulse rounded-lg bg-gray-200" />
+    const openAction = (
+        livraison: Livraison,
+        action: Exclude<ActionType, null>
+    ) => {
+        setSelectedLivraison(livraison);
+        setActiveAction(action);
+        setOpenMenuUuid(null);
+    };
 
-                    <div className="mt-2 h-4 w-96 max-w-full animate-pulse rounded bg-gray-200" />
+    const closeAction = () => {
+        setSelectedLivraison(null);
+        setActiveAction(null);
+    };
 
-                    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {Array.from({
-                            length: 4,
-                        }).map(
-                            (_, index) => (
-                                <div
-                                    key={
-                                        index
-                                    }
-                                    className="h-28 animate-pulse rounded-2xl bg-white shadow-sm"
-                                />
-                            )
-                        )}
-                    </div>
+    useEffect(() => {
+        const handleKeyDown = (
+            event: KeyboardEvent
+        ) => {
+            if (event.key === "Escape") {
+                setOpenMenuUuid(null);
 
-                    <div className="mt-6 h-96 animate-pulse rounded-2xl bg-white shadow-sm" />
-                </div>
-            </main>
+                if (activeAction) {
+                    closeAction();
+                }
+            }
+        };
+
+        const handleClickOutside = (
+            event: MouseEvent
+        ) => {
+            const target =
+                event.target as HTMLElement;
+
+            if (
+                !target.closest(
+                    "[data-livraison-menu]"
+                )
+            ) {
+                setOpenMenuUuid(null);
+            }
+        };
+
+        window.addEventListener(
+            "keydown",
+            handleKeyDown
         );
-    }
+
+        document.addEventListener(
+            "mousedown",
+            handleClickOutside
+        );
+
+        return () => {
+            window.removeEventListener(
+                "keydown",
+                handleKeyDown
+            );
+
+            document.removeEventListener(
+                "mousedown",
+                handleClickOutside
+            );
+        };
+    }, [activeAction]);
+
+    const hasGps = (livraison: Livraison) => {
+        return (
+            livraison.latitude !== null &&
+            livraison.latitude !== undefined &&
+            livraison.longitude !== null &&
+            livraison.longitude !== undefined
+        );
+    };
 
     return (
-        <main className="min-h-full bg-gray-50 p-4 sm:p-6">
-            <div className="mx-auto max-w-7xl space-y-6">
+        <div className="min-h-screen bg-gray-50/70">
+            <div className="mx-auto w-full max-w-375 space-y-6 p-4 sm:p-6 lg:p-8">
+                {/* HEADER */}
+                <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+                    <div className="relative p-5 sm:p-6 lg:p-7">
+                        <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-orange-50 blur-3xl" />
 
-                {/* =====================================================
-                    HEADER
-                ====================================================== */}
-
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gray-900 text-white shadow-sm">
-                                <Truck
-                                    size={21}
-                                />
-                            </div>
-
+                        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                             <div>
-                                <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-                                    Gestion des livraisons
+                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">
+                                    <Truck className="h-3.5 w-3.5" />
+                                    Gestion logistique
+                                </div>
+
+                                <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+                                    Livraisons
                                 </h1>
 
-                                <p className="mt-1 text-sm text-gray-500">
-                                    Suivez les commandes, les livreurs et les livraisons.
+                                <p className="mt-1.5 max-w-2xl text-sm leading-6 text-gray-500">
+                                    Suivez les livraisons,
+                                    consultez leur statut et
+                                    gérez leur progression.
                                 </p>
                             </div>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    loadLivraisons(true)
+                                }
+                                disabled={refreshing}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <RefreshCw
+                                    className={`h-4 w-4 ${refreshing
+                                        ? "animate-spin"
+                                        : ""
+                                        }`}
+                                />
+                                Actualiser
+                            </button>
                         </div>
                     </div>
+                </section>
 
-                    <button
-                        type="button"
-                        onClick={() =>
-                            loadLivraisons(
-                                true
-                            )
+                {/* STATS */}
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        label="Total"
+                        value={stats.total}
+                        description="Toutes les livraisons"
+                        icon={
+                            <Package className="h-5 w-5" />
                         }
-                        disabled={
-                            refreshing
+                    />
+
+                    <StatCard
+                        label="En cours"
+                        value={stats.enCours}
+                        description="Livraisons actives"
+                        icon={
+                            <Truck className="h-5 w-5" />
                         }
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        <RefreshCw
-                            size={16}
-                            className={
-                                refreshing
-                                    ? "animate-spin"
-                                    : ""
-                            }
-                        />
+                    />
 
-                        {refreshing
-                            ? "Actualisation..."
-                            : "Actualiser"}
-                    </button>
-                </div>
+                    <StatCard
+                        label="À confirmer"
+                        value={stats.aConfirmer}
+                        description="En attente du client"
+                        variant="orange"
+                        icon={
+                            <AlertCircle className="h-5 w-5" />
+                        }
+                    />
 
-                {/* =====================================================
-                    STATISTIQUES
-                ====================================================== */}
+                    <StatCard
+                        label="Livrées"
+                        value={stats.livrees}
+                        description="Livraisons terminées"
+                        icon={
+                            <CheckCircle className="h-5 w-5" />
+                        }
+                    />
+                </section>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500">
-                            Total
-                        </p>
-
-                        <p className="mt-2 text-2xl font-bold text-gray-900">
-                            {
-                                statistiques.total
-                            }
-                        </p>
-
-                        <p className="mt-1 text-xs text-gray-400">
-                            Toutes les livraisons
-                        </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500">
-                            En cours
-                        </p>
-
-                        <p className="mt-2 text-2xl font-bold text-indigo-600">
-                            {statistiques.assigned +
-                                statistiques.picked_up +
-                                statistiques.in_transit +
-                                statistiques.pending_confirmation}
-                        </p>
-
-                        <p className="mt-1 text-xs text-gray-400">
-                            À traiter ou en livraison
-                        </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500">
-                            Livrées
-                        </p>
-
-                        <p className="mt-2 text-2xl font-bold text-green-600">
-                            {
-                                statistiques.delivered
-                            }
-                        </p>
-
-                        <p className="mt-1 text-xs text-gray-400">
-                            Livraisons terminées
-                        </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500">
-                            Annulées
-                        </p>
-
-                        <p className="mt-2 text-2xl font-bold text-red-600">
-                            {
-                                statistiques.cancelled
-                            }
-                        </p>
-
-                        <p className="mt-1 text-xs text-gray-400">
-                            Livraisons annulées
-                        </p>
-                    </div>
-
-                </div>
-
-                {/* =====================================================
-                    FILTRES
-                ====================================================== */}
-
-                <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-
-                    <div className="flex flex-col gap-3 lg:flex-row">
-
-                        {/* Recherche */}
-
+                {/* FILTERS */}
+                <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                         <div className="relative flex-1">
-                            <Search
-                                size={17}
-                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
+                            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 
                             <input
-                                type="search"
+                                type="text"
                                 value={search}
-                                onChange={(
-                                    event
-                                ) =>
+                                onChange={(event) =>
                                     setSearch(
-                                        event
-                                            .target
-                                            .value
+                                        event.target.value
                                     )
                                 }
                                 placeholder="Rechercher une commande, un client, un livreur..."
-                                className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                                className="h-11 w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-400 focus:bg-white focus:ring-4 focus:ring-gray-100"
                             />
                         </div>
 
-                        {/* Statut */}
-
                         <select
-                            value={
-                                statutFiltre
-                            }
-                            onChange={(
-                                event
-                            ) =>
-                                setStatutFiltre(
+                            value={statut}
+                            onChange={(event) =>
+                                setStatut(
                                     event.target
                                         .value as StatutFiltre
                                 )
                             }
-                            className="h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-medium text-gray-700 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                            className="h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm font-medium text-gray-700 outline-none transition focus:border-gray-400 focus:bg-white focus:ring-4 focus:ring-gray-100"
                         >
                             <option value="all">
                                 Tous les statuts
@@ -580,7 +667,11 @@ export default function GestionLivraisons() {
                             </option>
 
                             <option value="in_transit">
-                                En livraison
+                                En transit
+                            </option>
+
+                            <option value="delivery_pending_confirmation">
+                                À confirmer
                             </option>
 
                             <option value="delivered">
@@ -592,121 +683,80 @@ export default function GestionLivraisons() {
                             </option>
                         </select>
 
-                    </div>
+                        <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-4 py-2.5 lg:justify-center">
+                            <span className="text-xs font-medium text-gray-500">
+                                Résultats
+                            </span>
 
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs text-gray-400">
-                            {
-                                livraisonsFiltrees.length
-                            }{" "}
-                            livraison
-                            {livraisonsFiltrees.length >
-                                1
-                                ? "s"
-                                : ""}{" "}
-                            affichée
-                            {livraisonsFiltrees.length >
-                                1
-                                ? "s"
-                                : ""}
-                        </p>
+                            <span className="rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-gray-900 shadow-sm ring-1 ring-gray-200">
+                                {
+                                    filteredLivraisons.length
+                                }
+                            </span>
+                        </div>
 
-                        {(search ||
-                            statutFiltre !==
-                            "all") && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSearch(
-                                            ""
-                                        );
-                                        setStatutFiltre(
-                                            "all"
-                                        );
-                                    }}
-                                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                                >
-                                    Réinitialiser les filtres
-                                </button>
-                            )}
+                        {hasFilters && (
+                            <button
+                                type="button"
+                                onClick={resetFilters}
+                                className="h-11 rounded-xl px-4 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
+                            >
+                                Effacer
+                            </button>
+                        )}
                     </div>
                 </section>
 
-                {/* =====================================================
-                    AUCUN RÉSULTAT
-                ====================================================== */}
-
-                {livraisonsFiltrees.length ===
-                    0 && (
-                        <section className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm">
-
-                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
-                                <Package
-                                    size={25}
-                                    className="text-gray-400"
-                                />
-                            </div>
-
-                            <h2 className="mt-4 text-lg font-bold text-gray-900">
-                                {livraisons.length ===
-                                    0
-                                    ? "Aucune livraison"
-                                    : "Aucun résultat"}
-                            </h2>
-
-                            <p className="mx-auto mt-1 max-w-md text-sm text-gray-500">
-                                {livraisons.length ===
-                                    0
-                                    ? "Aucune livraison n'est actuellement enregistrée."
-                                    : "Aucune livraison ne correspond aux critères de recherche sélectionnés."}
-                            </p>
-
-                        </section>
-                    )}
-
-                {/* =====================================================
-                    DESKTOP
-                ====================================================== */}
-
-                {livraisonsFiltrees.length >
-                    0 && (
-                        <section className="hidden overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm lg:block">
-
-                            <div className="overflow-x-auto">
-
-                                <table className="w-full min-w-[1100px]">
-
-                                    <thead className="border-b bg-gray-50">
-                                        <tr>
-                                            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                {/* TABLE / CARDS */}
+                <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                    {loading ? (
+                        <div className="space-y-3 p-4">
+                            {[1, 2, 3, 4, 5].map(
+                                (item) => (
+                                    <div
+                                        key={item}
+                                        className="h-20 animate-pulse rounded-xl bg-gray-100"
+                                    />
+                                )
+                            )}
+                        </div>
+                    ) : filteredLivraisons.length ===
+                        0 ? (
+                        <EmptyState
+                            hasFilters={hasFilters}
+                            onReset={resetFilters}
+                        />
+                    ) : (
+                        <>
+                            {/* DESKTOP */}
+                            <div className="hidden lg:block overflow-x-auto">
+                                <table className="w-full min-w-225 table-fixed">
+                                    <thead>
+                                        <tr className="border-b border-gray-200 bg-gray-50/80">
+                                            <th className="w-[22%] px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                                                 Commande
                                             </th>
 
-                                            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                            <th className="w-[23%] px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                                                 Client
                                             </th>
 
-                                            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                            <th className="w-[23%] px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                                                 Livreur
                                             </th>
 
-                                            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                            <th className="w-[22%] px-6 py-4 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                                                 Statut
                                             </th>
 
-                                            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                                Montant
-                                            </th>
-
-                                            <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                                Livraison
+                                            <th className="w-[10%] px-6 py-4 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                                                Actions
                                             </th>
                                         </tr>
                                     </thead>
 
                                     <tbody className="divide-y divide-gray-100">
-
-                                        {livraisonsFiltrees.map(
+                                        {filteredLivraisons.map(
                                             (
                                                 livraison
                                             ) => (
@@ -714,498 +764,940 @@ export default function GestionLivraisons() {
                                                     key={
                                                         livraison.uuid
                                                     }
-                                                    className="transition hover:bg-gray-50"
+                                                    className="group transition hover:bg-gray-50/70"
                                                 >
-
-                                                    {/* Commande */}
-
-                                                    <td className="px-5 py-5 align-top">
-
-                                                        <p className="font-bold text-gray-900">
-                                                            #
-                                                            {
-                                                                livraison.commande_id
-                                                            }
-                                                        </p>
-
-                                                        <p className="mt-1 max-w-48 truncate text-xs text-gray-400">
-                                                            {
-                                                                livraison.commande_uuid
-                                                            }
-                                                        </p>
-
-                                                        <span className="mt-2 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600">
-                                                            {
-                                                                getCommandeLabel(
-                                                                    livraison.commande_status
-                                                                )
-                                                            }
-                                                        </span>
-
-                                                    </td>
-
-                                                    {/* Client */}
-
-                                                    <td className="px-5 py-5 align-top">
-
+                                                    {/* COMMANDE */}
+                                                    <td className="px-6 py-5 align-top">
                                                         <div className="flex items-start gap-3">
-
-                                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-                                                                <User
-                                                                    size={
-                                                                        16
-                                                                    }
-                                                                    className="text-gray-500"
-                                                                />
+                                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600 transition group-hover:bg-white group-hover:shadow-sm">
+                                                                <Package className="h-4 w-4" />
                                                             </div>
 
-                                                            <div>
-                                                                <p className="font-semibold text-gray-900">
-                                                                    {
-                                                                        livraison.client_prenom
-                                                                    }{" "}
-                                                                    {
-                                                                        livraison.client_nom
-                                                                    }
-                                                                </p>
-
-                                                                <a
-                                                                    href={`tel:${livraison.client_telephone}`}
-                                                                    className="mt-1 block text-xs text-blue-600 hover:text-blue-700"
-                                                                >
-                                                                    {
-                                                                        livraison.client_telephone
-                                                                    }
-                                                                </a>
-                                                            </div>
-
-                                                        </div>
-
-                                                    </td>
-
-                                                    {/* Livreur */}
-
-                                                    <td className="px-5 py-5 align-top">
-
-                                                        <div className="flex items-start gap-3">
-
-                                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-                                                                <Truck
-                                                                    size={
-                                                                        16
-                                                                    }
-                                                                    className="text-gray-500"
-                                                                />
-                                                            </div>
-
-                                                            <div>
-                                                                <p className="font-semibold text-gray-900">
-                                                                    {
-                                                                        livraison.livreur_prenom
-                                                                    }{" "}
-                                                                    {
-                                                                        livraison.livreur_nom
-                                                                    }
+                                                            <div className="min-w-0">
+                                                                <p className="font-bold text-gray-900">
+                                                                    {getCommandeLabel(
+                                                                        livraison
+                                                                    )}
                                                                 </p>
 
                                                                 <p className="mt-1 text-xs text-gray-500">
-                                                                    {
-                                                                        livraison.livreur_telephone
-                                                                    }
+                                                                    {formatDateTime(
+                                                                        livraison.created_at
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* CLIENT */}
+                                                    <td className="px-6 py-5 align-top">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                                                                <User className="h-4 w-4" />
+                                                            </div>
+
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-sm font-semibold text-gray-900">
+                                                                    {getClientName(
+                                                                        livraison
+                                                                    )}
                                                                 </p>
 
-                                                                {livraison.livreur_vehicule && (
-                                                                    <p className="mt-1 text-xs text-gray-400">
+                                                                {livraison.client_telephone && (
+                                                                    <p className="mt-1 text-xs text-gray-500">
                                                                         {
-                                                                            livraison.livreur_vehicule
+                                                                            livraison.client_telephone
                                                                         }
                                                                     </p>
                                                                 )}
+
+                                                                {!livraison.client_telephone && (
+                                                                    <p className="mt-1 text-xs text-gray-400">
+                                                                        Téléphone
+                                                                        non
+                                                                        renseigné
+                                                                    </p>
+                                                                )}
                                                             </div>
-
                                                         </div>
-
                                                     </td>
 
-                                                    {/* Statut */}
+                                                    {/* LIVREUR */}
+                                                    <td className="px-6 py-5 align-top">
+                                                        <div className="flex items-start gap-3">
+                                                            <div
+                                                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${livraison.livreur_uuid
+                                                                    ? "bg-blue-50 text-blue-600"
+                                                                    : "bg-gray-100 text-gray-400"
+                                                                    }`}
+                                                            >
+                                                                <Truck className="h-4 w-4" />
+                                                            </div>
 
-                                                    <td className="px-5 py-5 align-top">
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-sm font-semibold text-gray-900">
+                                                                    {getLivreurName(
+                                                                        livraison
+                                                                    )}
+                                                                </p>
 
+                                                                {livraison.livreur_telephone && (
+                                                                    <p className="mt-1 text-xs text-gray-500">
+                                                                        {
+                                                                            livraison.livreur_telephone
+                                                                        }
+                                                                    </p>
+                                                                )}
+
+                                                                {!livraison.livreur_uuid && (
+                                                                    <p className="mt-1 text-xs text-orange-600">
+                                                                        En attente
+                                                                        d'affectation
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* STATUT */}
+                                                    <td className="px-6 py-5 align-top">
                                                         <span
-                                                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${livraisonColors[
+                                                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ring-1 ring-inset ${getStatusClasses(
                                                                 livraison.status
-                                                            ]}`}
+                                                            )}`}
                                                         >
                                                             <StatusIcon
                                                                 status={
                                                                     livraison.status
                                                                 }
-                                                                size={
-                                                                    14
-                                                                }
+                                                                className="h-3.5 w-3.5"
                                                             />
 
                                                             {
-                                                                livraisonLabels[
+                                                                STATUS_LABELS[
                                                                 livraison
                                                                     .status
                                                                 ]
                                                             }
                                                         </span>
 
-                                                        {livraison.commentaire && (
-                                                            <p className="mt-2 max-w-52 text-xs leading-5 text-gray-500">
-                                                                {
-                                                                    livraison.commentaire
-                                                                }
-                                                            </p>
-                                                        )}
-
-                                                    </td>
-
-                                                    {/* Montant */}
-
-                                                    <td className="px-5 py-5 align-top">
-
-                                                        <p className="font-bold text-gray-900">
-                                                            {formatPrice(
-                                                                livraison.commande_total
+                                                        {livraison.status ===
+                                                            "delivery_pending_confirmation" && (
+                                                                <p className="mt-2 max-w-45 text-[11px] leading-4 text-orange-600">
+                                                                    Confirmation
+                                                                    client
+                                                                    requise
+                                                                </p>
                                                             )}
-                                                        </p>
-
                                                     </td>
 
-                                                    {/* Livraison */}
-
-                                                    <td className="px-5 py-5 align-top">
-
-                                                        <div className="flex items-start gap-2">
-
-                                                            <MapPin
-                                                                size={
-                                                                    16
+                                                    {/* ACTIONS */}
+                                                    <td className="relative px-6 py-5 text-right align-top">
+                                                        <div
+                                                            className="relative inline-block"
+                                                            data-livraison-menu
+                                                        >
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setOpenMenuUuid(
+                                                                        openMenuUuid ===
+                                                                            livraison.uuid
+                                                                            ? null
+                                                                            : livraison.uuid
+                                                                    )
                                                                 }
-                                                                className="mt-0.5 shrink-0 text-gray-400"
-                                                            />
+                                                                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                                                                aria-label="Ouvrir le menu"
+                                                                title="Actions"
+                                                            >
+                                                                <MoreVertical className="h-5 w-5" />
+                                                            </button>
 
-                                                            <div>
-                                                                <p className="max-w-56 text-sm font-medium text-gray-800">
-                                                                    {
-                                                                        livraison.adresse_livraison
-                                                                    }
-                                                                </p>
-
-                                                                {livraison.zone_livraison && (
-                                                                    <p className="mt-1 text-xs text-gray-400">
-                                                                        Zone :{" "}
-                                                                        {
-                                                                            livraison.zone_livraison
-                                                                        }
-                                                                    </p>
-                                                                )}
-
-                                                                <p className="mt-2 text-[11px] text-gray-400">
-                                                                    {
-                                                                        formatDate(
-                                                                            livraison.assigned_at
-                                                                        )
-                                                                    }
-                                                                </p>
-
-                                                                {livraison.latitude !==
-                                                                    null &&
-                                                                    livraison.longitude !==
-                                                                    null && (
-                                                                        <a
-                                                                            href={`https://www.google.com/maps?q=${livraison.latitude},${livraison.longitude}`}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-green-600 hover:text-green-700"
+                                                            {openMenuUuid ===
+                                                                livraison.uuid && (
+                                                                    <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 text-left shadow-xl ring-1 ring-black/5">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                openAction(
+                                                                                    livraison,
+                                                                                    "details"
+                                                                                )
+                                                                            }
+                                                                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
                                                                         >
-                                                                            <MapPin
-                                                                                size={
-                                                                                    13
-                                                                                }
-                                                                            />
-                                                                            Voir GPS
-                                                                        </a>
-                                                                    )}
-                                                            </div>
+                                                                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                                                                                <Eye className="h-4 w-4" />
+                                                                            </span>
 
+                                                                            <span>
+                                                                                Voir
+                                                                                les
+                                                                                détails
+                                                                            </span>
+                                                                        </button>
+
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                openAction(
+                                                                                    livraison,
+                                                                                    "gps"
+                                                                                )
+                                                                            }
+                                                                            disabled={
+                                                                                !hasGps(
+                                                                                    livraison
+                                                                                )
+                                                                            }
+                                                                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                        >
+                                                                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                                                                <Navigation className="h-4 w-4" />
+                                                                            </span>
+
+                                                                            <span>
+                                                                                Suivi
+                                                                                GPS
+                                                                            </span>
+                                                                        </button>
+
+                                                                        <div className="my-1.5 border-t border-gray-100" />
+
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() =>
+                                                                                openAction(
+                                                                                    livraison,
+                                                                                    "manage"
+                                                                                )
+                                                                            }
+                                                                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 hover:text-gray-900"
+                                                                        >
+                                                                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                                                                                <Settings2 className="h-4 w-4" />
+                                                                            </span>
+
+                                                                            <span>
+                                                                                Gérer
+                                                                                la
+                                                                                livraison
+                                                                            </span>
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                         </div>
-
                                                     </td>
-
                                                 </tr>
                                             )
                                         )}
-
                                     </tbody>
                                 </table>
-
                             </div>
-                        </section>
-                    )}
 
-                {/* =====================================================
-                    MOBILE / TABLET
-                ====================================================== */}
+                            {/* MOBILE / TABLET */}
+                            <div className="divide-y divide-gray-100 lg:hidden">
+                                {filteredLivraisons.map(
+                                    (
+                                        livraison
+                                    ) => (
+                                        <article
+                                            key={
+                                                livraison.uuid
+                                            }
+                                            className="p-4 sm:p-5"
+                                        >
+                                            <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                                                {/* HEADER */}
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex min-w-0 items-start gap-3">
+                                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+                                                            <Package className="h-5 w-5" />
+                                                        </div>
 
-                {livraisonsFiltrees.length >
-                    0 && (
-                        <div className="space-y-4 lg:hidden">
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-sm font-bold text-gray-900">
+                                                                {getCommandeLabel(
+                                                                    livraison
+                                                                )}
+                                                            </p>
 
-                            {livraisonsFiltrees.map(
-                                (
-                                    livraison
-                                ) => (
-                                    <article
-                                        key={
-                                            livraison.uuid
-                                        }
-                                        className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
-                                    >
+                                                            <p className="mt-1 text-xs text-gray-500">
+                                                                {formatDateTime(
+                                                                    livraison.created_at
+                                                                )}
+                                                            </p>
+                                                        </div>
+                                                    </div>
 
-                                        {/* Card header */}
-
-                                        <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-4">
-
-                                            <div>
-                                                <p className="text-lg font-bold text-gray-900">
-                                                    #
-                                                    {
-                                                        livraison.commande_id
-                                                    }
-                                                </p>
-
-                                                <p className="mt-1 text-xs text-gray-400">
-                                                    {
-                                                        getCommandeLabel(
-                                                            livraison.commande_status
-                                                        )
-                                                    }
-                                                </p>
-                                            </div>
-
-                                            <span
-                                                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${livraisonColors[
-                                                    livraison.status
-                                                ]}`}
-                                            >
-                                                <StatusIcon
-                                                    status={
-                                                        livraison.status
-                                                    }
-                                                    size={
-                                                        13
-                                                    }
-                                                />
-
-                                                {
-                                                    livraisonLabels[
-                                                    livraison
-                                                        .status
-                                                    ]
-                                                }
-                                            </span>
-
-                                        </div>
-
-                                        <div className="space-y-5 p-4">
-
-                                            {/* Client */}
-
-                                            <div className="flex items-start gap-3">
-
-                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-                                                    <User
-                                                        size={
-                                                            16
-                                                        }
-                                                        className="text-gray-500"
-                                                    />
-                                                </div>
-
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                                                        Client
-                                                    </p>
-
-                                                    <p className="mt-1 font-semibold text-gray-900">
-                                                        {
-                                                            livraison.client_prenom
-                                                        }{" "}
-                                                        {
-                                                            livraison.client_nom
-                                                        }
-                                                    </p>
-
-                                                    <a
-                                                        href={`tel:${livraison.client_telephone}`}
-                                                        className="mt-1 block text-sm text-blue-600"
+                                                    {/* MENU MOBILE */}
+                                                    <div
+                                                        className="relative shrink-0"
+                                                        data-livraison-menu
                                                     >
-                                                        {
-                                                            livraison.client_telephone
-                                                        }
-                                                    </a>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setOpenMenuUuid(
+                                                                    openMenuUuid ===
+                                                                        livraison.uuid
+                                                                        ? null
+                                                                        : livraison.uuid
+                                                                )
+                                                            }
+                                                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 hover:text-gray-900"
+                                                            aria-label="Ouvrir le menu"
+                                                            title="Actions"
+                                                        >
+                                                            <MoreVertical className="h-5 w-5" />
+                                                        </button>
+
+                                                        {openMenuUuid ===
+                                                            livraison.uuid && (
+                                                                <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white p-1.5 shadow-xl ring-1 ring-black/5">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            openAction(
+                                                                                livraison,
+                                                                                "details"
+                                                                            )
+                                                                        }
+                                                                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                                    >
+                                                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                                                                            <Eye className="h-4 w-4" />
+                                                                        </span>
+
+                                                                        Voir les
+                                                                        détails
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            openAction(
+                                                                                livraison,
+                                                                                "gps"
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            !hasGps(
+                                                                                livraison
+                                                                            )
+                                                                        }
+                                                                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                                    >
+                                                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                                                                            <Navigation className="h-4 w-4" />
+                                                                        </span>
+
+                                                                        Suivi GPS
+                                                                    </button>
+
+                                                                    <div className="my-1.5 border-t border-gray-100" />
+
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            openAction(
+                                                                                livraison,
+                                                                                "manage"
+                                                                            )
+                                                                        }
+                                                                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                                                    >
+                                                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                                                                            <Settings2 className="h-4 w-4" />
+                                                                        </span>
+
+                                                                        Gérer la
+                                                                        livraison
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                    </div>
                                                 </div>
 
-                                            </div>
+                                                {/* STATUS */}
+                                                <div className="mt-4">
+                                                    <span
+                                                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ring-1 ring-inset 
+                                                            ${getStatusClasses(
+                                                            livraison.status
+                                                        )}`}
+                                                    >
+                                                        <StatusIcon
+                                                            status={
+                                                                livraison.status
+                                                            }
+                                                            className="h-3.5 w-3.5"
+                                                        />
 
-                                            {/* Livreur */}
-
-                                            <div className="flex items-start gap-3">
-
-                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-                                                    <Truck
-                                                        size={
-                                                            16
+                                                        {
+                                                            STATUS_LABELS[
+                                                            livraison
+                                                                .status
+                                                            ]
                                                         }
-                                                        className="text-gray-500"
-                                                    />
+                                                    </span>
                                                 </div>
 
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                                                        Livreur
+                                                {/* CLIENT */}
+                                                <div className="mt-4 rounded-xl bg-gray-50 p-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <User className="h-4 w-4 text-gray-400" />
+
+                                                        <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                                                            Client
+                                                        </span>
+                                                    </div>
+
+                                                    <p className="mt-2 text-sm font-semibold text-gray-900">
+                                                        {getClientName(
+                                                            livraison
+                                                        )}
                                                     </p>
 
-                                                    <p className="mt-1 font-semibold text-gray-900">
-                                                        {
-                                                            livraison.livreur_prenom
-                                                        }{" "}
-                                                        {
-                                                            livraison.livreur_nom
-                                                        }
-                                                    </p>
-
-                                                    <p className="mt-1 text-sm text-gray-500">
-                                                        {
-                                                            livraison.livreur_telephone
-                                                        }
-                                                    </p>
-
-                                                    {livraison.livreur_vehicule && (
-                                                        <p className="mt-1 text-xs text-gray-400">
+                                                    {livraison.client_telephone && (
+                                                        <p className="mt-1 text-xs text-gray-500">
                                                             {
-                                                                livraison.livreur_vehicule
+                                                                livraison.client_telephone
                                                             }
                                                         </p>
                                                     )}
                                                 </div>
 
+                                                {/* LIVREUR */}
+                                                <div className="mt-3 rounded-xl bg-gray-50 p-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Truck
+                                                            className={`h-4 w-4 ${livraison.livreur_uuid
+                                                                ? "text-blue-500"
+                                                                : "text-gray-400"
+                                                                }`}
+                                                        />
+
+                                                        <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                                                            Livreur
+                                                        </span>
+                                                    </div>
+
+                                                    <p className="mt-2 text-sm font-semibold text-gray-900">
+                                                        {getLivreurName(
+                                                            livraison
+                                                        )}
+                                                    </p>
+
+                                                    {livraison.livreur_telephone && (
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            {
+                                                                livraison.livreur_telephone
+                                                            }
+                                                        </p>
+                                                    )}
+
+                                                    {!livraison.livreur_uuid && (
+                                                        <p className="mt-1 text-xs text-orange-600">
+                                                            En attente
+                                                            d'affectation
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {/* INFO MESSAGE */}
+                                                {livraison.status ===
+                                                    "delivery_pending_confirmation" && (
+                                                        <div className="mt-3 flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-3">
+                                                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
+
+                                                            <div>
+                                                                <p className="text-xs font-bold text-orange-800">
+                                                                    Confirmation
+                                                                    client
+                                                                    requise
+                                                                </p>
+
+                                                                <p className="mt-1 text-xs leading-5 text-orange-700">
+                                                                    Le livreur a
+                                                                    déclaré la
+                                                                    livraison.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                {livraison.status ===
+                                                    "delivered" && (
+                                                        <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-700">
+                                                            <CheckCircle className="h-4 w-4" />
+                                                            Livraison confirmée
+                                                        </div>
+                                                    )}
+
+                                                {livraison.status ===
+                                                    "cancelled" && (
+                                                        <div className="mt-3 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs font-semibold text-red-700">
+                                                            <XCircle className="h-4 w-4" />
+                                                            Livraison annulée
+                                                        </div>
+                                                    )}
                                             </div>
+                                        </article>
+                                    )
+                                )}
+                            </div>
+                        </>
+                    )}
+                </section>
+            </div>
 
-                                            {/* Adresse */}
+            {/* MODAL */}
+            {selectedLivraison &&
+                activeAction && (
+                    <div
+                        className="fixed inset-0 z-100 flex items-center justify-center bg-gray-950/50 p-4 backdrop-blur-sm"
+                        role="dialog"
+                        aria-modal="true"
+                        onMouseDown={(event) => {
+                            if (
+                                event.target ===
+                                event.currentTarget
+                            ) {
+                                closeAction();
+                            }
+                        }}
+                    >
+                        <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+                            {/* MODAL HEADER */}
+                            <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-5 sm:p-6">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <div
+                                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${activeAction ===
+                                            "details"
+                                            ? "bg-gray-100 text-gray-700"
+                                            : activeAction ===
+                                                "gps"
+                                                ? "bg-blue-50 text-blue-600"
+                                                : "bg-orange-50 text-orange-600"
+                                            }`}
+                                    >
+                                        {activeAction ===
+                                            "details" ? (
+                                            <Eye className="h-5 w-5" />
+                                        ) : activeAction ===
+                                            "gps" ? (
+                                            <Navigation className="h-5 w-5" />
+                                        ) : (
+                                            <Settings2 className="h-5 w-5" />
+                                        )}
+                                    </div>
 
-                                            <div className="rounded-xl bg-gray-50 p-3">
+                                    <div className="min-w-0">
+                                        <h2 className="truncate text-lg font-bold text-gray-900">
+                                            {activeAction ===
+                                                "details"
+                                                ? "Détails de la livraison"
+                                                : activeAction ===
+                                                    "gps"
+                                                    ? "Suivi GPS"
+                                                    : "Gérer la livraison"}
+                                        </h2>
 
-                                                <div className="flex items-start gap-2">
+                                        <p className="mt-0.5 text-xs text-gray-500">
+                                            {getCommandeLabel(
+                                                selectedLivraison
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
 
-                                                    <MapPin
-                                                        size={
-                                                            16
+                                <button
+                                    type="button"
+                                    onClick={
+                                        closeAction
+                                    }
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                                    aria-label="Fermer"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            {/* MODAL CONTENT */}
+                            <div className="overflow-y-auto p-5 sm:p-6">
+                                {/* DETAILS */}
+                                {activeAction ===
+                                    "details" && (
+                                        <div className="space-y-5">
+                                            {/* STATUS */}
+                                            <div
+                                                className={`rounded-2xl p-4 ring-1 ring-inset ${getStatusClasses(
+                                                    selectedLivraison.status
+                                                )}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <StatusIcon
+                                                        status={
+                                                            selectedLivraison.status
                                                         }
-                                                        className="mt-0.5 shrink-0 text-gray-500"
+                                                        className="h-5 w-5"
                                                     />
 
                                                     <div>
-                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                                                            Adresse de livraison
-                                                        </p>
-
-                                                        <p className="mt-1 text-sm font-medium text-gray-800">
+                                                        <p className="text-sm font-bold">
                                                             {
-                                                                livraison.adresse_livraison ||
-                                                                "Adresse non renseignée"
+                                                                STATUS_LABELS[
+                                                                selectedLivraison
+                                                                    .status
+                                                                ]
                                                             }
                                                         </p>
 
-                                                        {livraison.zone_livraison && (
-                                                            <p className="mt-1 text-xs text-gray-400">
-                                                                {
-                                                                    livraison.zone_livraison
-                                                                }
-                                                            </p>
-                                                        )}
+                                                        <p className="mt-0.5 text-xs opacity-80">
+                                                            Mise à jour :{" "}
+                                                            {formatDateTime(
+                                                                selectedLivraison.updated_at
+                                                            )}
+                                                        </p>
                                                     </div>
-
                                                 </div>
-
-                                                {livraison.latitude !==
-                                                    null &&
-                                                    livraison.longitude !==
-                                                    null && (
-                                                        <a
-                                                            href={`https://www.google.com/maps?q=${livraison.latitude},${livraison.longitude}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-green-600"
-                                                        >
-                                                            <MapPin
-                                                                size={
-                                                                    13
-                                                                }
-                                                            />
-                                                            Voir la localisation
-                                                        </a>
-                                                    )}
-
                                             </div>
 
-                                            {/* Montant + date */}
+                                            {/* COMMANDE + MONTANT */}
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                                <div className="rounded-2xl border border-gray-200 p-4">
+                                                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                                                        Commande
+                                                    </p>
 
-                                            <div className="flex items-end justify-between gap-4">
+                                                    <p className="mt-2 text-sm font-bold text-gray-900">
+                                                        {getCommandeLabel(
+                                                            selectedLivraison
+                                                        )}
+                                                    </p>
 
-                                                <div>
-                                                    <p className="text-xs text-gray-400">
+                                                    <p className="mt-1 text-xs text-gray-500">
+                                                        Créée le{" "}
+                                                        {formatDateTime(
+                                                            selectedLivraison.created_at
+                                                        )}
+                                                    </p>
+                                                </div>
+
+                                                <div className="rounded-2xl border border-gray-200 p-4">
+                                                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
                                                         Montant
                                                     </p>
 
-                                                    <p className="mt-1 text-lg font-bold text-gray-900">
+                                                    <p className="mt-2 text-base font-bold text-gray-900">
                                                         {formatPrice(
-                                                            livraison.commande_total
+                                                            selectedLivraison.commande_total
                                                         )}
                                                     </p>
+
+                                                    <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                                                        <span className="text-gray-500">
+                                                            Frais de livraison
+                                                        </span>
+
+                                                        <span className="font-semibold text-gray-700">
+                                                            {formatPrice(
+                                                                selectedLivraison.frais_livraison
+                                                            )}
+                                                        </span>
+                                                    </div>
                                                 </div>
-
-                                                <div className="text-right">
-                                                    <p className="text-xs text-gray-400">
-                                                        Assignée
-                                                    </p>
-
-                                                    <p className="mt-1 text-xs font-medium text-gray-600">
-                                                        {formatDate(
-                                                            livraison.assigned_at
-                                                        )}
-                                                    </p>
-                                                </div>
-
                                             </div>
 
-                                            {livraison.commentaire && (
-                                                <div
-                                                    className={`rounded-xl p-3 text-sm ${livraison.status ===
-                                                        "cancelled"
-                                                        ? "bg-red-50 text-red-700"
-                                                        : "bg-gray-50 text-gray-600"
-                                                        }`}
-                                                >
-                                                    {
-                                                        livraison.commentaire
-                                                    }
+                                            {/* CLIENT */}
+                                            <div className="rounded-2xl border border-gray-200 p-4">
+                                                <div className="flex items-center gap-2">
+                                                    <User className="h-4 w-4 text-gray-400" />
+
+                                                    <h3 className="text-sm font-bold text-gray-900">
+                                                        Client
+                                                    </h3>
+                                                </div>
+
+                                                <div className="mt-3">
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {getClientName(
+                                                            selectedLivraison
+                                                        )}
+                                                    </p>
+
+                                                    {selectedLivraison.client_telephone && (
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            {
+                                                                selectedLivraison.client_telephone
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* LIVREUR */}
+                                            <div className="rounded-2xl border border-gray-200 p-4">
+                                                <div className="flex items-center gap-2">
+                                                    <Truck className="h-4 w-4 text-gray-400" />
+
+                                                    <h3 className="text-sm font-bold text-gray-900">
+                                                        Livreur
+                                                    </h3>
+                                                </div>
+
+                                                <div className="mt-3">
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {getLivreurName(
+                                                            selectedLivraison
+                                                        )}
+                                                    </p>
+
+                                                    {selectedLivraison.livreur_telephone && (
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            {
+                                                                selectedLivraison.livreur_telephone
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* DESTINATION */}
+                                            <div className="rounded-2xl border border-gray-200 p-4">
+                                                <div className="flex items-center gap-2">
+                                                    <MapPin className="h-4 w-4 text-gray-400" />
+
+                                                    <h3 className="text-sm font-bold text-gray-900">
+                                                        Destination
+                                                    </h3>
+                                                </div>
+
+                                                <p className="mt-3 text-sm font-semibold text-gray-900">
+                                                    {selectedLivraison.zone_livraison ||
+                                                        "Zone non définie"}
+                                                </p>
+
+                                                <p className="mt-1 text-sm leading-6 text-gray-500">
+                                                    {selectedLivraison.adresse_livraison ||
+                                                        "Adresse non renseignée"}
+                                                </p>
+
+                                                {hasGps(
+                                                    selectedLivraison
+                                                ) && (
+                                                        <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-700">
+                                                            <Navigation className="h-3 w-3" />
+                                                            Position GPS disponible
+                                                        </div>
+                                                    )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                {/* GPS */}
+                                {activeAction ===
+                                    "gps" && (
+                                        <div className="space-y-5">
+                                            {hasGps(
+                                                selectedLivraison
+                                            ) ? (
+                                                <>
+                                                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm">
+                                                                <Navigation className="h-5 w-5" />
+                                                            </div>
+
+                                                            <div>
+                                                                <p className="text-sm font-bold text-blue-900">
+                                                                    Position du
+                                                                    livreur
+                                                                </p>
+
+                                                                <p className="mt-1 text-xs leading-5 text-blue-700">
+                                                                    Dernières
+                                                                    coordonnées
+                                                                    GPS enregistrées
+                                                                    pour cette
+                                                                    livraison.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                                        <div className="rounded-2xl border border-gray-200 p-4">
+                                                            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                                                                Latitude
+                                                            </p>
+
+                                                            <p className="mt-2 break-all text-sm font-bold text-gray-900">
+                                                                {
+                                                                    selectedLivraison.latitude
+                                                                }
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="rounded-2xl border border-gray-200 p-4">
+                                                            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                                                                Longitude
+                                                            </p>
+
+                                                            <p className="mt-2 break-all text-sm font-bold text-gray-900">
+                                                                {
+                                                                    selectedLivraison.longitude
+                                                                }
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="rounded-2xl border border-gray-200 p-4">
+                                                            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                                                                Précision
+                                                            </p>
+
+                                                            <p className="mt-2 text-sm font-bold text-gray-900">
+                                                                {selectedLivraison.precision_gps
+                                                                    ? `${selectedLivraison.precision_gps} m`
+                                                                    : "—"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex min-h-70 items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50">
+                                                        <div className="text-center">
+                                                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm">
+                                                                <MapPin className="h-6 w-6" />
+                                                            </div>
+
+                                                            <p className="mt-3 text-sm font-bold text-gray-900">
+                                                                Carte GPS
+                                                            </p>
+
+                                                            <p className="mt-1 max-w-xs text-xs leading-5 text-gray-500">
+                                                                Les coordonnées
+                                                                actuelles du livreur
+                                                                sont enregistrées
+                                                                pour cette
+                                                                livraison.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 px-6 py-14 text-center">
+                                                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-gray-400 shadow-sm">
+                                                        <Navigation className="h-6 w-6" />
+                                                    </div>
+
+                                                    <h3 className="mt-4 text-sm font-bold text-gray-900">
+                                                        Position GPS indisponible
+                                                    </h3>
+
+                                                    <p className="mt-2 max-w-sm text-xs leading-5 text-gray-500">
+                                                        Aucune position GPS n'a
+                                                        encore été enregistrée pour
+                                                        cette livraison.
+                                                    </p>
                                                 </div>
                                             )}
-
                                         </div>
-                                    </article>
-                                )
-                            )}
+                                    )}
 
+                                {/* MANAGE */}
+                                {activeAction ===
+                                    "manage" && (
+                                        <div className="space-y-5">
+                                            <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-orange-600 shadow-sm">
+                                                        <Settings2 className="h-5 w-5" />
+                                                    </div>
+
+                                                    <div>
+                                                        <p className="text-sm font-bold text-orange-900">
+                                                            Gestion de la livraison
+                                                        </p>
+
+                                                        <p className="mt-1 text-xs leading-5 text-orange-700">
+                                                            Cette section centralisera
+                                                            les opérations liées à
+                                                            cette livraison.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="rounded-2xl border border-gray-200 p-5">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-900">
+                                                            Statut actuel
+                                                        </p>
+
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            État actuel de la
+                                                            livraison
+                                                        </p>
+                                                    </div>
+
+                                                    <span
+                                                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ring-1 ring-inset ${getStatusClasses(
+                                                            selectedLivraison.status
+                                                        )}`}
+                                                    >
+                                                        <StatusIcon
+                                                            status={
+                                                                selectedLivraison.status
+                                                            }
+                                                            className="h-3.5 w-3.5"
+                                                        />
+
+                                                        {
+                                                            STATUS_LABELS[
+                                                            selectedLivraison
+                                                                .status
+                                                            ]
+                                                        }
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+                                                <Settings2 className="mx-auto h-7 w-7 text-gray-400" />
+
+                                                <p className="mt-3 text-sm font-bold text-gray-900">
+                                                    Gestion avancée
+                                                </p>
+
+                                                <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-gray-500">
+                                                    Les actions de modification,
+                                                    réaffectation du livreur et
+                                                    changement de statut pourront
+                                                    être connectées ici.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                            </div>
+
+                            {/* FOOTER */}
+                            <div className="flex items-center justify-end border-t border-gray-100 bg-gray-50/70 p-4 sm:p-5">
+                                <button
+                                    type="button"
+                                    onClick={
+                                        closeAction
+                                    }
+                                    className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900/20"
+                                >
+                                    Fermer
+                                </button>
+                            </div>
                         </div>
-                    )}
-
-            </div>
-        </main>
+                    </div>
+                )}
+        </div>
     );
 }

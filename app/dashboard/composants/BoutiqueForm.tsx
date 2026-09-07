@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     FaStore,
     FaImage,
@@ -10,6 +10,9 @@ import {
     FaAlignLeft,
     FaSave,
     FaTimes,
+    FaUpload,
+    FaTrash,
+    FaSyncAlt,
 } from "react-icons/fa";
 
 export interface BoutiqueFormData {
@@ -46,6 +49,9 @@ export default function BoutiqueForm({
     });
 
     const [error, setError] = useState("");
+    const [uploading, setUploading] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     const [logoPreview, setLogoPreview] = useState(
         initialData?.logo ?? ""
@@ -72,18 +78,173 @@ export default function BoutiqueForm({
         }
     }
 
+    async function handleLogoUpload(
+        event: React.ChangeEvent<HTMLInputElement>
+    ) {
+        const file = event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        setError("");
+
+        /*
+         * Vérification du type
+         */
+        if (!file.type.startsWith("image/")) {
+            setError(
+                "Le fichier sélectionné doit être une image."
+            );
+
+            event.target.value = "";
+            return;
+        }
+
+        /*
+         * Taille maximale : 5 Mo
+         */
+        const maxSize = 5 * 1024 * 1024;
+
+        if (file.size > maxSize) {
+            setError(
+                "Le logo ne doit pas dépasser 5 Mo."
+            );
+
+            event.target.value = "";
+            return;
+        }
+
+        /*
+         * Aperçu local immédiat
+         */
+        const localPreview =
+            URL.createObjectURL(file);
+
+        setLogoPreview(localPreview);
+
+        /*
+         * Upload vers Vercel Blob
+         */
+        setUploading(true);
+
+        try {
+            const token =
+                localStorage.getItem("token");
+
+            if (!token) {
+                throw new Error(
+                    "Vous devez être connecté pour télécharger un logo."
+                );
+            }
+
+            const formData = new FormData();
+
+            formData.append("file", file);
+            formData.append("type", "boutique");
+
+            const response = await fetch(
+                "/api/upload",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization:
+                            `Bearer ${token}`,
+                    },
+                    body: formData,
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (
+                !response.ok ||
+                !data.success ||
+                !data.url
+            ) {
+                throw new Error(
+                    data.message ||
+                        "Impossible de télécharger le logo."
+                );
+            }
+
+            /*
+             * On remplace l'aperçu local
+             * par l'URL définitive Vercel Blob.
+             */
+            setForm((current) => ({
+                ...current,
+                logo: data.url,
+            }));
+
+            setLogoPreview(data.url);
+
+        } catch (error) {
+            console.error(
+                "Erreur upload logo :",
+                error
+            );
+
+            setLogoPreview(
+                form.logo.trim()
+            );
+
+            setError(
+                error instanceof Error
+                    ? error.message
+                    : "Impossible de télécharger le logo."
+            );
+
+        } finally {
+            setUploading(false);
+
+            /*
+             * Permet de sélectionner à nouveau
+             * le même fichier.
+             */
+            event.target.value = "";
+        }
+    }
+
+    function handleRemoveLogo() {
+        setForm((current) => ({
+            ...current,
+            logo: "",
+        }));
+
+        setLogoPreview("");
+
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+
+        setError("");
+    }
+
     async function handleSubmit(
         event: React.FormEvent
     ) {
         event.preventDefault();
 
+        if (uploading) {
+            setError(
+                "Veuillez attendre la fin du téléchargement du logo."
+            );
+            return;
+        }
+
         const nom = form.nom.trim();
-        const description = form.description.trim();
+        const description =
+            form.description.trim();
         const logo = form.logo.trim();
-        const telephone = form.telephone.trim();
+        const telephone =
+            form.telephone.trim();
         const email = form.email.trim();
-        const adresse = form.adresse.trim();
-        const ville = form.ville.trim();
+        const adresse =
+            form.adresse.trim();
+        const ville =
+            form.ville.trim();
 
         if (nom.length < 3) {
             setError(
@@ -106,7 +267,10 @@ export default function BoutiqueForm({
             return;
         }
 
-        if (telephone && telephone.length < 8) {
+        if (
+            telephone &&
+            telephone.length < 8
+        ) {
             setError(
                 "Le numéro de téléphone doit contenir au moins 8 caractères."
             );
@@ -122,7 +286,9 @@ export default function BoutiqueForm({
 
         if (email) {
             const emailIsValid =
-                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+                    email
+                );
 
             if (!emailIsValid) {
                 setError(
@@ -166,6 +332,9 @@ export default function BoutiqueForm({
         });
     }
 
+    const isBusy =
+        loading || uploading;
+
     return (
         <form
             onSubmit={handleSubmit}
@@ -175,11 +344,11 @@ export default function BoutiqueForm({
 
             <div className="px-5 sm:px-7 py-5 border-b border-gray-100 bg-gray-50/60">
                 <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-gray-900 text-white flex items-center justify-center">
+                    <div className="w-11 h-11 rounded-xl bg-gray-900 text-white flex items-center justify-center shrink-0">
                         <FaStore />
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                         <h2 className="text-lg font-semibold text-gray-900">
                             Informations de la boutique
                         </h2>
@@ -200,6 +369,7 @@ export default function BoutiqueForm({
             )}
 
             <div className="p-5 sm:p-7 space-y-7">
+
                 {/* IDENTITÉ */}
 
                 <section>
@@ -212,13 +382,16 @@ export default function BoutiqueForm({
                     </div>
 
                     <div className="space-y-5">
+
                         <div>
                             <label
                                 htmlFor="nom"
                                 className="block text-sm font-medium text-gray-700 mb-2"
                             >
                                 Nom de la boutique{" "}
-                                <span className="text-red-500">*</span>
+                                <span className="text-red-500">
+                                    *
+                                </span>
                             </label>
 
                             <input
@@ -227,7 +400,7 @@ export default function BoutiqueForm({
                                 name="nom"
                                 value={form.nom}
                                 onChange={handleChange}
-                                disabled={loading}
+                                disabled={isBusy}
                                 placeholder="Ex. Boutique Oumar"
                                 maxLength={100}
                                 className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
@@ -252,7 +425,7 @@ export default function BoutiqueForm({
                                 name="description"
                                 value={form.description}
                                 onChange={handleChange}
-                                disabled={loading}
+                                disabled={isBusy}
                                 rows={5}
                                 maxLength={1000}
                                 placeholder="Décrivez votre boutique, vos produits et ce qui vous distingue..."
@@ -265,12 +438,14 @@ export default function BoutiqueForm({
                                 </span>
                             </div>
                         </div>
+
                     </div>
                 </section>
 
                 {/* LOGO */}
 
                 <section className="border-t border-gray-100 pt-7">
+
                     <div className="flex items-center gap-2 mb-4">
                         <FaImage className="text-gray-400 text-sm" />
 
@@ -280,53 +455,121 @@ export default function BoutiqueForm({
                     </div>
 
                     <div className="grid md:grid-cols-[1fr_auto] gap-5 items-start">
+
                         <div>
-                            <label
-                                htmlFor="logo"
-                                className="block text-sm font-medium text-gray-700 mb-2"
-                            >
-                                URL du logo
+
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Logo de la boutique
                             </label>
 
+                            <div className="flex flex-col sm:flex-row gap-3">
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        fileInputRef.current?.click()
+                                    }
+                                    disabled={isBusy}
+                                    className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
+                                >
+                                    {uploading ? (
+                                        <>
+                                            <FaSyncAlt className="animate-spin" />
+                                            Téléchargement...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FaUpload />
+                                            {form.logo
+                                                ? "Remplacer le logo"
+                                                : "Choisir un logo"}
+                                        </>
+                                    )}
+                                </button>
+
+                                {form.logo && !uploading && (
+                                    <button
+                                        type="button"
+                                        onClick={handleRemoveLogo}
+                                        disabled={isBusy}
+                                        className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition disabled:opacity-50"
+                                    >
+                                        <FaTrash />
+                                        Supprimer
+                                    </button>
+                                )}
+
+                            </div>
+
                             <input
-                                id="logo"
-                                type="url"
-                                name="logo"
-                                value={form.logo}
-                                onChange={handleChange}
-                                disabled={loading}
-                                maxLength={255}
-                                placeholder="https://exemple.com/logo.png"
-                                className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLogoUpload}
+                                disabled={isBusy}
+                                className="hidden"
                             />
 
-                            <p className="text-xs text-gray-400 mt-1.5">
-                                Vous pouvez ajouter l'URL publique de votre logo.
+                            <p className="text-xs text-gray-400 mt-2">
+                                Image uniquement · 5 Mo maximum.
                             </p>
+
+                            {uploading && (
+                                <div className="mt-3">
+                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+                                        <span>
+                                            Envoi du logo...
+                                        </span>
+
+                                        <span>
+                                            Veuillez patienter
+                                        </span>
+                                    </div>
+
+                                    <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                                        <div className="h-full w-1/2 rounded-full bg-gray-900 animate-pulse" />
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
 
-                        <div className="flex justify-center">
+                        <div className="flex justify-center md:justify-end">
+
                             {logoPreview ? (
-                                <img
-                                    src={logoPreview}
-                                    alt="Aperçu du logo"
-                                    className="w-24 h-24 rounded-2xl object-cover border border-gray-200 shadow-sm"
-                                    onError={() =>
-                                        setLogoPreview("")
-                                    }
-                                />
+                                <div className="relative">
+
+                                    <img
+                                        src={logoPreview}
+                                        alt="Aperçu du logo"
+                                        className="w-24 h-24 rounded-2xl object-cover border border-gray-200 shadow-sm"
+                                        onError={() =>
+                                            setLogoPreview("")
+                                        }
+                                    />
+
+                                    {uploading && (
+                                        <div className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center">
+                                            <FaSyncAlt className="text-white text-xl animate-spin" />
+                                        </div>
+                                    )}
+
+                                </div>
                             ) : (
                                 <div className="w-24 h-24 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center">
                                     <FaStore className="text-2xl text-gray-400" />
                                 </div>
                             )}
+
                         </div>
+
                     </div>
                 </section>
 
                 {/* CONTACT */}
 
                 <section className="border-t border-gray-100 pt-7">
+
                     <div className="flex items-center gap-2 mb-4">
                         <FaPhone className="text-gray-400 text-sm" />
 
@@ -336,6 +579,7 @@ export default function BoutiqueForm({
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-5">
+
                         <div>
                             <label
                                 htmlFor="telephone"
@@ -351,7 +595,7 @@ export default function BoutiqueForm({
                                 name="telephone"
                                 value={form.telephone}
                                 onChange={handleChange}
-                                disabled={loading}
+                                disabled={isBusy}
                                 maxLength={30}
                                 placeholder="Ex. 75 40 21 50"
                                 className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
@@ -373,17 +617,19 @@ export default function BoutiqueForm({
                                 name="email"
                                 value={form.email}
                                 onChange={handleChange}
-                                disabled={loading}
+                                disabled={isBusy}
                                 placeholder="contact@boutique.com"
-                                className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
+                                className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
                             />
                         </div>
+
                     </div>
                 </section>
 
                 {/* LOCALISATION */}
 
                 <section className="border-t border-gray-100 pt-7">
+
                     <div className="flex items-center gap-2 mb-4">
                         <FaMapMarkerAlt className="text-gray-400 text-sm" />
 
@@ -393,6 +639,7 @@ export default function BoutiqueForm({
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-5">
+
                         <div>
                             <label
                                 htmlFor="ville"
@@ -407,7 +654,7 @@ export default function BoutiqueForm({
                                 name="ville"
                                 value={form.ville}
                                 onChange={handleChange}
-                                disabled={loading}
+                                disabled={isBusy}
                                 maxLength={100}
                                 placeholder="Ex. Bamako"
                                 className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
@@ -428,24 +675,27 @@ export default function BoutiqueForm({
                                 name="adresse"
                                 value={form.adresse}
                                 onChange={handleChange}
-                                disabled={loading}
+                                disabled={isBusy}
                                 maxLength={255}
                                 placeholder="Ex. ACI 2000, Rue 245"
                                 className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
                             />
                         </div>
+
                     </div>
                 </section>
+
             </div>
 
             {/* ACTIONS */}
 
             <div className="px-5 sm:px-7 py-5 border-t border-gray-100 bg-gray-50/60 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+
                 {onCancel && (
                     <button
                         type="button"
                         onClick={onCancel}
-                        disabled={loading}
+                        disabled={isBusy}
                         className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
                     >
                         <FaTimes />
@@ -455,17 +705,19 @@ export default function BoutiqueForm({
 
                 <button
                     type="submit"
-                    disabled={loading}
+                    disabled={isBusy}
                     className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition disabled:opacity-50"
                 >
                     <FaSave />
 
-                    {loading
-                        ? "Création en cours..."
-                        : "Créer ma boutique"}
+                    {uploading
+                        ? "Téléchargement du logo..."
+                        : loading
+                            ? "Création en cours..."
+                            : "Créer ma boutique"}
                 </button>
+
             </div>
         </form>
     );
 }
-

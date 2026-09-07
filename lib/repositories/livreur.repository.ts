@@ -106,6 +106,25 @@ export class LivreurRepository {
   }
 
   /**
+ * Récupérer tous les livreurs de toutes les boutiques.
+ *
+ * Utilisé par les administrateurs.
+ */
+static async findAll(): Promise<LivreurRow[]> {
+
+  const [rows] =
+    await db.query<LivreurRow[]>(
+      `
+      SELECT *
+      FROM livreurs
+      ORDER BY created_at DESC
+      `
+    );
+
+  return rows;
+}
+
+  /**
    * Récupérer tous les livreurs d'une boutique.
    */
   static async findByBoutiqueId(

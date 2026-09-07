@@ -431,6 +431,27 @@ static async create(
     );
   }
 
+  /**
+ * Récupérer tous les livreurs de toutes les boutiques.
+ *
+ * Réservé aux administrateurs.
+ */
+static async findAll(
+  user_id: number,
+  role: string
+) {
+  if (
+    role !== "admin" &&
+    role !== "super_admin"
+  ) {
+    throw new ForbiddenError(
+      "Vous n'avez pas accès à la liste globale des livreurs."
+    );
+  }
+
+  return await LivreurRepository.findAll();
+}
+
 
   /**
    * Supprimer un livreur.

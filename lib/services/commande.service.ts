@@ -328,24 +328,11 @@ export class CommandeService {
             role === "admin" ||
             role === "super_admin"
         ) {
-            return await CommandeRepository.findAll();
-        }
-
-        if (role === "vendeur") {
-
             const commandes =
-                await CommandeRepository.findByUserId(
-                    user_id,
-                    limit,
-                    offset,
-                    search,
-                    status
-                );
+                await CommandeRepository.findAll();
 
             const statistics =
-                await CommandeRepository.countStatusesByUser(
-                    user_id
-                );
+                await CommandeRepository.countStatuses();
 
             return {
                 data: commandes,
@@ -362,6 +349,46 @@ export class CommandeService {
                 statistics
             };
         }
+
+        if (role === "vendeur") {
+
+            const commandes =
+                await CommandeRepository.findByUserId(
+                    user_id,
+                    limit,
+                    offset,
+                    search,
+                    status
+                );
+
+            console.log("========== STATISTIQUES COMMANDES ==========");
+            console.log("user_id :", user_id);
+            console.log("role :", role);
+
+            const statistics =
+                await CommandeRepository.countStatusesByUser(
+                    user_id
+                );
+
+            console.log("statistics :", statistics);
+            console.log("============================================");
+
+            return {
+                data: commandes,
+
+                pagination: {
+                    page,
+                    limit,
+                    total: statistics.total,
+                    totalPages: Math.ceil(
+                        statistics.total / limit
+                    )
+                },
+
+                statistics
+            };
+        }
+
         if (role === "client") {
 
             const commandes =
@@ -408,10 +435,6 @@ export class CommandeService {
         user_id: number,
         role: string
     ) {
-
-        console.log(
-            "=== ASSIGN LIVREUR ==="
-        );
 
         console.log(
             "UUID commande reçu :",

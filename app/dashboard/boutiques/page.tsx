@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
 import {
@@ -16,6 +22,7 @@ import {
   FaBan,
   FaArrowUp,
   FaFilter,
+  FaEllipsisV,
 } from "react-icons/fa";
 
 interface Boutique {
@@ -88,9 +95,8 @@ const getStatusStyle = (status: string) => {
 };
 
 export default function BoutiquesPage() {
-  const [boutiques, setBoutiques] = useState<Boutique[]>(
-    []
-  );
+  const [boutiques, setBoutiques] =
+    useState<Boutique[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -107,9 +113,51 @@ export default function BoutiquesPage() {
   const [deletingUuid, setDeletingUuid] =
     useState<string | null>(null);
 
+  const router = useRouter();
+
   const [actionUuid, setActionUuid] =
     useState<string | null>(null);
 
+  /*
+   * UUID de la boutique dont le menu
+   * d'actions est actuellement ouvert.
+   */
+  const [openActionMenu, setOpenActionMenu] =
+    useState<string | null>(null);
+
+
+
+  /*
+   * Fermeture du menu lors d'un clic
+   * à l'extérieur.
+   */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      if (!target.closest("[data-action-menu]")) {
+        setOpenActionMenu(null);
+      }
+    };
+
+    if (openActionMenu) {
+      document.addEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    }
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    };
+  }, [openActionMenu]);
+
+  /*
+   * Activation d'une boutique.
+   */
   const activateBoutique = async (
     boutique: Boutique
   ) => {
@@ -165,14 +213,13 @@ export default function BoutiquesPage() {
             ? {
               ...item,
               status: "active",
-              activation_expires_at: null,
+              activation_expires_at:
+                null,
             }
             : item
         )
       );
-
     } catch (error) {
-
       console.error(
         "Erreur activation boutique:",
         error
@@ -183,13 +230,14 @@ export default function BoutiquesPage() {
           ? error.message
           : "Une erreur est survenue."
       );
-
     } finally {
       setActionUuid(null);
     }
   };
 
-
+  /*
+   * Chargement des boutiques.
+   */
   const fetchBoutiques = async () => {
     try {
       setLoading(true);
@@ -254,6 +302,9 @@ export default function BoutiquesPage() {
     fetchBoutiques();
   }, []);
 
+  /*
+   * Recherche + filtre.
+   */
   const filteredBoutiques =
     useMemo(() => {
       const value =
@@ -296,6 +347,9 @@ export default function BoutiquesPage() {
       statusFilter,
     ]);
 
+  /*
+   * Suppression d'une boutique.
+   */
   const deleteBoutique = async (
     boutique: Boutique
   ) => {
@@ -315,6 +369,12 @@ export default function BoutiquesPage() {
 
       const token =
         localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error(
+          "Vous devez être connecté."
+        );
+      }
 
       const response =
         await fetch(
@@ -365,6 +425,9 @@ export default function BoutiquesPage() {
     }
   };
 
+  /*
+   * Statistiques.
+   */
   const total =
     boutiques.length;
 
@@ -386,6 +449,9 @@ export default function BoutiquesPage() {
         item.status === "blocked"
     ).length;
 
+  /*
+   * Loading.
+   */
   if (loading) {
     return (
       <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -581,7 +647,7 @@ export default function BoutiquesPage() {
 
       {/* MAIN CARD */}
 
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-visible">
 
         {/* TOOLBAR */}
 
@@ -740,7 +806,9 @@ export default function BoutiquesPage() {
           </div>
         ) : (
           <>
+            {/* ========================= */}
             {/* DESKTOP TABLE */}
+            {/* ========================= */}
 
             <div className="hidden lg:block overflow-x-auto">
 
@@ -824,7 +892,8 @@ export default function BoutiquesPage() {
                                 </p>
 
                                 <p className="text-xs text-gray-400 mt-1 truncate max-w-[220px]">
-                                  /{
+                                  /
+                                  {
                                     boutique.slug
                                   }
                                 </p>
@@ -887,7 +956,6 @@ export default function BoutiquesPage() {
                             <span
                               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${statusStyle.badge}`}
                             >
-
                               <span
                                 className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`}
                               />
@@ -897,7 +965,6 @@ export default function BoutiquesPage() {
                                   boutique.status
                                 )
                               }
-
                             </span>
 
                           </td>
@@ -923,59 +990,154 @@ export default function BoutiquesPage() {
 
                           {/* ACTIONS */}
 
-                          {/* ACTIONS */}
-
                           <td className="px-6 py-5">
+                            <div
+                              data-action-menu
+                              className="relative flex justify-end"
+                            >
 
-                            <div className="flex justify-end items-center gap-1.5 opacity-80 group-hover:opacity-100">
-
-                              <Link
-                                href={`/dashboard/boutiques/${boutique.uuid}`}
-                                title="Voir"
-                                className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition"
-                              >
-                                <FaEye className="text-sm" />
-                              </Link>
-
-                              <Link
-                                href={`/dashboard/boutique/edit/${boutique.uuid}`}
-                                title="Modifier"
-                                className="w-9 h-9 rounded-lg flex items-center justify-center text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition"
-                              >
-                                <FaEdit className="text-sm" />
-                              </Link>
-
-                              {boutique.status === "pending" && (
-                                <button
-                                  type="button"
-                                  title="Activer la boutique"
-                                  disabled={actionUuid === boutique.uuid}
-                                  onClick={() =>
-                                    activateBoutique(boutique)
-                                  }
-                                  className="w-9 h-9 rounded-lg flex items-center justify-center text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition disabled:opacity-40"
-                                >
-                                  {actionUuid === boutique.uuid ? (
-                                    <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                                  ) : (
-                                    <FaCheckCircle className="text-sm" />
-                                  )}
-                                </button>
-                              )}
+                              {/* BOUTON ⋮ */}
 
                               <button
                                 type="button"
-                                title="Supprimer"
-                                disabled={
-                                  deletingUuid === boutique.uuid
+                                title="Actions"
+                                aria-label={`Actions pour ${boutique.nom}`}
+                                aria-expanded={
+                                  openActionMenu ===
+                                  boutique.uuid
                                 }
-                                onClick={() =>
-                                  deleteBoutique(boutique)
-                                }
-                                className="w-9 h-9 rounded-lg flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-40"
+                                onClick={(
+                                  event
+                                ) => {
+                                  event.stopPropagation();
+
+                                  setOpenActionMenu(
+                                    openActionMenu ===
+                                      boutique.uuid
+                                      ? null
+                                      : boutique.uuid
+                                  );
+                                }}
+                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition ${openActionMenu ===
+                                  boutique.uuid
+                                  ? "bg-gray-900 text-white"
+                                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                                  }`}
                               >
-                                <FaTrash className="text-sm" />
+                                <FaEllipsisV className="text-sm" />
                               </button>
+
+                              {/* MENU */}
+
+                              {openActionMenu ===
+                                boutique.uuid && (
+                                  <div className="absolute right-0 top-11 z-[100] w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 overflow-hidden">
+
+                                    {/* VOIR */}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenu(null);
+                                        router.push(
+                                          `/dashboard/boutiques/${boutique.uuid}`
+                                        );
+                                      }}
+                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                                    >
+                                      <FaEye className="w-4 text-gray-400" />
+                                      <span>
+                                        Voir la boutique
+                                      </span>
+                                    </button>
+
+                                    {/* MODIFIER */}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOpenActionMenu(null);
+                                        router.push(
+                                          `/dashboard/boutiques/${boutique.uuid}/edit`
+                                        );
+                                      }}
+                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition text-left"
+                                    >
+                                      <FaEdit className="w-4 text-blue-500" />
+                                      <span>
+                                        Modifier
+                                      </span>
+                                    </button>
+
+                                    {/* ACTIVER */}
+
+                                    {boutique.status ===
+                                      "pending" && (
+                                        <button
+                                          type="button"
+                                          disabled={
+                                            actionUuid ===
+                                            boutique.uuid
+                                          }
+                                          onClick={() => {
+                                            setOpenActionMenu(
+                                              null
+                                            );
+
+                                            activateBoutique(
+                                              boutique
+                                            );
+                                          }}
+                                          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
+                                        >
+                                          {actionUuid ===
+                                            boutique.uuid ? (
+                                            <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                          ) : (
+                                            <FaCheckCircle className="w-4 text-emerald-600" />
+                                          )}
+
+                                          <span>
+                                            Activer
+                                          </span>
+                                        </button>
+                                      )}
+
+                                    <div className="my-1 border-t border-gray-100" />
+
+                                    {/* SUPPRIMER */}
+
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        deletingUuid ===
+                                        boutique.uuid
+                                      }
+                                      onClick={() => {
+                                        setOpenActionMenu(
+                                          null
+                                        );
+
+                                        deleteBoutique(
+                                          boutique
+                                        );
+                                      }}
+                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                                    >
+                                      {deletingUuid ===
+                                        boutique.uuid ? (
+                                        <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <FaTrash className="w-4" />
+                                      )}
+
+                                      <span>
+                                        Supprimer
+                                      </span>
+                                    </button>
+
+                                  </div>
+                                )}
 
                             </div>
 
@@ -992,7 +1154,9 @@ export default function BoutiquesPage() {
 
             </div>
 
+            {/* ========================= */}
             {/* MOBILE */}
+            {/* ========================= */}
 
             <div className="lg:hidden divide-y divide-gray-100">
 
@@ -1011,9 +1175,11 @@ export default function BoutiquesPage() {
                       className="p-5"
                     >
 
-                      <div className="flex items-start justify-between gap-4">
+                      {/* TOP */}
 
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-start justify-between gap-3">
+
+                        <div className="flex items-center gap-3 min-w-0">
 
                           {boutique.logo ? (
                             <img
@@ -1023,10 +1189,10 @@ export default function BoutiquesPage() {
                               alt={
                                 boutique.nom
                               }
-                              className="w-12 h-12 rounded-xl object-cover border"
+                              className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0"
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
+                            <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0">
                               <FaStore className="text-gray-500" />
                             </div>
                           )}
@@ -1039,8 +1205,9 @@ export default function BoutiquesPage() {
                               }
                             </h3>
 
-                            <p className="text-xs text-gray-400 mt-1">
-                              /{
+                            <p className="text-xs text-gray-400 mt-1 truncate">
+                              /
+                              {
                                 boutique.slug
                               }
                             </p>
@@ -1049,8 +1216,161 @@ export default function BoutiquesPage() {
 
                         </div>
 
+                        {/* MENU MOBILE */}
+
+                        <div
+                          data-action-menu
+                          className="relative shrink-0"
+                        >
+
+                          <button
+                            type="button"
+                            title="Actions"
+                            aria-label={`Actions pour ${boutique.nom}`}
+                            aria-expanded={
+                              openActionMenu ===
+                              boutique.uuid
+                            }
+                            onClick={(
+                              event
+                            ) => {
+                              event.stopPropagation();
+
+                              setOpenActionMenu(
+                                openActionMenu ===
+                                  boutique.uuid
+                                  ? null
+                                  : boutique.uuid
+                              );
+                            }}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${openActionMenu ===
+                              boutique.uuid
+                              ? "bg-gray-900 text-white"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              }`}
+                          >
+                            <FaEllipsisV className="text-sm" />
+                          </button>
+
+                          {openActionMenu ===
+                            boutique.uuid && (
+                              <div className="absolute right-0 top-12 z-100 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 overflow-hidden">
+
+                                {/* VOIR */}
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenActionMenu(null);
+                                    router.push(
+                                      `/dashboard/boutiques/${boutique.uuid}`
+                                    );
+                                  }}
+                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                                >
+                                  <FaEye className="w-4 text-gray-400" />
+                                  <span>
+                                    Voir la boutique
+                                  </span>
+                                </button>
+
+                                {/* MODIFIER */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenActionMenu(null);
+                                    router.push(
+                                      `/dashboard/boutiques/${boutique.uuid}/edit`
+                                    );
+                                  }}
+                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition text-left"
+                                >
+                                  <FaEdit className="w-4 text-blue-500" />
+                                  <span>
+                                    Modifier
+                                  </span>
+                                </button>
+
+                                {/* ACTIVER */}
+
+                                {boutique.status ===
+                                  "pending" && (
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        actionUuid ===
+                                        boutique.uuid
+                                      }
+                                      onClick={() => {
+                                        setOpenActionMenu(
+                                          null
+                                        );
+
+                                        activateBoutique(
+                                          boutique
+                                        );
+                                      }}
+                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
+                                    >
+                                      {actionUuid ===
+                                        boutique.uuid ? (
+                                        <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <FaCheckCircle className="w-4 text-emerald-600" />
+                                      )}
+
+                                      <span>
+                                        Activer
+                                      </span>
+                                    </button>
+                                  )}
+
+                                <div className="my-1 border-t border-gray-100" />
+
+                                {/* SUPPRIMER */}
+
+                                <button
+                                  type="button"
+                                  disabled={
+                                    deletingUuid ===
+                                    boutique.uuid
+                                  }
+                                  onClick={() => {
+                                    setOpenActionMenu(
+                                      null
+                                    );
+
+                                    deleteBoutique(
+                                      boutique
+                                    );
+                                  }}
+                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                                >
+                                  {deletingUuid ===
+                                    boutique.uuid ? (
+                                    <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <FaTrash className="w-4" />
+                                  )}
+
+                                  <span>
+                                    Supprimer
+                                  </span>
+                                </button>
+
+                              </div>
+                            )}
+
+                        </div>
+
+                      </div>
+
+                      {/* STATUS */}
+
+                      <div className="mt-4">
+
                         <span
-                          className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold ${statusStyle.badge}`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold ${statusStyle.badge}`}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`}
@@ -1064,6 +1384,8 @@ export default function BoutiquesPage() {
                         </span>
 
                       </div>
+
+                      {/* INFORMATIONS */}
 
                       <div className="grid grid-cols-2 gap-4 mt-5">
 
@@ -1108,58 +1430,26 @@ export default function BoutiquesPage() {
 
                       </div>
 
-                      <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-gray-100">
+                      {/* DATE */}
 
-                        <Link
-                          href={`/dashboard/boutiques/${boutique.uuid}`}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium"
-                        >
-                          <FaEye />
-                          Voir
-                        </Link>
+                      <div className="mt-4 pt-4 border-t border-gray-100">
 
-                        <Link
-                          href={`/dashboard/boutique/edit/${boutique.uuid}`}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 text-sm font-medium"
-                        >
-                          <FaEdit />
-                          Modifier
-                        </Link>
+                        <p className="text-xs text-gray-400">
+                          Créée le
+                        </p>
 
-                        {boutique.status === "pending" && (
-                          <button
-                            type="button"
-                            disabled={actionUuid === boutique.uuid}
-                            onClick={() =>
-                              activateBoutique(boutique)
+                        <p className="text-sm text-gray-600 mt-1">
+                          {new Date(
+                            boutique.created_at
+                          ).toLocaleDateString(
+                            "fr-FR",
+                            {
+                              day: "2-digit",
+                              month: "long",
+                              year: "numeric",
                             }
-                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-medium disabled:opacity-40"
-                          >
-                            {actionUuid === boutique.uuid ? (
-                              <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <FaCheckCircle />
-                            )}
-
-                            Activer
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          disabled={
-                            deletingUuid ===
-                            boutique.uuid
-                          }
-                          onClick={() =>
-                            deleteBoutique(
-                              boutique
-                            )
-                          }
-                          className="inline-flex items-center justify-center p-2 rounded-lg bg-red-50 text-red-600 disabled:opacity-40"
-                        >
-                          <FaTrash />
-                        </button>
+                          )}
+                        </p>
 
                       </div>
 
@@ -1177,3 +1467,4 @@ export default function BoutiquesPage() {
     </div>
   );
 }
+

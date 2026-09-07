@@ -42,6 +42,7 @@ export interface LivraisonDetailRow
   extends LivraisonRow {
   commande_uuid: string;
   commande_total: string;
+  frais_livraison: string;
   commande_status: string;
 
   zone_livraison: string;
@@ -148,6 +149,7 @@ export class LivraisonRepository {
           c.uuid AS commande_uuid,
           c.client_id AS client_id,
           c.total AS commande_total,
+          c.frais_livraison AS frais_livraison,
           c.status AS commande_status,
 
           c.zone_livraison,
@@ -231,6 +233,7 @@ export class LivraisonRepository {
 
         c.uuid AS commande_uuid,
         c.total AS commande_total,
+        c.frais_livraison AS frais_livraison,
         c.status AS commande_status,
 
         c.zone_livraison,
@@ -285,6 +288,7 @@ export class LivraisonRepository {
 
         c.uuid AS commande_uuid,
         c.total AS commande_total,
+        c.frais_livraison AS frais_livraison,
         c.status AS commande_status,
 
         c.zone_livraison,
