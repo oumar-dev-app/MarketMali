@@ -116,11 +116,6 @@ const menuByRole: Record<
       icon: Store,
     },
     {
-      label: "Demandes de rôles",
-      href: "/dashboard/demandes-roles",
-      icon: UserRoundCheck,
-    },
-    {
       label: "Catégories",
       href: "/dashboard/categories",
       icon: Tags,

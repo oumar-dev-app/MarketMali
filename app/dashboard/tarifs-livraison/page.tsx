@@ -501,7 +501,7 @@ export default function TarifsLivraisonPage() {
                           </button>
 
                           {openMenuId === tarif.id && (
-                            <div className="absolute right-0 top-11 z-[9999] w-44 overflow-hidden rounded-xl border border-gray-100 bg-white p-1.5 shadow-xl">
+                            <div className="absolute right-0 top-11 z-9999 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white p-1.5 shadow-xl">
                               <button
                                 type="button"
                                 onClick={() => {

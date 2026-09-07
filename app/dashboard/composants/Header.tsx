@@ -111,6 +111,12 @@ export default function Header() {
   const notificationRef =
     useRef<HTMLDivElement>(null);
 
+  const notificationAudioRef =
+    useRef<HTMLAudioElement | null>(null);
+
+  const previousUnreadCountRef =
+    useRef<number | null>(null);
+
   /*
    * =========================================================
    * NOTIFICATIONS
@@ -120,7 +126,62 @@ export default function Header() {
   useEffect(() => {
     if (!token) return;
 
-    loadUnreadCount();
+    let isMounted = true;
+
+    async function checkNotifications() {
+      if (!isMounted) return;
+
+      try {
+        const response = await fetch(
+          "/api/notifications/unread",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) return;
+
+        const newCount = data.data.count;
+        setUnreadCount(newCount);
+
+        const previousCount =
+          previousUnreadCountRef.current;
+
+        // Initialisation sans jouer de son.
+        if (previousCount === null) {
+          previousUnreadCountRef.current = newCount;
+          return;
+        }
+
+        // Une nouvelle notification est arrivée.
+        if (newCount > previousCount) {
+          playNotificationSound();
+        }
+
+        previousUnreadCountRef.current = newCount;
+      } catch (error) {
+        console.error(
+          "Erreur vérification notifications :",
+          error
+        );
+      }
+    }
+
+    checkNotifications();
+
+    const interval = setInterval(
+      checkNotifications,
+      10000
+    );
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [token]);
 
   useEffect(() => {
@@ -147,6 +208,22 @@ export default function Header() {
       );
     };
   }, []);
+
+  function playNotificationSound() {
+    if (typeof window === "undefined") return;
+
+    const audio = notificationAudioRef.current;
+    if (!audio) return;
+
+    audio.currentTime = 0;
+
+    audio.play().catch((error) => {
+      console.warn(
+        "Lecture du son de notification bloquée :",
+        error
+      );
+    });
+  }
 
   async function loadUnreadCount() {
     if (!token) return;
@@ -545,6 +622,12 @@ export default function Header() {
 
   return (
     <>
+      <audio
+        ref={notificationAudioRef}
+        src="/sounds/notification.mp3"
+        preload="auto"
+      />
+
       <header
         className="
           sticky top-0 z-40
