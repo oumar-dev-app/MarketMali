@@ -361,17 +361,11 @@ export class CommandeService {
                     status
                 );
 
-            console.log("========== STATISTIQUES COMMANDES ==========");
-            console.log("user_id :", user_id);
-            console.log("role :", role);
-
             const statistics =
                 await CommandeRepository.countStatusesByUser(
                     user_id
                 );
 
-            console.log("statistics :", statistics);
-            console.log("============================================");
 
             return {
                 data: commandes,
@@ -436,15 +430,7 @@ export class CommandeService {
         role: string
     ) {
 
-        console.log(
-            "UUID commande reçu :",
-            JSON.stringify(uuid)
-        );
 
-        console.log(
-            "UUID livreur reçu :",
-            JSON.stringify(livreur_uuid)
-        );
 
         const commande =
             await CommandeRepository.findByUUID(uuid);
@@ -588,10 +574,18 @@ export class CommandeService {
                 );
 
             // Créer ou réaffecter la livraison
-            if (
-                livraison &&
-                livraison.status !== "cancelled"
-            ) {
+            // Créer ou réaffecter la livraison
+            if (livraison) {
+
+                /*
+                 * Une livraison existe déjà pour cette commande.
+                 *
+                 * Même si elle est "cancelled", on la réutilise
+                 * au lieu d'en créer une nouvelle.
+                 *
+                 * Cela respecte la contrainte unique :
+                 * uk_livraisons_commande
+                 */
 
                 await LivraisonRepository.updateLivreur(
                     livraison.id,
@@ -613,6 +607,11 @@ export class CommandeService {
                     );
 
             } else {
+
+                /*
+                 * Première affectation :
+                 * aucune livraison n'existe encore.
+                 */
 
                 const livraisonId =
                     await LivraisonRepository.create(

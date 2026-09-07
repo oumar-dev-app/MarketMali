@@ -416,6 +416,8 @@ export default function CommandeDetailPage() {
             const data =
                 await response.json();
 
+            console.log("REPONSE AFFECTATION LIVREUR :", data);
+
             if (!response.ok || !data.success) {
 
                 toast.error(
@@ -431,11 +433,22 @@ export default function CommandeDetailPage() {
                 "Livreur affecté à la commande."
             );
 
-            if (typeof data.qrToken === "string" && data.qrToken.trim()) {
+            if (
+                typeof data.qrToken === "string" &&
+                data.qrToken.trim()
+            ) {
+                console.log(
+                    "QR TOKEN REÇU :",
+                    data.qrToken
+                );
 
                 setQrToken(data.qrToken);
-
                 setShowQrModal(true);
+            } else {
+                console.error(
+                    "Aucun qrToken reçu après affectation :",
+                    data
+                );
             }
 
             await fetchCommande();
@@ -489,6 +502,8 @@ export default function CommandeDetailPage() {
 
             const data =
                 await response.json();
+
+
 
             if (!response.ok || !data.success) {
 
@@ -1477,7 +1492,7 @@ export default function CommandeDetailPage() {
                                     </div>
 
                                     {/* Réafficher le QR */}
-                                    {commande.livraison_status === "assigned" && qrToken && (
+                                    {qrToken && (
                                         <button
                                             type="button"
                                             onClick={() => setShowQrModal(true)}

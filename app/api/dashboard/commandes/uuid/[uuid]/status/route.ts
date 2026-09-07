@@ -25,8 +25,6 @@ export const PATCH = apiHandler(
     const { uuid } =
       await context.params;
 
-    console.log("UUID :", uuid);
-
     const body =
       await req.json();
 
