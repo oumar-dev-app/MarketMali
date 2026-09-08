@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
     FaArrowLeft,
     FaEdit,
+    FaEye,
     FaStore,
     FaPhone,
     FaEnvelope,
@@ -114,7 +115,7 @@ export default function BoutiqueDetailsPage() {
                 if (!response.ok || !data.success || !data.data) {
                     throw new Error(
                         data.message ||
-                            "Impossible de récupérer les informations de la boutique."
+                        "Impossible de récupérer les informations de la boutique."
                     );
                 }
 
@@ -219,13 +220,27 @@ export default function BoutiqueDetailsPage() {
                         Retour aux boutiques
                     </Link>
 
-                    <Link
-                        href={`/dashboard/boutiques/${boutique.uuid}/edit`}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
-                    >
-                        <FaEdit />
-                        Modifier la boutique
-                    </Link>
+                    <div className="flex flex-col gap-3 sm:flex-row">
+                        {boutique.status === "active" && boutique.slug && (
+                            <Link
+                                href={`/boutiques/${boutique.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100"
+                            >
+                                <FaEye />
+                                Voir ma boutique
+                            </Link>
+                        )}
+
+                        <Link
+                            href={`/dashboard/boutiques/${boutique.uuid}/edit`}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                        >
+                            <FaEdit />
+                            Modifier la boutique
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Hero */}

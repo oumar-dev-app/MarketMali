@@ -18,13 +18,27 @@ interface Props {
     prix: string | number;
     image?: string | null;
     stock: number;
+
+    // Promotion
+    promotion_uuid?: string | null;
+    promotion_type?:
+      | "percentage"
+      | "special_price"
+      | null;
+    promotion_reduction_pourcentage?:
+      | string
+      | number
+      | null;
+    promotion_prix_promotionnel?:
+      | string
+      | number
+      | null;
   };
 }
 
 export default function AddToCartButton({
   produit,
 }: Props) {
-
   const { addToCart } = useCart();
 
   const [quantity, setQuantity] =
@@ -34,7 +48,6 @@ export default function AddToCartButton({
     useState("");
 
   function decrease() {
-
     setQuantity((value) =>
       Math.max(1, value - 1)
     );
@@ -43,31 +56,71 @@ export default function AddToCartButton({
   }
 
   function increase() {
-
     setQuantity((value) =>
-      Math.min(produit.stock, value + 1)
+      Math.min(
+        produit.stock,
+        value + 1
+      )
     );
 
     setMessage("");
   }
 
   function handleClick() {
-
     const added = addToCart(
       {
         uuid: produit.uuid,
-        produit_id: produit.id,
-        boutique_id: produit.boutique_id,
+
+        produit_id:
+          produit.id,
+
+        boutique_id:
+          produit.boutique_id,
+
         nom: produit.nom,
-        prix: Number(produit.prix),
-        image: produit.image,
-        stock: produit.stock,
+
+        prix:
+          Number(produit.prix),
+
+        image:
+          produit.image,
+
+        stock:
+          produit.stock,
+
+        // Promotion
+        promotion_uuid:
+          produit.promotion_uuid ??
+          null,
+
+        promotion_type:
+          produit.promotion_type ??
+          null,
+
+        promotion_reduction_pourcentage:
+          produit.promotion_reduction_pourcentage !==
+            null &&
+          produit.promotion_reduction_pourcentage !==
+            undefined
+            ? Number(
+                produit.promotion_reduction_pourcentage
+              )
+            : null,
+
+        promotion_prix_promotionnel:
+          produit.promotion_prix_promotionnel !==
+            null &&
+          produit.promotion_prix_promotionnel !==
+            undefined
+            ? Number(
+                produit.promotion_prix_promotionnel
+              )
+            : null,
       },
       quantity
     );
 
     if (!added) {
-
       setMessage(
         "Votre panier contient déjà des produits d'une autre boutique. Videz votre panier avant d'ajouter ce produit."
       );
@@ -76,11 +129,12 @@ export default function AddToCartButton({
     }
 
     setMessage(
-      `${quantity} produit${quantity > 1 ? "s" : ""
-      } ajouté${quantity > 1 ? "s" : ""
+      `${quantity} produit${
+        quantity > 1 ? "s" : ""
+      } ajouté${
+        quantity > 1 ? "s" : ""
       } au panier.`
     );
-
   }
 
   return (
@@ -88,38 +142,39 @@ export default function AddToCartButton({
       <div className="flex w-full flex-col gap-3">
 
         {/* QUANTITÉ */}
+
         <div
           className="
-          flex
-          h-14
-          w-full
-          items-center
-          justify-between
-          rounded-2xl
-          border
-          border-gray-200
-          bg-white
-          px-2
-        "
+            flex
+            h-14
+            w-full
+            items-center
+            justify-between
+            rounded-2xl
+            border
+            border-gray-200
+            bg-white
+            px-2
+          "
         >
           <button
             type="button"
             onClick={decrease}
             disabled={quantity <= 1}
             className="
-            flex
-            h-10
-            w-10
-            shrink-0
-            items-center
-            justify-center
-            rounded-xl
-            text-gray-600
-            transition
-            hover:bg-gray-100
-            disabled:cursor-not-allowed
-            disabled:opacity-30
-          "
+              flex
+              h-10
+              w-10
+              shrink-0
+              items-center
+              justify-center
+              rounded-xl
+              text-gray-600
+              transition
+              hover:bg-gray-100
+              disabled:cursor-not-allowed
+              disabled:opacity-30
+            "
             aria-label="Diminuer la quantité"
           >
             <Minus size={18} />
@@ -127,13 +182,13 @@ export default function AddToCartButton({
 
           <span
             className="
-            min-w-10
-            flex-1
-            text-center
-            text-base
-            font-extrabold
-            text-gray-900
-          "
+              min-w-10
+              flex-1
+              text-center
+              text-base
+              font-extrabold
+              text-gray-900
+            "
           >
             {quantity}
           </span>
@@ -141,21 +196,23 @@ export default function AddToCartButton({
           <button
             type="button"
             onClick={increase}
-            disabled={quantity >= produit.stock}
+            disabled={
+              quantity >= produit.stock
+            }
             className="
-            flex
-            h-10
-            w-10
-            shrink-0
-            items-center
-            justify-center
-            rounded-xl
-            text-gray-600
-            transition
-            hover:bg-gray-100
-            disabled:cursor-not-allowed
-            disabled:opacity-30
-          "
+              flex
+              h-10
+              w-10
+              shrink-0
+              items-center
+              justify-center
+              rounded-xl
+              text-gray-600
+              transition
+              hover:bg-gray-100
+              disabled:cursor-not-allowed
+              disabled:opacity-30
+            "
             aria-label="Augmenter la quantité"
           >
             <Plus size={18} />
@@ -163,30 +220,31 @@ export default function AddToCartButton({
         </div>
 
         {/* AJOUT PANIER */}
+
         <button
           type="button"
           onClick={handleClick}
           className="
-          flex
-          h-14
-          w-full
-          shrink-0
-          items-center
-          justify-center
-          gap-2
-          overflow-hidden
-          rounded-2xl
-          bg-green-700
-          px-4
-          text-sm
-          font-bold
-          text-white
-          shadow-sm
-          transition
-          hover:bg-green-800
-          hover:shadow-md
-          active:scale-[0.99]
-        "
+            flex
+            h-14
+            w-full
+            shrink-0
+            items-center
+            justify-center
+            gap-2
+            overflow-hidden
+            rounded-2xl
+            bg-green-700
+            px-4
+            text-sm
+            font-bold
+            text-white
+            shadow-sm
+            transition
+            hover:bg-green-800
+            hover:shadow-md
+            active:scale-[0.99]
+          "
         >
           <ShoppingCart
             size={19}
@@ -200,29 +258,36 @@ export default function AddToCartButton({
       </div>
 
       {/* STOCK */}
+
       <p className="mt-2 text-xs text-gray-500">
         {produit.stock} unité
-        {produit.stock > 1 ? "s" : ""} disponible
-        {produit.stock > 1 ? "s" : ""}
+        {produit.stock > 1
+          ? "s"
+          : ""}{" "}
+        disponible
+        {produit.stock > 1
+          ? "s"
+          : ""}
       </p>
 
       {/* MESSAGE */}
+
       {message && (
         <div
           className="
-          mt-3
-          w-full
-          rounded-xl
-          border
-          border-green-100
-          bg-green-50
-          px-4
-          py-3
-          text-xs
-          font-semibold
-          leading-5
-          text-green-700
-        "
+            mt-3
+            w-full
+            rounded-xl
+            border
+            border-green-100
+            bg-green-50
+            px-4
+            py-3
+            text-xs
+            font-semibold
+            leading-5
+            text-green-700
+          "
         >
           {message}
         </div>

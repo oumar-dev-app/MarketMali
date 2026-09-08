@@ -27,10 +27,11 @@ export interface Produit {
 }
 
 export type ProduitUpdate = {
-  nom?: string;
-  slug?: string;
-  description?: string | null;
-  prix?: number;
-  stock?: number;
-  image?: string | null;
+    categorie_id?: number;
+    nom?: string;
+    slug?: string;
+    description?: string;
+    prix?: number;
+    stock?: number;
+    image?: string;
 };

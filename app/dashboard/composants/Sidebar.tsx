@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 
 import {
   BarChart3,
+  BadgePercent,
   ClipboardList,
   KeyRound,
   LayoutDashboard,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { apiGet } from "@/lib/api";
 
 
 type UserRole =
@@ -159,6 +161,11 @@ const menuByRole: Record<
       icon: Package,
     },
     {
+      label: "Promotions",
+      href: "/dashboard/promotions",
+      icon: BadgePercent,
+    },
+    {
       label: "Catégories",
       href: "/dashboard/categories",
       icon: Tags,
@@ -257,6 +264,14 @@ function getRoleIcon(
   return Users;
 }
 
+type BoutiqueResponse = {
+  success: boolean;
+  data: {
+    slug: string;
+    status?: string;
+  };
+};
+
 
 export default function Sidebar() {
 
@@ -271,6 +286,12 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] =
     useState(false);
 
+  const [boutiqueSlug, setBoutiqueSlug] =
+    useState<string | null>(null);
+
+  const [boutiqueLoading, setBoutiqueLoading] =
+    useState(false);
+
 
   const role =
     user?.role as UserRole | undefined;
@@ -281,6 +302,66 @@ export default function Sidebar() {
       ? menuByRole[role]
       : [];
 
+  useEffect(() => {
+
+    if (role !== "vendeur") {
+      setBoutiqueSlug(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadBoutique() {
+
+      try {
+
+        setBoutiqueLoading(true);
+
+        const result =
+          await apiGet<BoutiqueResponse>(
+            "/dashboard/boutiques"
+          );
+
+        if (!cancelled) {
+
+          console.log(
+            "BOUTIQUE VENDEUR :",
+            result
+          );
+
+          setBoutiqueSlug(
+            result.data?.slug ?? null
+          );
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Erreur récupération boutique vendeur :",
+          error
+        );
+
+        if (!cancelled) {
+          setBoutiqueSlug(null);
+        }
+
+      } finally {
+
+        if (!cancelled) {
+          setBoutiqueLoading(false);
+        }
+
+      }
+    }
+
+    loadBoutique();
+
+    return () => {
+      cancelled = true;
+    };
+
+  }, [role]);
 
   /*
    * Fermer automatiquement
@@ -688,130 +769,225 @@ export default function Sidebar() {
             <nav className="space-y-1">
 
               {menu.map(
-                (item) => {
+                (item, index) => {
 
                   const Icon =
                     item.icon;
 
-
                   const active =
-                    pathname ===
-                    item.href ||
+                    pathname === item.href ||
                     (
-                      item.href !==
-                      "/dashboard" &&
+                      item.href !== "/dashboard" &&
                       pathname.startsWith(
                         `${item.href}/`
                       )
                     );
 
-
                   return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`
-                        group
-                        relative
-                        flex
-                        items-center
-                        gap-3
-                        rounded-xl
-                        px-3
-                        py-3
-                        text-sm
-                        font-medium
-                        transition-all
-                        duration-200
+                    <div key={item.href}>
 
-                        ${active
-                          ? `
-                              bg-gray-900
-                              text-white
-                              shadow-sm
-                            `
-                          : `
-                              text-gray-600
-                              hover:bg-gray-50
-                              hover:text-gray-900
-                            `
-                        }
-                      `}
-                    >
-
-                      {/* Indicateur actif */}
-
-                      {active && (
-                        <span
-                          className="
-                            absolute
-                            left-0
-                            top-1/2
-                            h-6
-                            w-1
-                            -translate-y-1/2
-                            rounded-r-full
-                            bg-white
-                          "
-                        />
-                      )}
-
-
-                      {/* Icon */}
-
-                      <span
+                      <Link
+                        href={item.href}
                         className={`
-                          flex
-                          h-9
-                          w-9
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-lg
-                          transition
+            group
+            relative
+            flex
+            items-center
+            gap-3
+            rounded-xl
+            px-3
+            py-3
+            text-sm
+            font-medium
+            transition-all
+            duration-200
 
-                          ${active
-                            ? "bg-white/10 text-white"
-                            : "bg-gray-100 text-gray-500 group-hover:bg-white group-hover:text-gray-900"
+            ${active
+                            ? `
+                  bg-gray-900
+                  text-white
+                  shadow-sm
+                `
+                            : `
+                  text-gray-600
+                  hover:bg-gray-50
+                  hover:text-gray-900
+                `
                           }
-                        `}
+          `}
                       >
 
-                        <Icon
-                          size={19}
-                          strokeWidth={
-                            active
-                              ? 2.2
-                              : 2
-                          }
+                        {active && (
+                          <span
+                            className="
+                absolute
+                left-0
+                top-1/2
+                h-6
+                w-1
+                -translate-y-1/2
+                rounded-r-full
+                bg-white
+              "
+                          />
+                        )}
+
+                        <span
+                          className={`
+              flex
+              h-9
+              w-9
+              shrink-0
+              items-center
+              justify-center
+              rounded-lg
+              transition
+
+              ${active
+                              ? "bg-white/10 text-white"
+                              : "bg-gray-100 text-gray-500 group-hover:bg-white group-hover:text-gray-900"
+                            }
+            `}
+                        >
+                          <Icon
+                            size={19}
+                            strokeWidth={
+                              active ? 2.2 : 2
+                            }
+                          />
+                        </span>
+
+                        <span className="flex-1 truncate">
+                          {item.label}
+                        </span>
+
+                        <ChevronRight
+                          size={15}
+                          strokeWidth={2}
+                          className={`
+              shrink-0
+              transition-transform
+              ${active
+                              ? "translate-x-0 opacity-100"
+                              : "-translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-50"
+                            }
+            `}
                         />
 
-                      </span>
+                      </Link>
 
 
-                      {/* Label */}
+                      {/* =========================================
+            VISITER MA BOUTIQUE
+            juste après Tableau de bord
+        ========================================= */}
 
-                      <span className="flex-1 truncate">
-                        {item.label}
-                      </span>
+                      {role === "vendeur" &&
+                        index === 0 &&
+                        boutiqueSlug && (
 
+                          <Link
+                            href={`/boutiques/${boutiqueSlug}`}
+                            className={`
+              group
+              relative
+              mt-1
+              flex
+              items-center
+              gap-3
+              rounded-xl
+              px-3
+              py-3
+              text-sm
+              font-medium
+              transition-all
+              duration-200
 
-                      {/* Chevron */}
+              ${pathname ===
+                                `/boutiques/${boutiqueSlug}`
+                                ? `
+                      bg-gray-900
+                      text-white
+                      shadow-sm
+                    `
+                                : `
+                      text-gray-600
+                      hover:bg-gray-50
+                      hover:text-gray-900
+                    `
+                              }
+            `}
+                          >
 
-                      <ChevronRight
-                        size={15}
-                        strokeWidth={2}
-                        className={`
-                          shrink-0
-                          transition-transform
-                          ${active
-                            ? "translate-x-0 opacity-100"
-                            : "-translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-50"
-                          }
-                        `}
-                      />
+                            {pathname ===
+                              `/boutiques/${boutiqueSlug}` && (
+                                <span
+                                  className="
+                  absolute
+                  left-0
+                  top-1/2
+                  h-6
+                  w-1
+                  -translate-y-1/2
+                  rounded-r-full
+                  bg-white
+                "
+                                />
+                              )}
 
-                    </Link>
+                            <span
+                              className={`
+                flex
+                h-9
+                w-9
+                shrink-0
+                items-center
+                justify-center
+                rounded-lg
+                transition
+
+                ${pathname ===
+                                  `/boutiques/${boutiqueSlug}`
+                                  ? "bg-white/10 text-white"
+                                  : "bg-gray-100 text-gray-500 group-hover:bg-white group-hover:text-gray-900"
+                                }
+              `}
+                            >
+
+                              <Store
+                                size={19}
+                                strokeWidth={
+                                  pathname ===
+                                    `/boutiques/${boutiqueSlug}`
+                                    ? 2.2
+                                    : 2
+                                }
+                              />
+
+                            </span>
+
+                            <span className="flex-1 truncate">
+                              Visiter ma boutique
+                            </span>
+
+                            <ChevronRight
+                              size={15}
+                              strokeWidth={2}
+                              className={`
+                shrink-0
+                transition-transform
+                ${pathname ===
+                                  `/boutiques/${boutiqueSlug}`
+                                  ? "translate-x-0 opacity-100"
+                                  : "-translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-50"
+                                }
+              `}
+                            />
+
+                          </Link>
+                        )}
+
+                    </div>
                   );
                 }
               )}

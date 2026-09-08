@@ -6,14 +6,13 @@ import {
   PoolConnection
 } from "mysql2/promise";
 
-
-
 export interface CommandeProduitRow extends RowDataPacket {
   id: number;
   commande_id: number;
   produit_id: number;
   quantite: number;
   prix: number;
+  promotion_id: number | null;
   uuid: string;
   nom: string;
   slug: string;
@@ -23,115 +22,121 @@ export interface CommandeProduitRow extends RowDataPacket {
 
 export class CommandeProduitRepository {
 
+  static async findByCommandeId(
+    commande_id: number
+  ): Promise<CommandeProduitRow[]> {
 
+    const [rows] =
+      await db.query<CommandeProduitRow[]>(
+        `
+        SELECT
 
-static async findByCommandeId(
-  commande_id: number
-): Promise<CommandeProduitRow[]> {
+          cp.id,
 
-  const [rows] =
-    await db.query<CommandeProduitRow[]>(
-      `
-      SELECT
+          cp.commande_id,
 
-        cp.id,
+          cp.produit_id,
 
-        cp.commande_id,
+          cp.quantite,
 
-        cp.produit_id,
+          cp.prix,
 
-        cp.quantite,
+          cp.promotion_id,
 
-        cp.prix,
+          p.uuid,
 
-        p.uuid,
+          p.nom,
 
-        p.nom,
+          p.slug,
 
-        p.slug,
+          p.image,
 
-        p.image,
+          (cp.quantite * cp.prix) AS sous_total
 
-        (cp.quantite * cp.prix) AS sous_total
+        FROM commande_produits cp
 
-      FROM commande_produits cp
+        INNER JOIN produits p
+          ON p.id = cp.produit_id
 
-      INNER JOIN produits p
-        ON p.id = cp.produit_id
+        WHERE cp.commande_id = ?
+        `,
+        [
+          commande_id
+        ]
+      );
 
-      WHERE cp.commande_id = ?
-      `,
-      [
-        commande_id
-      ]
-    );
-
-  return rows;
-
-}
-
-
-
-static async create(
-  data: {
-    commande_id: number;
-    produit_id: number;
-    quantite: number;
-    prix: number;
-  },
-  connection: Pool | PoolConnection = db
-): Promise<number> {
-
-  const [result] =
-    await connection.execute<ResultSetHeader>(
-      `
-      INSERT INTO commande_produits
-      (
-        commande_id,
-        produit_id,
-        quantite,
-        prix
-      )
-      VALUES (?, ?, ?, ?)
-      `,
-      [
-        data.commande_id,
-        data.produit_id,
-        data.quantite,
-        data.prix
-      ]
-    );
-
-  return result.insertId;
-}
-
-
-
-static async createMany(
-  commande_id: number,
-  produits: {
-    produit_id: number;
-    quantite: number;
-    prix: number;
-  }[],
-  connection: Pool | PoolConnection = db
-) {
-
-  for (const produit of produits) {
-
-    await this.create(
-      {
-        commande_id,
-        produit_id: produit.produit_id,
-        quantite: produit.quantite,
-        prix: produit.prix
-      },
-      connection
-    );
+    return rows;
   }
-}
 
+  static async create(
+    data: {
+      commande_id: number;
+      produit_id: number;
+      quantite: number;
+      prix: number;
+      promotion_id?: number | null;
+    },
+    connection: Pool | PoolConnection = db
+  ): Promise<number> {
 
+    const [result] =
+      await connection.execute<ResultSetHeader>(
+        `
+        INSERT INTO commande_produits
+        (
+          commande_id,
+          produit_id,
+          quantite,
+          prix,
+          promotion_id
+        )
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          data.commande_id,
+          data.produit_id,
+          data.quantite,
+          data.prix,
+          data.promotion_id ?? null
+        ]
+      );
+
+    return result.insertId;
+  }
+
+  static async createMany(
+    commande_id: number,
+    produits: {
+      produit_id: number;
+      quantite: number;
+      prix: number;
+      promotion_id?: number | null;
+    }[],
+    connection: Pool | PoolConnection = db
+  ) {
+
+    for (const produit of produits) {
+
+      await this.create(
+        {
+          commande_id,
+
+          produit_id:
+            produit.produit_id,
+
+          quantite:
+            produit.quantite,
+
+          prix:
+            produit.prix,
+
+          promotion_id:
+            produit.promotion_id ?? null
+        },
+        connection
+      );
+    }
+  }
 
   static async deleteByCommandeId(
     commande_id: number
@@ -147,7 +152,5 @@ static async createMany(
         commande_id
       ]
     );
-
   }
-
 }

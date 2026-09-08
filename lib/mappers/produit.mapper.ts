@@ -1,10 +1,10 @@
 import { Produit } from "@/lib/types/produit";
 
 export function produitResponse(
-produit: any
+  produit: any
 ) {
-return {
-    id: produit.id,          
+  return {
+    id: produit.id,
 
     uuid: produit.uuid,
     boutique_id: produit.boutique_id,
@@ -24,22 +24,45 @@ return {
     updated_at: produit.updated_at,
 
     boutique: produit.boutique_uuid
-        ? {
-            uuid: produit.boutique_uuid,
-            nom: produit.boutique_nom,
-            slug: produit.boutique_slug,
+      ? {
+          uuid: produit.boutique_uuid,
+          nom: produit.boutique_nom,
+          slug: produit.boutique_slug,
         }
-        : null,
+      : null,
 
     categorie: produit.categorie_uuid
-        ? {
-            uuid: produit.categorie_uuid,
-            nom: produit.categorie_nom,
-            slug: produit.categorie_slug,
+      ? {
+          uuid: produit.categorie_uuid,
+          nom: produit.categorie_nom,
+          slug: produit.categorie_slug,
         }
+      : null,
+
+    promotion_uuid:
+      produit.promotion_uuid ?? null,
+
+    promotion_type:
+      produit.promotion_type ?? null,
+
+    promotion_reduction_pourcentage:
+      produit.promotion_reduction_pourcentage !== null &&
+      produit.promotion_reduction_pourcentage !== undefined
+        ? Number(
+            produit.promotion_reduction_pourcentage
+          )
         : null,
-};
+
+    promotion_prix_promotionnel:
+      produit.promotion_prix_promotionnel !== null &&
+      produit.promotion_prix_promotionnel !== undefined
+        ? Number(
+            produit.promotion_prix_promotionnel
+          )
+        : null,
+  };
 }
+
 export function produitListResponse(
   produits: Produit[]
 ) {

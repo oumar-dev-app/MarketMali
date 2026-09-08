@@ -79,6 +79,80 @@ export default function PagePanier() {
 
   /**
    * =========================================================
+   * PRIX PROMOTIONNELS
+   * =========================================================
+   */
+
+  function getPrixFinal(item: (typeof items)[number]): number {
+    const prix = Number(item.prix);
+
+    if (!Number.isFinite(prix)) {
+      return 0;
+    }
+
+    /**
+     * Promotion en pourcentage
+     */
+    if (
+      item.promotion_type === "percentage" &&
+      item.promotion_reduction_pourcentage !== null &&
+      item.promotion_reduction_pourcentage !== undefined
+    ) {
+      const reduction = Number(
+        item.promotion_reduction_pourcentage
+      );
+
+      if (
+        Number.isFinite(reduction) &&
+        reduction >= 0 &&
+        reduction <= 100
+      ) {
+        return prix - (prix * reduction) / 100;
+      }
+    }
+
+    /**
+     * Promotion avec prix spécial
+     */
+    if (
+      item.promotion_type === "special_price" &&
+      item.promotion_prix_promotionnel !== null &&
+      item.promotion_prix_promotionnel !== undefined
+    ) {
+      const prixPromotionnel = Number(
+        item.promotion_prix_promotionnel
+      );
+
+      if (
+        Number.isFinite(prixPromotionnel) &&
+        prixPromotionnel >= 0
+      ) {
+        return prixPromotionnel;
+      }
+    }
+
+    return prix;
+  }
+
+  /**
+   * Total du panier sans promotion
+   */
+  const totalNormal = items.reduce(
+    (sum, item) =>
+      sum + Number(item.prix) * item.quantity,
+    0
+  );
+
+  /**
+   * Économie réalisée grâce aux promotions
+   */
+  const economie = Math.max(
+    0,
+    totalNormal - total
+  );
+
+  /**
+   * =========================================================
    * GPS
    * =========================================================
    */
@@ -227,7 +301,13 @@ export default function PagePanier() {
     }
 
     chargerTarifs();
-  }, [items]);
+  }, [items, zoneLivraison]);
+
+  /**
+   * =========================================================
+   * TARIF DE LA ZONE SÉLECTIONNÉE
+   * =========================================================
+   */
 
   useEffect(() => {
     const tarif =
@@ -561,9 +641,29 @@ export default function PagePanier() {
             </div>
 
             {items.map((item) => {
+              const prixNormal =
+                Number(item.prix);
+
+              const prixFinal =
+                getPrixFinal(item);
+
               const sousTotal =
-                Number(item.prix) *
+                prixFinal *
                 item.quantity;
+
+              const promotionActive =
+                Boolean(item.promotion_uuid) &&
+                prixFinal < prixNormal;
+
+              const reductionPourcentage =
+                item.promotion_reduction_pourcentage !==
+                  null &&
+                item.promotion_reduction_pourcentage !==
+                  undefined
+                  ? Number(
+                      item.promotion_reduction_pourcentage
+                    )
+                  : null;
 
               return (
                 <div
@@ -620,14 +720,60 @@ export default function PagePanier() {
                         {item.nom}
                       </Link>
 
-                      <p className="mt-1 text-sm font-extrabold text-[#14a800]">
-                        {Number(
-                          item.prix
-                        ).toLocaleString(
-                          "fr-FR"
-                        )}{" "}
-                        FCFA
-                      </p>
+                      {promotionActive ? (
+                        <div className="mt-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {item.promotion_type ===
+                              "percentage" &&
+                              reductionPourcentage !==
+                                null && (
+                                <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
+                                  -
+                                  {
+                                    reductionPourcentage
+                                  }{" "}
+                                  %
+                                </span>
+                              )}
+
+                            {item.promotion_type ===
+                              "special_price" && (
+                              <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
+                                PROMOTION
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                            <span className="text-sm font-extrabold text-red-600">
+                              {Math.round(
+                                prixFinal
+                              ).toLocaleString(
+                                "fr-FR"
+                              )}{" "}
+                              FCFA
+                            </span>
+
+                            <span className="text-xs font-semibold text-gray-400 line-through">
+                              {prixNormal.toLocaleString(
+                                "fr-FR"
+                              )}{" "}
+                              FCFA
+                            </span>
+                          </div>
+
+                          <p className="mt-0.5 text-[10px] font-semibold text-gray-400">
+                            Prix promotionnel
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-sm font-extrabold text-[#14a800]">
+                          {prixNormal.toLocaleString(
+                            "fr-FR"
+                          )}{" "}
+                          FCFA
+                        </p>
+                      )}
 
                       <div className="mt-4 flex flex-wrap items-center gap-3">
                         {/* QUANTITE */}
@@ -675,6 +821,10 @@ export default function PagePanier() {
                                 item.uuid
                               )
                             }
+                            disabled={
+                              item.quantity >=
+                              item.stock
+                            }
                             aria-label="Augmenter la quantité"
                             className="
                               flex
@@ -686,6 +836,8 @@ export default function PagePanier() {
                               transition
                               hover:bg-gray-50
                               hover:text-[#14a800]
+                              disabled:cursor-not-allowed
+                              disabled:opacity-40
                             "
                           >
                             <Plus
@@ -733,7 +885,9 @@ export default function PagePanier() {
                       </p>
 
                       <p className="mt-1 text-base font-extrabold text-gray-950">
-                        {sousTotal.toLocaleString(
+                        {Math.round(
+                          sousTotal
+                        ).toLocaleString(
                           "fr-FR"
                         )}{" "}
                         FCFA
@@ -750,7 +904,9 @@ export default function PagePanier() {
                       </span>
 
                       <span className="text-sm font-extrabold text-gray-950">
-                        {sousTotal.toLocaleString(
+                        {Math.round(
+                          sousTotal
+                        ).toLocaleString(
                           "fr-FR"
                         )}{" "}
                         FCFA
@@ -1017,8 +1173,8 @@ export default function PagePanier() {
                       {gpsPrecision !==
                         null
                         ? `${Math.round(
-                          gpsPrecision
-                        )} m`
+                            gpsPrecision
+                          )} m`
                         : "-"}
                     </div>
                   </div>
@@ -1087,6 +1243,24 @@ export default function PagePanier() {
                     </span>
                   </div>
 
+                  {economie > 0 && (
+                    <div className="flex items-center justify-between gap-4 text-sm">
+                      <span className="text-gray-500">
+                        Économie
+                      </span>
+
+                      <span className="font-bold text-red-600">
+                        -
+                        {Math.round(
+                          economie
+                        ).toLocaleString(
+                          "fr-FR"
+                        )}{" "}
+                        FCFA
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between gap-4 text-sm">
                     <span className="text-gray-500">
                       Livraison
@@ -1098,8 +1272,8 @@ export default function PagePanier() {
                         : tarifLivraison === 0
                           ? "Gratuit"
                           : `${tarifLivraison.toLocaleString(
-                            "fr-FR"
-                          )} FCFA`}
+                              "fr-FR"
+                            )} FCFA`}
                     </span>
                   </div>
                 </div>

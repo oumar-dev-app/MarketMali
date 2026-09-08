@@ -27,7 +27,7 @@ export class CategorieRepository {
     return rows.length ? rows[0] : null;
   }
 
-  
+
 
 
   static async findByUUID(
@@ -67,7 +67,22 @@ export class CategorieRepository {
     return rows;
   }
 
+  static async findByNomGlobal(
+    nom: string
+  ): Promise<CategorieRow | null> {
 
+    const [rows] = await db.query<CategorieRow[]>(
+      `
+    SELECT *
+    FROM categories
+    WHERE LOWER(TRIM(nom)) = LOWER(TRIM(?))
+    LIMIT 1
+    `,
+      [nom]
+    );
+
+    return rows.length ? rows[0] : null;
+  }
 
   static async findAll(): Promise<CategorieRow[]> {
     const [rows] = await db.query<CategorieRow[]>(
@@ -355,28 +370,28 @@ export class CategorieRepository {
     );
 
   }
-static async existsBySlug(
-  slug:string,
-  boutique_id:number
-):Promise<boolean>{
+  static async existsBySlug(
+    slug: string,
+    boutique_id: number
+  ): Promise<boolean> {
 
- const [rows] =
- await db.query<RowDataPacket[]>(
- `
+    const [rows] =
+      await db.query<RowDataPacket[]>(
+        `
  SELECT id
  FROM categories
  WHERE slug = ?
  AND boutique_id = ?
  LIMIT 1
  `,
- [
-  slug,
-  boutique_id
- ]);
+        [
+          slug,
+          boutique_id
+        ]);
 
- return rows.length > 0;
+    return rows.length > 0;
 
-}
+  }
 
   static async block(
     id: number
@@ -423,5 +438,5 @@ static async existsBySlug(
 
 }
 
-  
+
 

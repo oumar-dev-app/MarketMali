@@ -211,18 +211,88 @@ export default async function ProduitPage({
                 Prix
               </p>
 
-              <p
-                className="
-                  mt-1
-                  text-3xl
-                  font-extrabold
-                  tracking-tight
-                  text-green-700
-                  sm:text-4xl
-                "
-              >
-                {Number(produit.prix).toLocaleString("fr-FR")} FCFA
-              </p>
+              {produit.promotion_uuid ? (
+                <div className="mt-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span
+                      className="
+            text-3xl
+            font-extrabold
+            tracking-tight
+            text-green-700
+            sm:text-4xl
+          "
+                    >
+                      {(
+                        produit.promotion_type === "percentage" &&
+                          produit.promotion_reduction_pourcentage !== null
+                          ? Number(produit.prix) -
+                          (Number(produit.prix) *
+                            Number(produit.promotion_reduction_pourcentage)) /
+                          100
+                          : produit.promotion_type === "special_price" &&
+                            produit.promotion_prix_promotionnel !== null
+                            ? Number(produit.promotion_prix_promotionnel)
+                            : Number(produit.prix)
+                      ).toLocaleString("fr-FR")}{" "}
+                      FCFA
+                    </span>
+
+                    <span
+                      className="
+            rounded-full
+            bg-red-50
+            px-3
+            py-1
+            text-xs
+            font-bold
+            text-red-700
+            ring-1
+            ring-red-200
+          "
+                    >
+                      {produit.promotion_type === "percentage" &&
+                        produit.promotion_reduction_pourcentage !== null
+                        ? `-${Number(
+                          produit.promotion_reduction_pourcentage
+                        )}%`
+                        : "PROMOTION"}
+                    </span>
+                  </div>
+
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-gray-400 line-through">
+                      {Number(produit.prix).toLocaleString("fr-FR")} FCFA
+                    </span>
+
+                    {produit.promotion_type === "percentage" &&
+                      produit.promotion_reduction_pourcentage !== null && (
+                        <span className="text-xs font-semibold text-red-600">
+                          Économisez{" "}
+                          {(
+                            (Number(produit.prix) *
+                              Number(produit.promotion_reduction_pourcentage)) /
+                            100
+                          ).toLocaleString("fr-FR")}{" "}
+                          FCFA
+                        </span>
+                      )}
+                  </div>
+                </div>
+              ) : (
+                <p
+                  className="
+        mt-1
+        text-3xl
+        font-extrabold
+        tracking-tight
+        text-green-700
+        sm:text-4xl
+      "
+                >
+                  {Number(produit.prix).toLocaleString("fr-FR")} FCFA
+                </p>
+              )}
             </div>
 
             {/* SEPARATION */}
@@ -277,9 +347,8 @@ export default async function ProduitPage({
 
                     <p className="mt-0.5 text-sm font-bold text-gray-900">
                       {produit.stock > 0
-                        ? `${produit.stock} unité${
-                            produit.stock > 1 ? "s" : ""
-                          }`
+                        ? `${produit.stock} unité${produit.stock > 1 ? "s" : ""
+                        }`
                         : "Rupture de stock"}
                     </p>
                   </div>

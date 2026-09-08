@@ -73,14 +73,10 @@ export class ProduitService {
         }
 
 
-        if (
-            categorie.boutique_id !== boutique.id
-        ) {
-
+        if (categorie.status !== "active") {
             throw new ForbiddenError(
-                "Cette catégorie n'appartient pas à votre boutique."
+                "Cette catégorie n'est pas disponible."
             );
-
         }
 
 
@@ -268,17 +264,15 @@ export class ProduitService {
         role: string,
         data: UpdateProduitDTO
     ) {
-
         const produit =
-            await ProduitRepository.findByUUID(
-                uuid
-            );
-        if (!produit) {
+            await ProduitRepository.findByUUID(uuid);
 
+        if (!produit) {
             throw new NotFoundError(
                 "Produit introuvable."
             );
         }
+
         const boutique =
             await BoutiqueRepository.findById(
                 produit.boutique_id
@@ -295,7 +289,6 @@ export class ProduitService {
             role !== "super_admin" &&
             boutique.user_id !== user_id
         ) {
-
             throw new ForbiddenError(
                 "Vous n'avez pas accès."
             );
@@ -303,15 +296,36 @@ export class ProduitService {
 
         const updateData: any = {};
 
+        // Vérification de la catégorie globale
+        if (data.categorie_id !== undefined) {
+            const categorie =
+                await CategorieRepository.findById(
+                    data.categorie_id
+                );
+
+            if (!categorie) {
+                throw new NotFoundError(
+                    "Catégorie introuvable."
+                );
+            }
+
+            if (categorie.status !== "active") {
+                throw new ForbiddenError(
+                    "Cette catégorie n'est pas disponible."
+                );
+            }
+
+            updateData.categorie_id =
+                data.categorie_id;
+        }
+
+        // Modification du nom + slug
         if (
             data.nom &&
             data.nom !== produit.nom
         ) {
-
             let slug =
-                generateSlug(
-                    data.nom
-                );
+                generateSlug(data.nom);
 
             const exists =
                 await ProduitRepository.findBySlug(
@@ -323,10 +337,8 @@ export class ProduitService {
                 exists &&
                 exists.id !== produit.id
             ) {
-
                 slug =
                     `${slug}-${Date.now()}`;
-
             }
 
             updateData.nom =
@@ -334,27 +346,31 @@ export class ProduitService {
 
             updateData.slug =
                 slug;
-
         }
 
-        if (data.description !== undefined)
+        if (data.description !== undefined) {
             updateData.description =
                 data.description;
+        }
 
-        if (data.prix !== undefined)
+        if (data.prix !== undefined) {
             updateData.prix =
                 data.prix;
+        }
 
-        if (data.stock !== undefined)
+        if (data.stock !== undefined) {
             updateData.stock =
                 data.stock;
+        }
 
-        if (data.image !== undefined)
+        if (data.image !== undefined) {
             updateData.image =
                 data.image;
+        }
 
-        if (!Object.keys(updateData).length)
+        if (!Object.keys(updateData).length) {
             return produitResponse(produit);
+        }
 
         await ProduitRepository.update(
             produit.id,
@@ -373,7 +389,6 @@ export class ProduitService {
         }
 
         return produitResponse(updated);
-
     }
 
     static async findByUUIDActive(

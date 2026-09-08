@@ -22,6 +22,14 @@ export interface ProduitDetailRow
   categorie_uuid: string;
   categorie_nom: string;
   categorie_slug: string;
+
+  promotion_uuid: string | null;
+  promotion_type:
+  | "percentage"
+  | "special_price"
+  | null;
+  promotion_reduction_pourcentage: number | null;
+  promotion_prix_promotionnel: number | null;
 }
 
 export class ProduitRepository {
@@ -34,7 +42,7 @@ export class ProduitRepository {
     const [rows] =
       await db.query<ProduitDetailRow[]>(
         `
-      SELECT
+            SELECT
         p.*,
 
         b.uuid AS boutique_uuid,
@@ -43,7 +51,12 @@ export class ProduitRepository {
 
         c.uuid AS categorie_uuid,
         c.nom AS categorie_nom,
-        c.slug AS categorie_slug
+        c.slug AS categorie_slug,
+
+        pmt.uuid AS promotion_uuid,
+        pmt.type AS promotion_type,
+        pmt.reduction_pourcentage AS promotion_reduction_pourcentage,
+        pmt.prix_promotionnel AS promotion_prix_promotionnel
 
       FROM produits p
 
@@ -52,6 +65,12 @@ export class ProduitRepository {
 
       INNER JOIN categories c
         ON c.id = p.categorie_id
+
+      LEFT JOIN promotions pmt
+        ON pmt.produit_id = p.id
+        AND pmt.boutique_id = p.boutique_id
+        AND pmt.date_debut <= NOW()
+        AND pmt.date_fin >= NOW()
 
       WHERE p.id = ?
 
@@ -174,12 +193,12 @@ export class ProduitRepository {
 
   }
 
-static async search(
-  search?: string,
-  categorieSlug?: string
-): Promise<any[]> {
+  static async search(
+    search?: string,
+    categorieSlug?: string
+  ): Promise<any[]> {
 
-  let sql = `
+    let sql = `
     SELECT
       produits.*,
 
@@ -187,7 +206,28 @@ static async search(
       boutiques.slug AS boutique_slug,
 
       categories.nom AS categorie_nom,
-      categories.slug AS categorie_slug
+      categories.slug AS categorie_slug,
+
+      promotions.uuid AS promotion_uuid,
+      promotions.nom AS promotion_nom,
+      promotions.type AS promotion_type,
+      promotions.reduction_pourcentage AS promotion_reduction_pourcentage,
+      promotions.prix_promotionnel AS promotion_prix_promotionnel,
+      promotions.date_debut AS promotion_date_debut,
+      promotions.date_fin AS promotion_date_fin,
+      promotions.quantite_limite AS promotion_quantite_limite,
+
+      COALESCE(
+        (
+          SELECT SUM(cp.quantite)
+          FROM commande_produits cp
+          INNER JOIN commandes c
+            ON c.id = cp.commande_id
+          WHERE cp.promotion_id = promotions.id
+          AND c.status <> 'cancelled'
+        ),
+        0
+      ) AS promotion_quantite_vendue
 
     FROM produits
 
@@ -197,14 +237,19 @@ static async search(
     INNER JOIN categories
       ON produits.categorie_id = categories.id
 
+    LEFT JOIN promotions
+      ON promotions.produit_id = produits.id
+      AND promotions.date_debut <= NOW()
+      AND promotions.date_fin >= NOW()
+
     WHERE produits.status = 'active'
   `;
 
-  const params: any[] = [];
+    const params: any[] = [];
 
-  if (search) {
+    if (search) {
 
-    sql += `
+      sql += `
       AND (
         produits.nom LIKE ?
         OR produits.description LIKE ?
@@ -213,45 +258,45 @@ static async search(
       )
     `;
 
-    const value = `%${search}%`;
+      const value = `%${search}%`;
 
-    params.push(
-      value,
-      value,
-      value,
-      value
-    );
-  }
+      params.push(
+        value,
+        value,
+        value,
+        value
+      );
+    }
 
-  if (categorieSlug) {
+    if (categorieSlug) {
 
-    sql += `
+      sql += `
       AND categories.slug = ?
     `;
 
-    params.push(categorieSlug);
-  }
+      params.push(categorieSlug);
+    }
 
-  sql += `
+    sql += `
     ORDER BY produits.created_at DESC
   `;
 
-  const [rows] =
-    await db.query<any[]>(
-      sql,
-      params
-    );
-
-  return rows;
-}
-
-  static async findByUUID(
-    uuid: string
-  ): Promise<ProduitDetailRow | null> {
-
     const [rows] =
-      await db.query<ProduitDetailRow[]>(
-        `
+      await db.query<any[]>(
+        sql,
+        params
+      );
+
+    return rows;
+  }
+
+static async findByUUID(
+  uuid: string
+): Promise<ProduitDetailRow | null> {
+
+  const [rows] =
+    await db.query<ProduitDetailRow[]>(
+      `
       SELECT
         p.*,
 
@@ -261,7 +306,12 @@ static async search(
 
         c.uuid AS categorie_uuid,
         c.nom AS categorie_nom,
-        c.slug AS categorie_slug
+        c.slug AS categorie_slug,
+
+        pmt.uuid AS promotion_uuid,
+        pmt.type AS promotion_type,
+        pmt.reduction_pourcentage AS promotion_reduction_pourcentage,
+        pmt.prix_promotionnel AS promotion_prix_promotionnel
 
       FROM produits p
 
@@ -271,15 +321,21 @@ static async search(
       INNER JOIN categories c
         ON c.id = p.categorie_id
 
+      LEFT JOIN promotions pmt
+        ON pmt.produit_id = p.id
+        AND pmt.boutique_id = p.boutique_id
+        AND pmt.date_debut <= NOW()
+        AND pmt.date_fin >= NOW()
+
       WHERE p.uuid = ?
 
       LIMIT 1
       `,
-        [uuid]
-      );
+      [uuid]
+    );
 
-    return rows.length ? rows[0] : null;
-  }
+  return rows.length ? rows[0] : null;
+}
 
 
 
@@ -514,6 +570,7 @@ static async search(
 
 
     const allowedFields: (keyof ProduitUpdate)[] = [
+      "categorie_id",
       "nom",
       "slug",
       "description",
@@ -521,8 +578,6 @@ static async search(
       "stock",
       "image"
     ];
-
-
 
     const fields =
       allowedFields.filter(
@@ -608,59 +663,59 @@ static async search(
 
   }
 
-static async decreaseStock(
-  id: number,
-  quantite: number,
-  connection: Pool | PoolConnection = db
-) {
+  static async decreaseStock(
+    id: number,
+    quantite: number,
+    connection: Pool | PoolConnection = db
+  ) {
 
-  const [result] =
-    await connection.execute<ResultSetHeader>(
-      `
+    const [result] =
+      await connection.execute<ResultSetHeader>(
+        `
       UPDATE produits
       SET stock = stock - ?
       WHERE id = ?
       AND stock >= ?
       `,
-      [
-        quantite,
-        id,
-        quantite
-      ]
-    );
+        [
+          quantite,
+          id,
+          quantite
+        ]
+      );
 
-  if (result.affectedRows !== 1) {
-    throw new Error(
-      "Stock insuffisant ou produit introuvable."
-    );
+    if (result.affectedRows !== 1) {
+      throw new Error(
+        "Stock insuffisant ou produit introuvable."
+      );
+    }
   }
-}
 
-static async increaseStock(
-  id: number,
-  quantite: number,
-  connection: Pool | PoolConnection = db
-) {
+  static async increaseStock(
+    id: number,
+    quantite: number,
+    connection: Pool | PoolConnection = db
+  ) {
 
-  const [result] =
-    await connection.execute<ResultSetHeader>(
-      `
+    const [result] =
+      await connection.execute<ResultSetHeader>(
+        `
       UPDATE produits
       SET stock = stock + ?
       WHERE id = ?
       `,
-      [
-        quantite,
-        id
-      ]
-    );
+        [
+          quantite,
+          id
+        ]
+      );
 
-  if (result.affectedRows !== 1) {
-    throw new Error(
-      "Produit introuvable."
-    );
+    if (result.affectedRows !== 1) {
+      throw new Error(
+        "Produit introuvable."
+      );
+    }
   }
-}
 }
 
 

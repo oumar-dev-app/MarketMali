@@ -6,7 +6,8 @@ export type NotificationType =
   | "order_cancelled"
   | "role_request"
   | "boutique_pending"
-  | "boutique_activated";
+  | "boutique_activated"
+  | "boutique_blocked";
 
 export interface Notification {
   id: number;

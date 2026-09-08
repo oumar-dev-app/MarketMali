@@ -569,71 +569,174 @@ static async activate(
 
 
 
-  static async unblock(
-    uuid: string,
-    role: string
+static async unblock(
+  uuid: string,
+  role: string
+) {
+
+  if (
+    role !== "admin" &&
+    role !== "super_admin"
   ) {
 
-    return this.activate(
-      uuid,
-      role
+    throw new ForbiddenError(
+      "Accès refusé."
     );
 
   }
 
 
+  const boutique =
+    await BoutiqueRepository.findByUUID(
+      uuid
+    );
 
 
+  if (!boutique) {
 
-  static async block(
-    uuid: string,
-    role: string
-  ) {
+    throw new NotFoundError(
+      "Boutique introuvable."
+    );
 
-
-    if (
-      role !== "admin" &&
-      role !== "super_admin"
-    ) {
-
-      throw new ForbiddenError(
-        "Accès refusé."
-      );
-
-    }
+  }
 
 
+  if (boutique.status !== "blocked") {
 
-    const boutique =
-      await BoutiqueRepository.findByUUID(
-        uuid
-      );
+    throw new ConflictError(
+      "Cette boutique n'est pas bloquée."
+    );
 
-
-    if (!boutique) {
-
-      throw new NotFoundError(
-        "Boutique introuvable."
-      );
-
-    }
+  }
 
 
+  await BoutiqueRepository.activate(
+    boutique.id
+  );
 
-    await BoutiqueRepository.block(
+
+  const vendeur =
+    await UserRepository.findById(
+      boutique.user_id
+    );
+
+
+  if (vendeur) {
+
+    await NotificationService.create({
+
+      user_id: vendeur.id,
+
+      type: "boutique_activated",
+
+      titre: "Votre boutique a été débloquée",
+
+      message:
+        `Bonne nouvelle ! Votre boutique "${boutique.nom}" a été débloquée. Elle est maintenant de nouveau visible sur le marketplace.`,
+
+    });
+
+  }
+
+
+  const updated =
+    await BoutiqueRepository.findById(
       boutique.id
     );
 
+  if (!updated) {
 
-    return {
-
-      message:
-        "Boutique bloquée avec succès."
-
-    };
+    throw new NotFoundError(
+      "Impossible de récupérer la boutique."
+    );
 
   }
 
+  return boutiqueResponse(
+    updated
+  );
+
+}
+
+
+static async block(
+  uuid: string,
+  role: string
+) {
+
+  if (
+    role !== "admin" &&
+    role !== "super_admin"
+  ) {
+
+    throw new ForbiddenError(
+      "Accès refusé."
+    );
+
+  }
+
+
+  const boutique =
+    await BoutiqueRepository.findByUUID(
+      uuid
+    );
+
+
+  if (!boutique) {
+
+    throw new NotFoundError(
+      "Boutique introuvable."
+    );
+
+  }
+
+
+  if (boutique.status === "blocked") {
+
+    throw new ConflictError(
+      "Cette boutique est déjà bloquée."
+    );
+
+  }
+
+
+  await BoutiqueRepository.block(
+    boutique.id
+  );
+
+
+  const vendeur =
+    await UserRepository.findById(
+      boutique.user_id
+    );
+
+
+  if (vendeur) {
+
+    await NotificationService.create({
+
+      user_id: vendeur.id,
+
+      type: "boutique_blocked",
+
+      titre: "Votre boutique a été bloquée",
+
+      message:
+        `Votre boutique "${boutique.nom}" a été bloquée par l'administration. Elle n'est plus visible sur le marketplace.`,
+
+    });
+
+  }
+
+
+  return {
+
+    message:
+      "Boutique bloquée avec succès."
+
+  };
+
+}
 
   static async findByUUIDActive(
     uuid: string

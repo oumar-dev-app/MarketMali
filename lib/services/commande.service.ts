@@ -11,6 +11,7 @@ import { LivraisonRepository } from "../repositories/livraison.repository";
 import { LivraisonSecuriteService } from "./livraison-securite.service";
 import { NotFoundError } from "../errors/NotFoundError";
 import { ForbiddenError } from "../errors/ForbiddenError";
+import { PromotionRepository } from "../repositories/promotion.repository";
 
 import {
     CreateCommandeDTO,
@@ -22,8 +23,6 @@ import { db } from "../db";
 
 
 export class CommandeService {
-
-
 
     static async create(
         data: CreateCommandeDTO,
@@ -37,7 +36,10 @@ export class CommandeService {
 
             await connection.beginTransaction();
 
+            // =========================================================
             // 1 - Vérifier la boutique
+            // =========================================================
+
             const boutique =
                 await BoutiqueRepository.findById(
                     data.boutique_id
@@ -49,20 +51,50 @@ export class CommandeService {
                 );
             }
 
-            // 2 - Vérifier les produits
+            // =========================================================
+            // 2 - Préparer les produits
+            // =========================================================
+
             let total = 0;
 
             const produitsCommande: {
                 produit_id: number;
                 quantite: number;
                 prix: number;
+                promotion_id: number | null;
             }[] = [];
+
+            // Éviter qu'un même produit soit envoyé plusieurs fois
+            // dans la même commande.
+            const quantitesProduits = new Map<number, number>();
 
             for (const item of data.produits) {
 
+                const quantiteExistante =
+                    quantitesProduits.get(
+                        item.produit_id
+                    ) ?? 0;
+
+                quantitesProduits.set(
+                    item.produit_id,
+                    quantiteExistante + item.quantite
+                );
+            }
+
+            // =========================================================
+            // 3 - Vérifier chaque produit et sa promotion
+            // =========================================================
+
+            for (
+                const [
+                    produit_id,
+                    quantite
+                ] of quantitesProduits
+            ) {
+
                 const produit =
                     await ProduitRepository.findById(
-                        item.produit_id
+                        produit_id
                     );
 
                 if (!produit) {
@@ -71,6 +103,7 @@ export class CommandeService {
                     );
                 }
 
+                // Le produit doit appartenir à la boutique
                 if (
                     produit.boutique_id !==
                     data.boutique_id
@@ -80,34 +113,176 @@ export class CommandeService {
                     );
                 }
 
+                // Le produit doit être actif
                 if (
                     produit.status !== "active"
                 ) {
                     throw new ForbiddenError(
-                        "Ce produit n'est pas disponible."
+                        `Le produit "${produit.nom}" n'est pas disponible.`
                     );
                 }
 
+                // Vérification du stock
                 if (
-                    produit.stock < item.quantite
+                    produit.stock < quantite
                 ) {
                     throw new ForbiddenError(
                         `Stock insuffisant pour ${produit.nom}.`
                     );
                 }
 
+                const prixNormal =
+                    Number(produit.prix);
+
+                let prixFinal =
+                    prixNormal;
+
+                let promotionId:
+                    number | null = null;
+
+                // =====================================================
+                // Vérifier la promotion active
+                // =====================================================
+
+                const promotion =
+                    await PromotionRepository.findActiveByProduit(
+                        produit.id,
+                        connection
+                    );
+
+                if (promotion) {
+
+                    // La promotion doit également appartenir
+                    // à la même boutique que le produit.
+                    if (
+                        promotion.boutique_id !==
+                        data.boutique_id
+                    ) {
+                        throw new ForbiddenError(
+                            "Promotion invalide pour ce produit."
+                        );
+                    }
+
+                    // -------------------------------------------------
+                    // Calcul du prix promotionnel
+                    // -------------------------------------------------
+
+                    if (
+                        promotion.type === "percentage"
+                    ) {
+
+                        const reduction =
+                            Number(
+                                promotion.reduction_pourcentage
+                            );
+
+                        if (
+                            !Number.isFinite(reduction) ||
+                            reduction <= 0 ||
+                            reduction >= 100
+                        ) {
+                            throw new ForbiddenError(
+                                `La promotion "${promotion.nom}" est invalide.`
+                            );
+                        }
+
+                        prixFinal =
+                            prixNormal -
+                            (
+                                prixNormal *
+                                reduction /
+                                100
+                            );
+
+                    } else if (
+                        promotion.type === "special_price"
+                    ) {
+
+                        const prixPromotionnel =
+                            Number(
+                                promotion.prix_promotionnel
+                            );
+
+                        if (
+                            !Number.isFinite(
+                                prixPromotionnel
+                            ) ||
+                            prixPromotionnel < 0 ||
+                            prixPromotionnel >= prixNormal
+                        ) {
+                            throw new ForbiddenError(
+                                `Le prix promotionnel de "${promotion.nom}" est invalide.`
+                            );
+                        }
+
+                        prixFinal =
+                            prixPromotionnel;
+                    }
+
+                    // -------------------------------------------------
+                    // Vérifier la quantité maximale de la promotion
+                    // -------------------------------------------------
+
+                    if (
+                        promotion.quantite_limite !== null
+                    ) {
+
+                        const quantiteVendue =
+                            await PromotionRepository.getQuantiteVendue(
+                                promotion.id,
+                                connection
+                            );
+
+                        const quantiteRestante =
+                            Number(
+                                promotion.quantite_limite
+                            ) -
+                            quantiteVendue;
+
+                        if (
+                            quantite > quantiteRestante
+                        ) {
+                            throw new ForbiddenError(
+                                `La promotion "${promotion.nom}" ne dispose plus que de ${Math.max(
+                                    0,
+                                    quantiteRestante
+                                )} unité(s) disponible(s).`
+                            );
+                        }
+                    }
+
+                    promotionId =
+                        promotion.id;
+                }
+
+                // =====================================================
+                // Calcul serveur du prix
+                // =====================================================
+
                 total +=
-                    Number(produit.prix) *
-                    item.quantite;
+                    prixFinal *
+                    quantite;
 
                 produitsCommande.push({
-                    produit_id: produit.id,
-                    quantite: item.quantite,
-                    prix: Number(produit.prix)
+                    produit_id:
+                        produit.id,
+
+                    quantite,
+
+                    prix:
+                        Number(
+                            prixFinal.toFixed(2)
+                        ),
+
+                    promotion_id:
+                        promotionId
                 });
             }
 
-            // 3 - Calcul des frais de livraison
+            // =========================================================
+            // 4 - Vérifier la zone de livraison
+            // =========================================================
+
             const zoneLivraison =
                 data.zone_livraison?.trim();
 
@@ -116,6 +291,10 @@ export class CommandeService {
                     "La zone de livraison est obligatoire."
                 );
             }
+
+            // =========================================================
+            // 5 - Calcul serveur des frais de livraison
+            // =========================================================
 
             const tarifLivraison =
                 await TarifLivraisonRepository.findByBoutiqueAndZone(
@@ -130,12 +309,26 @@ export class CommandeService {
             }
 
             const fraisLivraison =
-                Number(tarifLivraison.frais);
+                Number(
+                    tarifLivraison.frais
+                );
+
+            // =========================================================
+            // 6 - Total final serveur
+            // =========================================================
 
             const totalCommande =
-                total + fraisLivraison;
+                Number(
+                    (
+                        total +
+                        fraisLivraison
+                    ).toFixed(2)
+                );
 
-            // 4 - Créer la commande
+            // =========================================================
+            // 7 - Créer la commande
+            // =========================================================
+
             const uuid =
                 generateUUID();
 
@@ -173,14 +366,20 @@ export class CommandeService {
                     connection
                 );
 
-            // 5 - Créer les lignes de commande
+            // =========================================================
+            // 8 - Créer les lignes de commande
+            // =========================================================
+
             await CommandeProduitRepository.createMany(
                 commandeId,
                 produitsCommande,
                 connection
             );
 
-            // 6 - Historique du statut
+            // =========================================================
+            // 9 - Historique du statut
+            // =========================================================
+
             await CommandeStatutRepository.create(
                 commandeId,
                 "pending",
@@ -188,8 +387,13 @@ export class CommandeService {
                 connection
             );
 
-            // 7 - Diminuer les stocks
-            for (const item of produitsCommande) {
+            // =========================================================
+            // 10 - Diminuer les stocks
+            // =========================================================
+
+            for (
+                const item of produitsCommande
+            ) {
 
                 await ProduitRepository.decreaseStock(
                     item.produit_id,
@@ -198,21 +402,38 @@ export class CommandeService {
                 );
             }
 
-            // 8 - Valider la transaction
+            // =========================================================
+            // 11 - Valider la transaction
+            // =========================================================
+
             await connection.commit();
 
-            // 9 - Notification vendeur
+            // =========================================================
+            // 12 - Notification vendeur
+            // =========================================================
+
             await NotificationService.create({
-                user_id: boutique.user_id,
-                commande_id: commandeId,
-                type: "new_order",
-                titre: "Nouvelle commande",
+                user_id:
+                    boutique.user_id,
+
+                commande_id:
+                    commandeId,
+
+                type:
+                    "new_order",
+
+                titre:
+                    "Nouvelle commande",
+
                 message:
                     `Une nouvelle commande vient d'être passée dans votre boutique. ` +
                     `Montant total : ${totalCommande} FCFA.`
             });
 
-            // 10 - Retourner la commande
+            // =========================================================
+            // 13 - Retourner la commande
+            // =========================================================
+
             return CommandeRepository.findById(
                 commandeId
             );
@@ -226,7 +447,6 @@ export class CommandeService {
         } finally {
 
             connection.release();
-
         }
     }
 

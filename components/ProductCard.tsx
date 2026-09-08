@@ -3,26 +3,89 @@ import {
   ArrowRight,
   Package,
   ShoppingBag,
+  Tag,
 } from "lucide-react";
 
 interface ProductCardProps {
   produit: {
     uuid: string;
     nom: string;
-    prix: string;
+    prix: string | number;
     image?: string | null;
     description?: string;
+
+    promotion_uuid?: string | null;
+    promotion_nom?: string | null;
+    promotion_type?: "percentage" | "special_price" | null;
+    promotion_reduction_pourcentage?: number | string | null;
+    promotion_prix_promotionnel?: number | string | null;
   };
 }
 
 export default function ProductCard({
   produit,
 }: ProductCardProps) {
+
+  /* =====================================================
+      PRIX NORMAL
+  ====================================================== */
+
   const prix = Number(produit.prix);
 
   const prixFormate = Number.isFinite(prix)
     ? prix.toLocaleString("fr-FR")
-    : produit.prix;
+    : String(produit.prix);
+
+
+  /* =====================================================
+      PROMOTION
+  ====================================================== */
+
+  const promotionActive =
+    Boolean(produit.promotion_uuid);
+
+
+  const reductionPourcentage =
+    produit.promotion_reduction_pourcentage !== null &&
+    produit.promotion_reduction_pourcentage !== undefined
+      ? Number(produit.promotion_reduction_pourcentage)
+      : null;
+
+
+  const prixPromotionnel =
+    produit.promotion_prix_promotionnel !== null &&
+    produit.promotion_prix_promotionnel !== undefined
+      ? Number(produit.promotion_prix_promotionnel)
+      : null;
+
+
+  /*
+   * Pour une promotion spéciale, le prix promotionnel
+   * vient directement de la base.
+   *
+   * Pour une promotion en pourcentage, on calcule
+   * également le prix final par sécurité côté affichage.
+   */
+
+  let prixFinalPromotion = prixPromotionnel;
+
+  if (
+    produit.promotion_type === "percentage" &&
+    reductionPourcentage !== null &&
+    Number.isFinite(prix) &&
+    Number.isFinite(reductionPourcentage)
+  ) {
+    prixFinalPromotion =
+      prix - (prix * reductionPourcentage) / 100;
+  }
+
+
+  const prixPromotionFormate =
+    prixFinalPromotion !== null &&
+    Number.isFinite(prixFinalPromotion)
+      ? Math.round(prixFinalPromotion).toLocaleString("fr-FR")
+      : null;
+
 
   return (
     <Link
@@ -51,6 +114,7 @@ export default function ProductCard({
         focus:ring-offset-2
       "
     >
+
       {/* =====================================================
           IMAGE
       ====================================================== */}
@@ -64,6 +128,7 @@ export default function ProductCard({
           bg-gray-50
         "
       >
+
         {produit.image ? (
           <img
             src={produit.image}
@@ -126,11 +191,25 @@ export default function ProductCard({
           </div>
         )}
 
+
         {/* =================================================
-            BADGE DISPONIBLE
+            BADGES
         ================================================== */}
 
-        <div className="absolute left-3 top-3">
+        <div
+          className="
+            absolute
+            left-3
+            top-3
+            flex
+            flex-col
+            items-start
+            gap-2
+          "
+        >
+
+          {/* DISPONIBLE */}
+
           <span
             className="
               inline-flex
@@ -161,7 +240,42 @@ export default function ProductCard({
 
             Disponible
           </span>
+
+
+          {/* PROMOTION */}
+
+          {promotionActive && (
+            <span
+              className="
+                inline-flex
+                items-center
+                gap-1
+                rounded-full
+                border
+                border-white/80
+                bg-[#ce1126]
+                px-2.5
+                py-1.5
+                text-[10px]
+                font-extrabold
+                text-white
+                shadow-md
+              "
+            >
+              <Tag
+                size={11}
+                strokeWidth={2.5}
+              />
+
+              {reductionPourcentage !== null &&
+              Number.isFinite(reductionPourcentage)
+                ? `-${reductionPourcentage}%`
+                : "PROMOTION"}
+            </span>
+          )}
+
         </div>
+
 
         {/* =================================================
             ICÔNE PRODUIT
@@ -197,6 +311,7 @@ export default function ProductCard({
           />
         </div>
 
+
         {/* =================================================
             BANDE MALI AU SURVOL
         ================================================== */}
@@ -219,7 +334,9 @@ export default function ProductCard({
           <div className="flex-1 bg-[#fcd116]" />
           <div className="flex-1 bg-[#ce1126]" />
         </div>
+
       </div>
+
 
       {/* =====================================================
           CONTENU
@@ -245,9 +362,11 @@ export default function ProductCard({
           {produit.nom}
         </h3>
 
+
         {/* DESCRIPTION */}
 
         <div className="mt-2 min-h-10">
+
           {produit.description ? (
             <p
               className="
@@ -264,13 +383,16 @@ export default function ProductCard({
               -
             </p>
           )}
+
         </div>
+
 
         {/* =================================================
             PRIX + ACTION
         ================================================== */}
 
         <div className="mt-auto pt-4">
+
           <div
             className="
               flex
@@ -282,9 +404,11 @@ export default function ProductCard({
               pt-3
             "
           >
+
             {/* PRIX */}
 
             <div className="min-w-0">
+
               <p
                 className="
                   text-[10px]
@@ -294,36 +418,109 @@ export default function ProductCard({
                   text-gray-400
                 "
               >
-                Prix
+                {promotionActive
+                  ? "Prix promotionnel"
+                  : "Prix"}
               </p>
 
-              <p
-                className="
-                  mt-0.5
-                  truncate
-                  text-base
-                  font-extrabold
-                  tracking-tight
-                  text-[#14a800]
-                  sm:text-lg
-                "
-              >
-                {prixFormate}
 
-                <span
+              {promotionActive &&
+              prixPromotionFormate ? (
+
+                <div className="mt-0.5">
+
+                  {/* ANCIEN PRIX */}
+
+                  <p
+                    className="
+                      truncate
+                      text-xs
+                      font-semibold
+                      text-gray-400
+                      line-through
+                      sm:text-sm
+                    "
+                  >
+                    {prixFormate}
+
+                    <span
+                      className="
+                        ml-1
+                        text-[9px]
+                        font-bold
+                        tracking-normal
+                        text-gray-400
+                        sm:text-[10px]
+                      "
+                    >
+                      FCFA
+                    </span>
+                  </p>
+
+
+                  {/* NOUVEAU PRIX */}
+
+                  <p
+                    className="
+                      truncate
+                      text-base
+                      font-extrabold
+                      tracking-tight
+                      text-[#ce1126]
+                      sm:text-lg
+                    "
+                  >
+                    {prixPromotionFormate}
+
+                    <span
+                      className="
+                        ml-1
+                        text-[10px]
+                        font-bold
+                        tracking-normal
+                        text-[#ce1126]
+                        sm:text-xs
+                      "
+                    >
+                      FCFA
+                    </span>
+                  </p>
+
+                </div>
+
+              ) : (
+
+                <p
                   className="
-                    ml-1
-                    text-[10px]
-                    font-bold
-                    tracking-normal
+                    mt-0.5
+                    truncate
+                    text-base
+                    font-extrabold
+                    tracking-tight
                     text-[#14a800]
-                    sm:text-xs
+                    sm:text-lg
                   "
                 >
-                  FCFA
-                </span>
-              </p>
+                  {prixFormate}
+
+                  <span
+                    className="
+                      ml-1
+                      text-[10px]
+                      font-bold
+                      tracking-normal
+                      text-[#14a800]
+                      sm:text-xs
+                    "
+                  >
+                    FCFA
+                  </span>
+                </p>
+
+              )}
+
             </div>
+
 
             {/* ACTION */}
 
@@ -355,9 +552,13 @@ export default function ProductCard({
                 "
               />
             </div>
+
           </div>
+
         </div>
+
       </div>
+
     </Link>
   );
 }

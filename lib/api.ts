@@ -12,6 +12,22 @@ function getBaseUrl() {
   return API_URL;
 }
 
+function getAuthHeaders(): HeadersInit {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    return {};
+  }
+
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
+
 export async function apiGet<T>(
   endpoint: string
 ): Promise<T> {
@@ -21,6 +37,9 @@ export async function apiGet<T>(
     `${baseUrl}${endpoint}`,
     {
       cache: "no-store",
+      headers: {
+        ...getAuthHeaders(),
+      },
     }
   );
 
@@ -48,6 +67,7 @@ export async function apiPost<T>(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(body),
     }

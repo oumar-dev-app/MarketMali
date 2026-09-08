@@ -11,17 +11,12 @@ export async function GET(
 
   return apiHandler(async () => {
 
-
-    const user =
-      vendeurMiddleware(req);
-
+    const user = vendeurMiddleware(req);
 
     const categories =
-      await CategorieService.findByUser(
-        user.id,
-        user.role
-      );
-
+      user.role === "super_admin"
+        ? await CategorieService.findAll()
+        : await CategorieService.findAllActive();
 
     return NextResponse.json(
       {
