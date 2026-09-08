@@ -76,7 +76,7 @@ export default function EditBoutiquePage() {
                 if (!response.ok || !result.success || !result.data) {
                     throw new Error(
                         result.message ||
-                            "Impossible de récupérer la boutique."
+                        "Impossible de récupérer la boutique."
                     );
                 }
 
@@ -129,7 +129,7 @@ export default function EditBoutiquePage() {
             if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
-                        "Impossible de modifier la boutique."
+                    "Impossible de modifier la boutique."
                 );
             }
 
@@ -269,16 +269,14 @@ export default function EditBoutiquePage() {
                 {/* Formulaire */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
                     <BoutiqueForm
+                        mode="edit"
                         initialData={{
                             nom: boutique.nom,
-                            description:
-                                boutique.description ?? "",
+                            description: boutique.description ?? "",
                             logo: boutique.logo ?? "",
-                            telephone:
-                                boutique.telephone ?? "",
+                            telephone: boutique.telephone ?? "",
                             email: boutique.email ?? "",
-                            adresse:
-                                boutique.adresse ?? "",
+                            adresse: boutique.adresse ?? "",
                             ville: boutique.ville ?? "",
                         }}
                         loading={saving}

@@ -28,6 +28,7 @@ export interface BoutiqueFormData {
 interface Props {
     initialData?: Partial<BoutiqueFormData>;
     loading?: boolean;
+    mode?: "create" | "edit";
     onSubmit: (data: BoutiqueFormData) => Promise<void>;
     onCancel?: () => void;
 }
@@ -35,6 +36,7 @@ interface Props {
 export default function BoutiqueForm({
     initialData,
     loading = false,
+    mode = "create",
     onSubmit,
     onCancel,
 }: Props) {
@@ -165,7 +167,7 @@ export default function BoutiqueForm({
             ) {
                 throw new Error(
                     data.message ||
-                        "Impossible de télécharger le logo."
+                    "Impossible de télécharger le logo."
                 );
             }
 
@@ -332,8 +334,19 @@ export default function BoutiqueForm({
         });
     }
 
-    const isBusy =
-        loading || uploading;
+    const isBusy = loading || uploading;
+
+    const isEditMode = mode === "edit";
+
+    const submitLabel = uploading
+        ? "Téléchargement du logo..."
+        : loading
+            ? isEditMode
+                ? "Enregistrement..."
+                : "Création en cours..."
+            : isEditMode
+                ? "Enregistrer les modifications"
+                : "Créer ma boutique";
 
     return (
         <form
@@ -708,13 +721,13 @@ export default function BoutiqueForm({
                     disabled={isBusy}
                     className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition disabled:opacity-50"
                 >
-                    <FaSave />
+                    {loading ? (
+                        <FaSyncAlt className="animate-spin" />
+                    ) : (
+                        <FaSave />
+                    )}
 
-                    {uploading
-                        ? "Téléchargement du logo..."
-                        : loading
-                            ? "Création en cours..."
-                            : "Créer ma boutique"}
+                    {submitLabel}
                 </button>
 
             </div>

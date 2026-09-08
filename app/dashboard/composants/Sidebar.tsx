@@ -156,8 +156,8 @@ const menuByRole: Record<
       icon: LayoutDashboard,
     },
     {
-      label: "Boutiques",
-      href: "/dashboard/boutiques",
+      label: "Ma boutique",
+      href: "/dashboard/ma-boutique",
       icon: Store,
     },
     {

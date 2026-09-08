@@ -18,6 +18,7 @@ import {
     FaCheckCircle,
     FaBan,
 } from "react-icons/fa";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Boutique {
     uuid: string;
@@ -125,6 +126,13 @@ export default function BoutiqueDetailsPage() {
 
     const [loading, setLoading] =
         useState(true);
+
+    const { user, loading: authLoading } = useAuth();
+
+    const backPath =
+        user?.role === "vendeur"
+            ? "/dashboard/ma-boutique"
+            : "/dashboard/boutiques";
 
     const [error, setError] =
         useState("");
@@ -257,11 +265,13 @@ export default function BoutiqueDetailsPage() {
                 <div className="mx-auto max-w-3xl">
 
                     <Link
-                        href="/dashboard/boutiques"
+                        href={backPath}
                         className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
                     >
                         <FaArrowLeft />
-                        Retour aux boutiques
+                        {user?.role === "vendeur"
+                            ? "Retour à ma boutique"
+                            : "Retour aux boutiques"}
                     </Link>
 
                     <div className="rounded-3xl border border-red-200 bg-white p-6 text-center shadow-sm sm:p-10">
@@ -280,11 +290,13 @@ export default function BoutiqueDetailsPage() {
                         </p>
 
                         <Link
-                            href="/dashboard/boutiques"
+                            href={backPath}
                             className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                         >
                             <FaArrowLeft />
-                            Retour aux boutiques
+                            {user?.role === "vendeur"
+                                ? "Retour à ma boutique"
+                                : "Retour aux boutiques"}
                         </Link>
 
                     </div>
@@ -310,13 +322,14 @@ export default function BoutiqueDetailsPage() {
                 {/* ================================= */}
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
                     <Link
-                        href="/dashboard/boutiques"
+                        href={backPath}
                         className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
                     >
                         <FaArrowLeft className="text-xs" />
-                        Retour aux boutiques
+                        {user?.role === "vendeur"
+                            ? "Retour à ma boutique"
+                            : "Retour aux boutiques"}
                     </Link>
 
                     <div className="grid grid-cols-1 gap-2 sm:flex">
@@ -382,7 +395,7 @@ export default function BoutiqueDetailsPage() {
 
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 
-                                        <h1 className="break-words text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                                        <h1 className="wrap-break-word text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                                             {boutique.nom}
                                         </h1>
 
@@ -681,7 +694,7 @@ export default function BoutiqueDetailsPage() {
                                     Adresse
                                 </p>
 
-                                <p className="break-words text-sm font-semibold leading-6 text-slate-800">
+                                <p className="wrap-break-word text-sm font-semibold leading-6 text-slate-800">
                                     {boutique.adresse ||
                                         "Non renseignée"}
                                 </p>
@@ -718,7 +731,7 @@ export default function BoutiqueDetailsPage() {
 
                         <div className="rounded-2xl bg-slate-50 p-4 sm:p-5">
 
-                            <p className="whitespace-pre-wrap break-words text-sm leading-7 text-slate-600">
+                            <p className="whitespace-pre-wrap wrap-break-word text-sm leading-7 text-slate-600">
                                 {boutique.description ||
                                     "Aucune description n'a été renseignée pour cette boutique."}
                             </p>

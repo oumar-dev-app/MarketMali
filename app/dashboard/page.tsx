@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-
+import SuperAdminDashboard from "./composants/dashboards/SuperAdminDashboard";
+import VendeurDashboard from "./composants/dashboards/VendeurDashboard";
+import AdminDashboard from "./composants/dashboards/AdminDashboard";
 import StatCard from "./composants/StatCard";
 import RecentCommandes from "./composants/RecentCommandes";
 import TopProduits from "./composants/TopProduits";
@@ -901,10 +903,10 @@ export default function DashboardPage() {
   }
 
   /*
-   * Dashboard vendeur/admin/super-admin.
+   * Les statistiques commerciales sont nécessaires
+   * pour les vendeurs, administrateurs et super-administrateurs.
    */
   if (!stats) {
-
     return (
       <p className="animate-pulse">
         Chargement des statistiques...
@@ -912,93 +914,63 @@ export default function DashboardPage() {
     );
   }
 
-  return (
-    <div>
-
-      <div className="mb-5 sm:mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          Tableau de bord
-        </h1>
-
-        <p className="mt-1 text-sm text-gray-500">
-          Vue d'ensemble de votre activité.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-
-        <StatCard
-          title="Produits"
-          value={stats.nombre_produits}
-          icon={<FaBox />}
-          color="bg-blue-100"
-        />
-
-        <StatCard
-          title="Catégories"
-          value={stats.nombre_categories}
-          icon={<FaTags />}
-          color="bg-purple-100"
-        />
-
-        <StatCard
-          title="Commandes"
-          value={stats.nombre_commandes}
-          icon={<FaShoppingCart />}
-          color="bg-green-100"
-        />
-
-        <StatCard
-          title="Commandes en attente"
-          value={stats.commandes_en_attente}
-          icon={<FaClock />}
-          color="bg-yellow-100"
-        />
-
-        <StatCard
-          title="Commandes livrées"
-          value={stats.commandes_livrees}
-          icon={<FaCheckCircle />}
-          color="bg-green-100"
-        />
-
-        <StatCard
-          title="Produits en rupture"
-          value={stats.produits_en_rupture}
-          icon={<FaExclamationTriangle />}
-          color="bg-red-100"
-        />
-
-        <StatCard
-          title="Chiffre d'affaires"
-          value={`${Number(
-            stats.chiffre_affaires
-          ).toLocaleString()} FCFA`}
-          icon={<FaMoneyBillWave />}
-          color="bg-emerald-100"
-        />
-
-        <StatCard
-          title="Clients"
-          value={stats.nombre_clients}
-          icon={<FaUsers />}
-          color="bg-indigo-100"
-        />
-
-      </div>
-
-      <RecentCommandes
+  /*
+   * Dashboard spécifique au vendeur.
+   */
+  if (user.role === "vendeur") {
+    return (
+      <VendeurDashboard
+        stats={stats}
         commandes={commandes}
-      />
-
-      <VentesChart
         ventes={ventes}
+        topProduits={topProduits}
       />
+    );
+  }
 
-      <TopProduits
-        produits={topProduits}
-      />
-
-    </div>
+/*
+ * Dashboard spécifique à l'administrateur.
+ */
+if (user.role === "admin") {
+  return (
+    <AdminDashboard
+      stats={stats}
+      commandes={commandes}
+      ventes={ventes}
+      topProduits={topProduits}
+    />
   );
+}
+
+/*
+ * Dashboard spécifique au super-administrateur.
+ */
+if (user.role === "super_admin") {
+  return (
+    <SuperAdminDashboard
+      stats={stats}
+      commandes={commandes}
+      ventes={ventes}
+      topProduits={topProduits}
+    />
+  );
+}
+
+/*
+ * Rôle inconnu ou non prévu.
+ */
+return (
+  <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+    <h1 className="text-lg font-bold text-gray-900">
+      Accès non configuré
+    </h1>
+
+    <p className="mt-2 text-sm text-gray-500">
+      Votre rôle ne dispose pas encore d'un espace dashboard configuré.
+    </p>
+  </div>
+);
+
+
+
 }

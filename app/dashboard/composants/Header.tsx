@@ -209,6 +209,61 @@ export default function Header() {
     };
   }, []);
 
+  function getRoleTitle(role?: string) {
+  switch (role) {
+    case "vendeur":
+      return "Espace vendeur";
+
+    case "admin":
+      return "Administration";
+
+    case "super_admin":
+      return "Super administration";
+
+    case "livreur":
+      return "Espace livreur";
+
+    default:
+      return "Espace MarketMali";
+  }
+}
+
+function getRoleLabel(role?: string) {
+  switch (role) {
+    case "vendeur":
+      return "Vendeur";
+
+    case "admin":
+      return "Administrateur";
+
+    case "super_admin":
+      return "Super administrateur";
+
+    case "livreur":
+      return "Livreur";
+
+    default:
+      return "Utilisateur";
+  }
+}
+
+function getNotificationDescription(role?: string) {
+  switch (role) {
+    case "vendeur":
+      return "Activité récente de votre boutique";
+
+    case "livreur":
+      return "Activité récente de vos livraisons";
+
+    case "admin":
+    case "super_admin":
+      return "Activité récente de la plateforme";
+
+    default:
+      return "Activité récente";
+  }
+}
+
   function playNotificationSound() {
     if (typeof window === "undefined") return;
 
@@ -677,7 +732,7 @@ export default function Header() {
                 truncate
               "
             >
-              Administration
+              {getRoleTitle(user?.role)}
             </h2>
           </div>
 
@@ -724,7 +779,7 @@ export default function Header() {
                 </p>
 
                 <p className="text-[11px] text-gray-400">
-                  Administrateur
+                  {getRoleTitle(user?.role)}
                 </p>
               </div>
             </div>
@@ -850,7 +905,7 @@ export default function Header() {
                       </div>
 
                       <p className="text-[11px] text-gray-400 mt-1">
-                        Activité récente de votre boutique
+                        {getNotificationDescription(user?.role)}
                       </p>
                     </div>
 
@@ -876,7 +931,7 @@ export default function Header() {
 
                   {/* Liste */}
 
-                  <div className="max-h-[420px] overflow-y-auto">
+                  <div className="max-h-105 overflow-y-auto">
                     {loadingNotifications ? (
                       <div className="py-12 text-center">
                         <div
