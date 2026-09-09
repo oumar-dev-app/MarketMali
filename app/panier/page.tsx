@@ -75,6 +75,12 @@ export default function PagePanier() {
   const [localisationErrorCode, setLocalisationErrorCode] =
     useState<number | null>(null);
 
+  const [gpsDebug, setGpsDebug] = useState({
+    url: "",
+    protocol: "",
+    secure: false,
+    geolocation: false,
+  });
   const [latitude, setLatitude] =
     useState<number | null>(null);
 
@@ -207,6 +213,17 @@ export default function PagePanier() {
      */
     setLocalisationError("");
     setLocalisationErrorCode(null);
+
+    const debug = {
+      url: window.location.href,
+      protocol: window.location.protocol,
+      secure: window.isSecureContext,
+      geolocation: "geolocation" in navigator,
+    };
+
+    console.log("GPS DEBUG :", debug);
+
+    setGpsDebug(debug);
 
     /**
      * Demande de position
@@ -365,7 +382,7 @@ export default function PagePanier() {
         ) {
           throw new Error(
             data.message ||
-              "Impossible de récupérer les tarifs."
+            "Impossible de récupérer les tarifs."
           );
         }
 
@@ -539,7 +556,7 @@ export default function PagePanier() {
       ) {
         throw new Error(
           data.message ||
-            "Impossible de créer la commande."
+          "Impossible de créer la commande."
         );
       }
 
@@ -791,11 +808,11 @@ export default function PagePanier() {
               const reductionPourcentage =
                 item.promotion_reduction_pourcentage !==
                   null &&
-                item.promotion_reduction_pourcentage !==
+                  item.promotion_reduction_pourcentage !==
                   undefined
                   ? Number(
-                      item.promotion_reduction_pourcentage
-                    )
+                    item.promotion_reduction_pourcentage
+                  )
                   : null;
 
               return (
@@ -859,7 +876,7 @@ export default function PagePanier() {
                             {item.promotion_type ===
                               "percentage" &&
                               reductionPourcentage !==
-                                null && (
+                              null && (
                                 <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
                                   -
                                   {
@@ -871,10 +888,10 @@ export default function PagePanier() {
 
                             {item.promotion_type ===
                               "special_price" && (
-                              <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
-                                PROMOTION
-                              </span>
-                            )}
+                                <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
+                                  PROMOTION
+                                </span>
+                              )}
                           </div>
 
                           <div className="mt-1 flex flex-wrap items-baseline gap-2">
@@ -1260,7 +1277,7 @@ export default function PagePanier() {
               ================================================== */}
 
               {latitude !== null &&
-              longitude !== null ? (
+                longitude !== null ? (
                 <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4">
                   <div className="flex items-center gap-2">
                     <CheckCircle2
@@ -1294,8 +1311,8 @@ export default function PagePanier() {
                       </span>{" "}
                       {gpsPrecision !== null
                         ? `${Math.round(
-                            gpsPrecision
-                          )} m`
+                          gpsPrecision
+                        )} m`
                         : "-"}
                     </div>
                   </div>
@@ -1335,30 +1352,58 @@ export default function PagePanier() {
 
                       {localisationErrorCode !==
                         null && (
-                        <div className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2">
-                          <p className="text-xs font-bold text-red-600">
-                            Code erreur GPS :{" "}
-                            {
-                              localisationErrorCode
-                            }
-                          </p>
+                          <div className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2">
+                            <p className="text-xs font-bold text-red-600">
+                              Code erreur GPS :{" "}
+                              {
+                                localisationErrorCode
+                              }
+                            </p>
 
-                          <p className="mt-1 text-[11px] text-gray-500">
-                            {localisationErrorCode ===
-                              1 &&
-                              "Permission refusée"}
+                            <p className="mt-1 text-[11px] text-gray-500">
+                              {localisationErrorCode ===
+                                1 &&
+                                "Permission refusée"}
 
-                            {localisationErrorCode ===
-                              2 &&
-                              "Position indisponible"}
+                              {localisationErrorCode ===
+                                2 &&
+                                "Position indisponible"}
 
-                            {localisationErrorCode ===
-                              3 &&
-                              "Délai dépassé"}
-                          </p>
-                        </div>
-                      )}
+                              {localisationErrorCode ===
+                                3 &&
+                                "Délai dépassé"}
+                            </p>
+                          </div>
+                        )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {gpsDebug.url && (
+                <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-xs font-bold text-blue-800">
+                    Diagnostic GPS
+                  </p>
+
+                  <div className="mt-3 space-y-1.5 text-xs text-blue-700">
+                    <p>
+                      <strong>URL :</strong> {gpsDebug.url}
+                    </p>
+
+                    <p>
+                      <strong>Protocole :</strong> {gpsDebug.protocol}
+                    </p>
+
+                    <p>
+                      <strong>Contexte sécurisé :</strong>{" "}
+                      {gpsDebug.secure ? "Oui" : "Non"}
+                    </p>
+
+                    <p>
+                      <strong>Géolocalisation disponible :</strong>{" "}
+                      {gpsDebug.geolocation ? "Oui" : "Non"}
+                    </p>
                   </div>
                 </div>
               )}
@@ -1427,8 +1472,8 @@ export default function PagePanier() {
                         : tarifLivraison === 0
                           ? "Gratuit"
                           : `${tarifLivraison.toLocaleString(
-                              "fr-FR"
-                            )} FCFA`}
+                            "fr-FR"
+                          )} FCFA`}
                     </span>
                   </div>
                 </div>
