@@ -221,95 +221,61 @@ export default function PagePanier() {
     /**
      * Demande de position
      */
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        console.log("========== GPS SUCCÈS ==========");
+navigator.geolocation.getCurrentPosition(
+  (position) => {
+    console.log("GPS SUCCÈS :", position);
 
-        console.log(
-          "Latitude :",
-          position.coords.latitude
+    setLatitude(position.coords.latitude);
+    setLongitude(position.coords.longitude);
+    setGpsPrecision(position.coords.accuracy);
+
+    setLocalisationError("");
+    setLocalisationErrorCode(null);
+    setLocalisationLoading(false);
+  },
+
+  (error) => {
+    console.error("GPS ERREUR :", {
+      code: error.code,
+      message: error.message,
+    });
+
+    setLocalisationErrorCode(error.code);
+
+    switch (error.code) {
+      case 1:
+        setLocalisationError(
+          "L'accès à votre position a été refusé par le navigateur."
         );
+        break;
 
-        console.log(
-          "Longitude :",
-          position.coords.longitude
+      case 2:
+        setLocalisationError(
+          "Votre position est actuellement indisponible."
         );
+        break;
 
-        console.log(
-          "Précision :",
-          position.coords.accuracy
+      case 3:
+        setLocalisationError(
+          "La récupération de votre position a pris trop de temps."
         );
+        break;
 
-        setLatitude(
-          position.coords.latitude
+      default:
+        setLocalisationError(
+          "Impossible de récupérer votre position."
         );
+    }
 
-        setLongitude(
-          position.coords.longitude
-        );
+    setLocalisationLoading(false);
+  },
 
-        setGpsPrecision(
-          position.coords.accuracy
-        );
-
-        setLocalisationError("");
-        setLocalisationErrorCode(null);
-        setLocalisationLoading(false);
-      },
-
-      (error) => {
-        console.error(
-          "========== GPS ERREUR =========="
-        );
-
-        console.error(
-          "Code erreur :",
-          error.code
-        );
-
-        console.error(
-          "Message erreur :",
-          error.message
-        );
-
-        setLocalisationErrorCode(
-          error.code
-        );
-
-        switch (error.code) {
-          case 1:
-            setLocalisationError(
-              "L'accès à votre position a été refusé par le navigateur. Vérifiez l'autorisation de localisation pour MarketMali dans les réglages de Safari."
-            );
-            break;
-
-          case 2:
-            setLocalisationError(
-              "Votre position est actuellement indisponible. Vérifiez que les services de localisation sont activés."
-            );
-            break;
-
-          case 3:
-            setLocalisationError(
-              "La récupération de votre position a pris trop de temps. Réessayez."
-            );
-            break;
-
-          default:
-            setLocalisationError(
-              "Impossible de récupérer votre position. Réessayez."
-            );
-        }
-
-        setLocalisationLoading(false);
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 10000,
-      }
-    );
+  {
+    enableHighAccuracy: false,
+    timeout: 30000,
+    maximumAge: 60000,
+  }
+);
   };
   /**
    * IMPORTANT :
