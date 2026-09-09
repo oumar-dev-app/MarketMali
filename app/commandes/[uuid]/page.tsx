@@ -25,7 +25,7 @@ const LivraisonMap = dynamic(
 () => import("@/app/components/livraison/LivraisonMap"),
 {
 ssr: false,
-loading: () => ( <div className="flex h-[420px] items-center justify-center rounded-2xl bg-gray-100"> <div className="text-center"> <div className="mx-auto mb-3 h-9 w-9 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" /> <p className="text-sm font-medium text-gray-500">
+loading: () => ( <div className="flex h-105 items-center justify-center rounded-2xl bg-gray-100"> <div className="text-center"> <div className="mx-auto mb-3 h-9 w-9 animate-spin rounded-full border-4 border-gray-200 border-t-green-600" /> <p className="text-sm font-medium text-gray-500">
 Chargement du suivi... </p> </div> </div>
 ),
 }
@@ -438,49 +438,65 @@ if (uuid) {
 }, [uuid, router]);
 
 useEffect(() => {
-async function loadLivraison() {
-try {
-const token =
-localStorage.getItem("token");
-
-
-    if (!token) {
-      return;
-    }
-
-    const response = await fetch(
-      `/api/livraisons/commande/${uuid}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) {
-      return;
-    }
-
-    const data = await response.json();
-
-    if (data.success && data.data) {
-      setLivraisonUuid(data.data.uuid);
-      setLivraisonStatus(data.data.status);
-    }
-  } catch (error) {
-    console.error(
-      "Erreur chargement livraison",
-      error
-    );
+  if (!uuid) {
+    return;
   }
-}
 
-if (uuid) {
+  let mounted = true;
+
+  async function loadLivraison() {
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        return;
+      }
+
+      const response = await fetch(
+        `/api/livraisons/commande/${uuid}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        }
+      );
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+
+      if (
+        mounted &&
+        data.success &&
+        data.data
+      ) {
+        setLivraisonUuid(data.data.uuid);
+        setLivraisonStatus(data.data.status);
+      }
+    } catch (error) {
+      console.error(
+        "Erreur chargement livraison",
+        error
+      );
+    }
+  }
+
+  // Chargement immédiat
   loadLivraison();
-}
 
+  // Vérification du statut toutes les 5 secondes
+  const interval = window.setInterval(
+    loadLivraison,
+    5000
+  );
 
+  return () => {
+    mounted = false;
+    window.clearInterval(interval);
+  };
 }, [uuid]);
 
 /*
@@ -611,13 +627,14 @@ step.key === commande.status
 );
 
 const isTracking =
-Boolean(
-livraisonUuid &&
-(
-livraisonStatus === "picked_up" ||
-livraisonStatus === "in_transit"
-)
-);
+  Boolean(
+    livraisonUuid &&
+    (
+      livraisonStatus === "picked_up" ||
+      livraisonStatus === "in_transit" ||
+      livraisonStatus === "delivery_pending_confirmation"
+    )
+  );
 
 const needsConfirmation =
 Boolean(
@@ -799,7 +816,7 @@ return ( <div className="min-h-screen bg-[#f6f8fb]"> <Navbar />
                       key={step.key}
                       className="flex flex-1 items-start"
                     >
-                      <div className="flex min-w-[84px] flex-col items-center">
+                      <div className="flex min-w-21 flex-col items-center">
                         <div
                           className={[
                             "flex h-11 w-11 items-center justify-center rounded-2xl border-2 transition-all",
@@ -835,7 +852,7 @@ return ( <div className="min-h-screen bg-[#f6f8fb]"> <Navbar />
                       {index <
                         statusSteps.length - 1 && (
                         <div
-                          className={`mt-[21px] h-0.5 flex-1 ${
+                          className={`mt-5.25 h-0.5 flex-1 ${
                             index <
                             currentStepIndex
                               ? "bg-green-600"

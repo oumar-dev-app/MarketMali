@@ -197,11 +197,11 @@ function calculateDistance(
 
   const a =
     Math.sin(dLat / 2) *
-      Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
 
   const c =
     2 *
@@ -288,7 +288,7 @@ function RecenterButton({
         absolute
         right-4
         top-4
-        z-[1000]
+        z-1000
         flex
         h-11
         w-11
@@ -376,12 +376,12 @@ function AnimatedMarker({
       const currentLat =
         startLat +
         (endLat - startLat) *
-          progress;
+        progress;
 
       const currentLng =
         startLng +
         (endLng - startLng) *
-          progress;
+        progress;
 
       marker.setLatLng([
         currentLat,
@@ -421,7 +421,7 @@ function AnimatedMarker({
       icon={icon}
     >
       <Popup>
-        <div className="min-w-[150px]">
+        <div className="min-w-37.5">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
               <Bike size={16} />
@@ -471,9 +471,9 @@ function MapUpdater({
 
     const hasDestination =
       typeof destinationLatitude ===
-        "number" &&
+      "number" &&
       typeof destinationLongitude ===
-        "number";
+      "number";
 
     if (hasDestination) {
       const bounds =
@@ -557,9 +557,9 @@ export default function LivraisonMap({
 
   const hasDestination =
     typeof destinationLatitude ===
-      "number" &&
+    "number" &&
     typeof destinationLongitude ===
-      "number";
+    "number";
 
   const [now, setNow] =
     useState(() => Date.now());
@@ -642,7 +642,7 @@ export default function LivraisonMap({
         ) {
           throw new Error(
             data.message ||
-              "Impossible de calculer le trajet."
+            "Impossible de calculer le trajet."
           );
         }
 
@@ -726,17 +726,27 @@ export default function LivraisonMap({
         ) {
           throw new Error(
             data.message ||
-              "Impossible de récupérer la position du livreur."
+            "Impossible de récupérer la position du livreur."
           );
         }
 
         if (!mounted) {
           return;
         }
-
-        setPosition(
-          data.position ?? null
-        );
+        if (data.position) {
+          setPosition({
+            latitude: Number(data.position.latitude),
+            longitude: Number(data.position.longitude),
+            precision_gps:
+              data.position.precision_gps !== null &&
+                data.position.precision_gps !== undefined
+                ? Number(data.position.precision_gps)
+                : null,
+            updated_at: data.position.updated_at,
+          });
+        } else {
+          setPosition(null);
+        }
 
         setError("");
       } catch (err) {
@@ -781,21 +791,21 @@ export default function LivraisonMap({
     number,
     number
   ] = position
-    ? [
+      ? [
         position.latitude,
         position.longitude,
       ]
-    : hasDestination
-      ? [
+      : hasDestination
+        ? [
           destinationLatitude!,
           destinationLongitude!,
         ]
-      : [12.6392, -8.0029];
+        : [12.6392, -8.0029];
 
   if (loading) {
     return (
       <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex h-[420px] items-center justify-center bg-gray-50">
+        <div className="flex h-105 items-center justify-center bg-gray-50">
           <div className="text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
               <RefreshCw
@@ -820,15 +830,15 @@ export default function LivraisonMap({
   const positionAge =
     position
       ? Math.max(
-          0,
-          Math.floor(
-            (now -
-              new Date(
-                position.updated_at
-              ).getTime()) /
-              1000
-          )
+        0,
+        Math.floor(
+          (now -
+            new Date(
+              position.updated_at
+            ).getTime()) /
+          1000
         )
+      )
       : null;
 
   const isLive =
@@ -888,13 +898,12 @@ export default function LivraisonMap({
               )}
 
               <span
-                className={`relative h-2 w-2 rounded-full ${
-                  isLive
+                className={`relative h-2 w-2 rounded-full ${isLive
                     ? "bg-emerald-500"
                     : isRecent
                       ? "bg-amber-500"
                       : "bg-gray-400"
-                }`}
+                  }`}
               />
             </span>
 
@@ -959,14 +968,14 @@ export default function LivraisonMap({
 
               <p className="mt-1 text-sm font-bold text-gray-950">
                 {position &&
-                positionAge !== null
+                  positionAge !== null
                   ? positionAge <
                     60
                     ? `Il y a ${positionAge}s`
                     : `Il y a ${Math.floor(
-                        positionAge /
-                          60
-                      )} min`
+                      positionAge /
+                      60
+                    )} min`
                   : "—"}
               </p>
             </div>
@@ -1042,7 +1051,7 @@ export default function LivraisonMap({
           CARTE
       ================================================= */}
 
-      <div className="relative h-[360px] w-full sm:h-[440px]">
+      <div className="relative h-90 w-full sm:h-110">
         <MapContainer
           center={defaultCenter}
           zoom={
@@ -1076,7 +1085,7 @@ export default function LivraisonMap({
 
           {route &&
             route.coordinates.length >
-              0 && (
+            0 && (
               <>
                 <Polyline
                   positions={
@@ -1129,7 +1138,7 @@ export default function LivraisonMap({
               icon={destinationIcon}
             >
               <Popup>
-                <div className="min-w-[180px]">
+                <div className="min-w-45">
                   <div className="flex items-start gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-800">
                       <MapPin
@@ -1158,7 +1167,7 @@ export default function LivraisonMap({
         {/* Badge flottant */}
 
         {isLive && (
-          <div className="pointer-events-none absolute bottom-4 left-4 z-[1000]">
+          <div className="pointer-events-none absolute bottom-4 left-4 z-1000">
             <div className="flex items-center gap-2 rounded-full border border-white/70 bg-white/95 px-3 py-2 text-xs font-bold text-gray-800 shadow-lg backdrop-blur">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
@@ -1211,7 +1220,7 @@ export default function LivraisonMap({
                     Destination
                   </p>
 
-                  <p className="max-w-[220px] truncate text-[11px] text-gray-500">
+                  <p className="max-w-55 truncate text-[11px] text-gray-500">
                     {destinationAdresse ||
                       "Adresse de livraison"}
                   </p>
@@ -1225,30 +1234,30 @@ export default function LivraisonMap({
 
         {(routeLoading ||
           routeError) && (
-          <div className="border-t border-gray-100 px-4 py-3 sm:px-5">
-            {routeLoading && (
-              <div className="flex items-center gap-2 text-xs font-medium text-blue-600">
-                <RefreshCw
-                  size={14}
-                  className="animate-spin"
-                />
+            <div className="border-t border-gray-100 px-4 py-3 sm:px-5">
+              {routeLoading && (
+                <div className="flex items-center gap-2 text-xs font-medium text-blue-600">
+                  <RefreshCw
+                    size={14}
+                    className="animate-spin"
+                  />
 
-                Actualisation du trajet...
-              </div>
-            )}
-
-            {routeError &&
-              !routeLoading && (
-                <div className="flex items-center gap-2 text-xs font-medium text-red-500">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-50">
-                    !
-                  </span>
-
-                  {routeError}
+                  Actualisation du trajet...
                 </div>
               )}
-          </div>
-        )}
+
+              {routeError &&
+                !routeLoading && (
+                  <div className="flex items-center gap-2 text-xs font-medium text-red-500">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-50">
+                      !
+                    </span>
+
+                    {routeError}
+                  </div>
+                )}
+            </div>
+          )}
       </div>
     </div>
   );
