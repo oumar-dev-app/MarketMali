@@ -157,78 +157,83 @@ export default function PagePanier() {
    * =========================================================
    */
 
-  const recupererPosition = () => {
-    if (!navigator.geolocation) {
-      setLocalisationError(
-        "La géolocalisation n'est pas supportée par votre navigateur."
-      );
-      return;
-    }
+const recupererPosition = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
 
-    setLocalisationLoading(true);
-    setLocalisationError("");
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat =
-          position.coords.latitude;
-
-        const lng =
-          position.coords.longitude;
-
-        const precision =
-          position.coords.accuracy;
-
-        setLatitude(lat);
-        setLongitude(lng);
-        setGpsPrecision(precision);
-
-        setLocalisationLoading(false);
-      },
-
-      (error) => {
-        console.error(
-          "Erreur géolocalisation :",
-          error
-        );
-
-        let message =
-          "Impossible de récupérer votre position.";
-
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            message =
-              "Vous avez refusé l'accès à votre position.";
-            break;
-
-          case error.POSITION_UNAVAILABLE:
-            message =
-              "Votre position est actuellement indisponible.";
-            break;
-
-          case error.TIMEOUT:
-            message =
-              "La récupération de votre position a pris trop de temps.";
-            break;
-        }
-
-        setLocalisationError(message);
-        setLocalisationLoading(false);
-      },
-
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      }
+  if (!navigator.geolocation) {
+    setLocalisationError(
+      "La géolocalisation n'est pas supportée par votre navigateur."
     );
-  };
+    return;
+  }
 
-  useEffect(() => {
+  setLocalisationLoading(true);
+  setLocalisationError("");
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const {
+        latitude: lat,
+        longitude: lng,
+        accuracy,
+      } = position.coords;
+
+      setLatitude(lat);
+      setLongitude(lng);
+      setGpsPrecision(accuracy);
+
+      setLocalisationLoading(false);
+    },
+
+    (error) => {
+      console.error("Erreur géolocalisation :", {
+        code: error.code,
+        message: error.message,
+      });
+
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          setLocalisationError(
+            "L'accès à votre position a été refusé. Autorisez la localisation dans les réglages de votre navigateur."
+          );
+          break;
+
+        case error.POSITION_UNAVAILABLE:
+          setLocalisationError(
+            "Votre position est actuellement indisponible. Vérifiez que les services de localisation sont activés."
+          );
+          break;
+
+        case error.TIMEOUT:
+          setLocalisationError(
+            "La récupération de votre position a pris trop de temps. Réessayez."
+          );
+          break;
+
+        default:
+          setLocalisationError(
+            "Impossible de récupérer votre position. Réessayez."
+          );
+      }
+
+      setLocalisationLoading(false);
+    },
+
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 10000,
+    }
+  );
+};
+
+/*   useEffect(() => {
     if (items.length > 0) {
       recupererPosition();
     }
-  }, [items.length]);
+  }, [items.length]); */
 
   /**
    * =========================================================
@@ -658,11 +663,11 @@ export default function PagePanier() {
               const reductionPourcentage =
                 item.promotion_reduction_pourcentage !==
                   null &&
-                item.promotion_reduction_pourcentage !==
+                  item.promotion_reduction_pourcentage !==
                   undefined
                   ? Number(
-                      item.promotion_reduction_pourcentage
-                    )
+                    item.promotion_reduction_pourcentage
+                  )
                   : null;
 
               return (
@@ -726,7 +731,7 @@ export default function PagePanier() {
                             {item.promotion_type ===
                               "percentage" &&
                               reductionPourcentage !==
-                                null && (
+                              null && (
                                 <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
                                   -
                                   {
@@ -738,10 +743,10 @@ export default function PagePanier() {
 
                             {item.promotion_type ===
                               "special_price" && (
-                              <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
-                                PROMOTION
-                              </span>
-                            )}
+                                <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
+                                  PROMOTION
+                                </span>
+                              )}
                           </div>
 
                           <div className="mt-1 flex flex-wrap items-baseline gap-2">
@@ -1173,8 +1178,8 @@ export default function PagePanier() {
                       {gpsPrecision !==
                         null
                         ? `${Math.round(
-                            gpsPrecision
-                          )} m`
+                          gpsPrecision
+                        )} m`
                         : "-"}
                     </div>
                   </div>
@@ -1272,8 +1277,8 @@ export default function PagePanier() {
                         : tarifLivraison === 0
                           ? "Gratuit"
                           : `${tarifLivraison.toLocaleString(
-                              "fr-FR"
-                            )} FCFA`}
+                            "fr-FR"
+                          )} FCFA`}
                     </span>
                   </div>
                 </div>
