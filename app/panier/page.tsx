@@ -16,7 +16,7 @@ import {
   Truck,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Navbar from "@/components/Navbar";
@@ -29,6 +29,18 @@ interface TarifLivraison {
   zone: string;
   frais: number;
 }
+
+interface GpsDebug {
+  url: string;
+  protocol: string;
+  secure: boolean;
+  geolocation: boolean;
+  permission: string;
+  device: string;
+  browser: string;
+}
+
+type PermissionState = "granted" | "denied" | "prompt" | "unknown";
 
 export default function PagePanier() {
   const router = useRouter();
@@ -75,12 +87,23 @@ export default function PagePanier() {
   const [localisationErrorCode, setLocalisationErrorCode] =
     useState<number | null>(null);
 
-  const [gpsDebug, setGpsDebug] = useState({
-    url: "",
-    protocol: "",
-    secure: false,
-    geolocation: false,
-  });
+  const [gpsPermission, setGpsPermission] =
+    useState<PermissionState>("unknown");
+
+  const [gpsDebug, setGpsDebug] =
+    useState<GpsDebug>({
+      url: "",
+      protocol: "",
+      secure: false,
+      geolocation: false,
+      permission: "unknown",
+      device: "unknown",
+      browser: "unknown",
+    });
+
+  const localisationAutomatique =
+    useRef(false);
+
   const [latitude, setLatitude] =
     useState<number | null>(null);
 
@@ -92,6 +115,119 @@ export default function PagePanier() {
 
   const [adresseLivraison, setAdresseLivraison] =
     useState("");
+
+  /**
+   * =========================================================
+   * DÉTECTION APPAREIL / NAVIGATEUR
+   * =========================================================
+   */
+
+  const detecterAppareil = useCallback(() => {
+    if (typeof window === "undefined") {
+      return {
+        device: "unknown",
+        browser: "unknown",
+      };
+    }
+
+    const userAgent =
+      navigator.userAgent || "";
+
+    const isIOS =
+      /iPad|iPhone|iPod/.test(userAgent) ||
+      (navigator.platform === "MacIntel" &&
+        navigator.maxTouchPoints > 1);
+
+    const isAndroid =
+      /Android/i.test(userAgent);
+
+    const isChrome =
+      /Chrome|CriOS/i.test(userAgent);
+
+    const isFirefox =
+      /Firefox|FxiOS/i.test(userAgent);
+
+    const isSafari =
+      /Safari/i.test(userAgent) &&
+      !isChrome &&
+      !isFirefox;
+
+    let device = "Ordinateur";
+
+    if (isIOS) {
+      device = "iPhone / iPad";
+    } else if (isAndroid) {
+      device = "Android";
+    }
+
+    let browser = "Navigateur";
+
+    if (isSafari) {
+      browser = "Safari";
+    } else if (isChrome) {
+      browser = "Chrome";
+    } else if (isFirefox) {
+      browser = "Firefox";
+    }
+
+    return {
+      device,
+      browser,
+    };
+  }, []);
+
+  /**
+   * =========================================================
+   * VÉRIFICATION PERMISSION GPS
+   * =========================================================
+   */
+
+  const verifierPermissionGPS =
+    useCallback(async (): Promise<PermissionState> => {
+      if (typeof window === "undefined") {
+        return "unknown";
+      }
+
+      /**
+       * Certains navigateurs, notamment certaines versions
+       * de Safari iOS, ne supportent pas correctement
+       * navigator.permissions pour la géolocalisation.
+       *
+       * Dans ce cas, on laisse getCurrentPosition()
+       * gérer directement la permission.
+       */
+      if (
+        !navigator.permissions ||
+        typeof navigator.permissions.query !==
+          "function"
+      ) {
+        setGpsPermission("unknown");
+        return "unknown";
+      }
+
+      try {
+        const permission =
+          await navigator.permissions.query({
+            name: "geolocation" as PermissionName,
+          });
+
+        const state =
+          permission.state as PermissionState;
+
+        setGpsPermission(state);
+
+        return state;
+      } catch (error) {
+        console.warn(
+          "Impossible de vérifier directement la permission GPS :",
+          error
+        );
+
+        setGpsPermission("unknown");
+
+        return "unknown";
+      }
+    }, []);
 
   /**
    * =========================================================
@@ -181,109 +317,356 @@ export default function PagePanier() {
    * =========================================================
    */
 
-  const recupererPosition = () => {
+  const recupererPosition = useCallback(async () => {
     if (typeof window === "undefined") {
       return;
     }
 
-    console.log("========== GPS MARKETMALI ==========");
+    const appareil =
+      detecterAppareil();
 
-    const debug = {
-      url: window.location.href,
-      protocol: window.location.protocol,
-      secure: window.isSecureContext,
-      geolocation: "geolocation" in navigator,
-    };
+    const secure =
+      window.isSecureContext;
 
-    console.log("GPS DEBUG :", debug);
-
-    setGpsDebug(debug);
+    const geolocation =
+      "geolocation" in navigator;
 
     /**
-     * Vérification de la géolocalisation
+     * Mise à jour du diagnostic.
      */
-    if (!navigator.geolocation) {
+    setGpsDebug((previous) => ({
+      ...previous,
+      url: window.location.href,
+      protocol: window.location.protocol,
+      secure,
+      geolocation,
+      device: appareil.device,
+      browser: appareil.browser,
+    }));
+
+    console.log("========== GPS DEBUG ==========");
+    console.log("URL :", window.location.href);
+    console.log(
+      "Protocol :",
+      window.location.protocol
+    );
+    console.log(
+      "Contexte sécurisé :",
+      secure
+    );
+    console.log(
+      "Géolocalisation disponible :",
+      geolocation
+    );
+    console.log(
+      "Appareil :",
+      appareil.device
+    );
+    console.log(
+      "Navigateur :",
+      appareil.browser
+    );
+    console.log(
+      "Permission actuelle :",
+      gpsPermission
+    );
+    console.log("===============================");
+
+    /**
+     * La géolocalisation Web nécessite HTTPS,
+     * sauf sur localhost.
+     */
+    if (!secure) {
+      setLocalisationLoading(false);
+      setLocalisationErrorCode(null);
+
       setLocalisationError(
-        "La géolocalisation n'est pas disponible sur votre navigateur."
+        "La localisation GPS nécessite une connexion sécurisée (HTTPS)."
       );
 
-      setLocalisationErrorCode(null);
       return;
     }
 
     /**
-     * Préparation
+     * Vérification API.
+     */
+    if (!geolocation) {
+      setLocalisationLoading(false);
+      setLocalisationErrorCode(null);
+
+      setLocalisationError(
+        "La géolocalisation n'est pas disponible sur ce navigateur."
+      );
+
+      return;
+    }
+
+    /**
+     * Préparation d'une nouvelle tentative.
      */
     setLocalisationLoading(true);
     setLocalisationError("");
     setLocalisationErrorCode(null);
 
     /**
-     * Demande de position
+     * Vérifie la permission lorsque le navigateur
+     * le permet.
      */
-navigator.geolocation.getCurrentPosition(
-  (position) => {
-    console.log("GPS SUCCÈS :", position);
+    const permission =
+      await verifierPermissionGPS();
 
-    setLatitude(position.coords.latitude);
-    setLongitude(position.coords.longitude);
-    setGpsPrecision(position.coords.accuracy);
+    setGpsDebug((previous) => ({
+      ...previous,
+      permission,
+    }));
 
-    setLocalisationError("");
-    setLocalisationErrorCode(null);
-    setLocalisationLoading(false);
-  },
+    console.log(
+      "Permission GPS :",
+      permission
+    );
 
-  (error) => {
-    console.error("GPS ERREUR :", {
-      code: error.code,
-      message: error.message,
-    });
+    /**
+     * Si le navigateur sait déjà que la permission
+     * est refusée, inutile de lancer immédiatement
+     * une nouvelle requête.
+     *
+     * L'utilisateur doit modifier les permissions
+     * du navigateur / téléphone.
+     */
+    if (permission === "denied") {
+      setLocalisationLoading(false);
+      setLocalisationErrorCode(1);
 
-    setLocalisationErrorCode(error.code);
-
-    switch (error.code) {
-      case 1:
+      if (
+        appareil.device ===
+        "iPhone / iPad"
+      ) {
         setLocalisationError(
-          "L'accès à votre position a été refusé par le navigateur."
+          "L'accès à votre position est refusé. Sur iPhone, ouvrez Réglages → Confidentialité et sécurité → Service de localisation, puis autorisez la localisation pour Safari. Vérifiez également que la localisation précise est activée."
         );
-        break;
-
-      case 2:
+      } else if (
+        appareil.device === "Android"
+      ) {
         setLocalisationError(
-          "Votre position est actuellement indisponible."
+          "L'accès à votre position est refusé. Ouvrez les paramètres de votre navigateur, autorisez la localisation pour ce site, puis revenez ici et appuyez sur Actualiser."
         );
-        break;
-
-      case 3:
+      } else {
         setLocalisationError(
-          "La récupération de votre position a pris trop de temps."
+          "L'accès à votre position est refusé. Autorisez la localisation pour ce site dans les paramètres de votre navigateur, puis appuyez sur Actualiser."
         );
-        break;
+      }
 
-      default:
-        setLocalisationError(
-          "Impossible de récupérer votre position."
-        );
+      return;
     }
 
-    setLocalisationLoading(false);
-  },
+    /**
+     * =======================================================
+     * DEMANDE DE POSITION
+     * =======================================================
+     *
+     * On utilise getCurrentPosition plutôt que watchPosition
+     * pour la commande.
+     *
+     * Une nouvelle tentative est possible en cliquant
+     * sur Actualiser.
+     */
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log(
+          "GPS SUCCÈS :",
+          position
+        );
 
-  {
-    enableHighAccuracy: false,
-    timeout: 30000,
-    maximumAge: 60000,
-  }
-);
-  };
+        const lat =
+          position.coords.latitude;
+
+        const lng =
+          position.coords.longitude;
+
+        const accuracy =
+          position.coords.accuracy;
+
+        /**
+         * Vérification de sécurité.
+         */
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng)
+        ) {
+          setLocalisationLoading(false);
+          setLocalisationErrorCode(2);
+
+          setLocalisationError(
+            "Le navigateur a retourné une position GPS invalide. Veuillez réessayer."
+          );
+
+          return;
+        }
+
+        setLatitude(lat);
+        setLongitude(lng);
+
+        setGpsPrecision(
+          Number.isFinite(accuracy)
+            ? accuracy
+            : null
+        );
+
+        setGpsPermission("granted");
+
+        setGpsDebug((previous) => ({
+          ...previous,
+          permission: "granted",
+        }));
+
+        setLocalisationError("");
+        setLocalisationErrorCode(null);
+        setLocalisationLoading(false);
+      },
+
+      (error) => {
+        console.error(
+          "========== GPS ERREUR =========="
+        );
+
+        console.error(
+          "Code :",
+          error.code
+        );
+
+        console.error(
+          "Message :",
+          error.message
+        );
+
+        console.error(
+          "Appareil :",
+          appareil.device
+        );
+
+        console.error(
+          "Navigateur :",
+          appareil.browser
+        );
+
+        console.error(
+          "==============================="
+        );
+
+        setLocalisationLoading(false);
+        setLocalisationErrorCode(
+          error.code
+        );
+
+        /**
+         * Permission refusée.
+         */
+        if (error.code === 1) {
+          setGpsPermission("denied");
+
+          if (
+            appareil.device ===
+            "iPhone / iPad"
+          ) {
+            setLocalisationError(
+              "L'accès à votre position a été refusé. Sur iPhone, vérifiez Réglages → Confidentialité et sécurité → Service de localisation → Safari. Autorisez la localisation et activez « Localisation précise », puis revenez sur cette page et appuyez sur Actualiser."
+            );
+          } else if (
+            appareil.device === "Android"
+          ) {
+            setLocalisationError(
+              "L'accès à votre position a été refusé. Autorisez la localisation pour ce site dans les paramètres de votre navigateur, puis revenez sur cette page et appuyez sur Actualiser."
+            );
+          } else {
+            setLocalisationError(
+              "L'accès à votre position a été refusé par le navigateur. Autorisez la localisation pour ce site, puis appuyez sur Actualiser."
+            );
+          }
+
+          return;
+        }
+
+        /**
+         * Position indisponible.
+         */
+        if (error.code === 2) {
+          setLocalisationError(
+            "Votre position est actuellement indisponible. Vérifiez que le GPS/localisation est activé sur votre téléphone, que vous êtes dans une zone où le signal est disponible, puis réessayez."
+          );
+
+          return;
+        }
+
+        /**
+         * Timeout.
+         */
+        if (error.code === 3) {
+          setLocalisationError(
+            "La récupération de votre position a pris trop de temps. Vérifiez votre connexion et votre signal GPS, puis appuyez sur Actualiser pour réessayer."
+          );
+
+          return;
+        }
+
+        /**
+         * Erreur inconnue.
+         */
+        setLocalisationError(
+          "Impossible de récupérer votre position. Vérifiez les paramètres de localisation de votre appareil, puis réessayez."
+        );
+      },
+
+      {
+        /**
+         * false est plus compatible avec les navigateurs
+         * mobiles et permet d'obtenir rapidement une position.
+         *
+         * Le navigateur peut tout de même utiliser le GPS
+         * si nécessaire.
+         */
+        enableHighAccuracy: false,
+
+        /**
+         * 30 secondes pour laisser le temps au téléphone
+         * de déterminer sa position.
+         */
+        timeout: 30000,
+
+        /**
+         * Une position de moins d'une minute peut être
+         * réutilisée.
+         */
+        maximumAge: 60000,
+      }
+    );
+  }, [
+    detecterAppareil,
+    gpsPermission,
+    verifierPermissionGPS,
+  ]);
+
   /**
-   * IMPORTANT :
-   * Aucun appel automatique à recupererPosition().
-   *
-   * La géolocalisation est uniquement déclenchée
-   * lorsque l'utilisateur appuie sur "Actualiser".
+   * =========================================================
+   * RÉCUPÉRATION AUTOMATIQUE DE LA POSITION
+   * =========================================================
    */
+
+  useEffect(() => {
+    /**
+     * Évite une double exécution en mode développement
+     * avec React Strict Mode.
+     */
+    if (localisationAutomatique.current) {
+      return;
+    }
+
+    localisationAutomatique.current = true;
+
+    /**
+     * Première tentative automatique.
+     */
+    void recupererPosition();
+  }, [recupererPosition]);
 
   /**
    * =========================================================
@@ -302,6 +685,8 @@ navigator.geolocation.getCurrentPosition(
 
     const boutiqueId =
       items[0].boutique_id;
+
+    let actif = true;
 
     async function chargerTarifs() {
       setTarifsLoading(true);
@@ -333,18 +718,39 @@ navigator.geolocation.getCurrentPosition(
             ? data.data
             : [];
 
-        setTarifsLivraison(tarifs);
-
-        if (
-          zoneLivraison &&
-          !tarifs.some(
-            (tarif: TarifLivraison) =>
-              tarif.zone === zoneLivraison
-          )
-        ) {
-          setZoneLivraison("");
+        if (!actif) {
+          return;
         }
+
+        setTarifsLivraison(
+          tarifs
+        );
+
+        /**
+         * Si la zone actuellement sélectionnée
+         * n'existe plus, on la réinitialise.
+         */
+        setZoneLivraison(
+          (currentZone) => {
+            if (
+              !currentZone ||
+              tarifs.some(
+                (tarif: TarifLivraison) =>
+                  tarif.zone ===
+                  currentZone
+              )
+            ) {
+              return currentZone;
+            }
+
+            return "";
+          }
+        );
       } catch (error) {
+        if (!actif) {
+          return;
+        }
+
         console.error(
           "Erreur tarifs livraison :",
           error
@@ -352,12 +758,18 @@ navigator.geolocation.getCurrentPosition(
 
         setTarifsLivraison([]);
       } finally {
-        setTarifsLoading(false);
+        if (actif) {
+          setTarifsLoading(false);
+        }
       }
     }
 
-    chargerTarifs();
-  }, [items, zoneLivraison]);
+    void chargerTarifs();
+
+    return () => {
+      actif = false;
+    };
+  }, [items]);
 
   /**
    * =========================================================
@@ -369,7 +781,8 @@ navigator.geolocation.getCurrentPosition(
     const tarif =
       tarifsLivraison.find(
         (item) =>
-          item.zone === zoneLivraison
+          item.zone ===
+          zoneLivraison
       );
 
     setTarifLivraison(
@@ -423,7 +836,7 @@ navigator.geolocation.getCurrentPosition(
       longitude === null
     ) {
       alert(
-        "Veuillez autoriser la localisation avant de passer la commande."
+        "Votre position GPS est nécessaire pour la livraison. Autorisez la localisation puis appuyez sur Actualiser."
       );
 
       return;
@@ -599,7 +1012,8 @@ navigator.geolocation.getCurrentPosition(
   const tarifSelectionne =
     tarifsLivraison.find(
       (tarif) =>
-        tarif.zone === zoneLivraison
+        tarif.zone ===
+        zoneLivraison
     );
 
   /**
@@ -750,11 +1164,11 @@ navigator.geolocation.getCurrentPosition(
               const reductionPourcentage =
                 item.promotion_reduction_pourcentage !==
                   null &&
-                  item.promotion_reduction_pourcentage !==
+                item.promotion_reduction_pourcentage !==
                   undefined
                   ? Number(
-                    item.promotion_reduction_pourcentage
-                  )
+                      item.promotion_reduction_pourcentage
+                    )
                   : null;
 
               return (
@@ -818,7 +1232,7 @@ navigator.geolocation.getCurrentPosition(
                             {item.promotion_type ===
                               "percentage" &&
                               reductionPourcentage !==
-                              null && (
+                                null && (
                                 <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
                                   -
                                   {
@@ -830,10 +1244,10 @@ navigator.geolocation.getCurrentPosition(
 
                             {item.promotion_type ===
                               "special_price" && (
-                                <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
-                                  PROMOTION
-                                </span>
-                              )}
+                              <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
+                                PROMOTION
+                              </span>
+                            )}
                           </div>
 
                           <div className="mt-1 flex flex-wrap items-baseline gap-2">
@@ -1126,8 +1540,8 @@ navigator.geolocation.getCurrentPosition(
 
                 <button
                   type="button"
-                  onClick={
-                    recupererPosition
+                  onClick={() =>
+                    void recupererPosition()
                   }
                   disabled={
                     localisationLoading
@@ -1219,7 +1633,7 @@ navigator.geolocation.getCurrentPosition(
               ================================================== */}
 
               {latitude !== null &&
-                longitude !== null ? (
+              longitude !== null ? (
                 <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4">
                   <div className="flex items-center gap-2">
                     <CheckCircle2
@@ -1253,8 +1667,8 @@ navigator.geolocation.getCurrentPosition(
                       </span>{" "}
                       {gpsPrecision !== null
                         ? `${Math.round(
-                          gpsPrecision
-                        )} m`
+                            gpsPrecision
+                          )} m`
                         : "-"}
                     </div>
                   </div>
@@ -1266,12 +1680,22 @@ navigator.geolocation.getCurrentPosition(
                     className="mt-0.5 shrink-0 text-yellow-600"
                   />
 
-                  <p className="text-xs leading-5 text-yellow-800 sm:text-sm">
-                    Votre position n'a pas
-                    encore été récupérée.
-                    Autorisez la géolocalisation
-                    puis actualisez votre position.
-                  </p>
+                  <div>
+                    <p className="text-xs leading-5 text-yellow-800 sm:text-sm">
+                      Votre position n'a pas
+                      encore été récupérée.
+                      Autorisez la géolocalisation
+                      puis appuyez sur « Actualiser ».
+                    </p>
+
+                    {gpsPermission ===
+                      "denied" && (
+                      <p className="mt-2 text-xs font-bold text-yellow-900">
+                        La permission de localisation
+                        est actuellement refusée.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1287,67 +1711,145 @@ navigator.geolocation.getCurrentPosition(
                       className="mt-0.5 shrink-0 text-red-500"
                     />
 
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-red-800 sm:text-sm">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold leading-5 text-red-800 sm:text-sm">
                         {localisationError}
                       </p>
 
                       {localisationErrorCode !==
                         null && (
-                          <div className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2">
-                            <p className="text-xs font-bold text-red-600">
-                              Code erreur GPS :{" "}
-                              {
-                                localisationErrorCode
-                              }
-                            </p>
+                        <div className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2">
+                          <p className="text-xs font-bold text-red-600">
+                            Code erreur GPS :{" "}
+                            {
+                              localisationErrorCode
+                            }
+                          </p>
 
-                            <p className="mt-1 text-[11px] text-gray-500">
-                              {localisationErrorCode ===
-                                1 &&
-                                "Permission refusée"}
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            {localisationErrorCode ===
+                              1 &&
+                              "Permission refusée"}
 
-                              {localisationErrorCode ===
-                                2 &&
-                                "Position indisponible"}
+                            {localisationErrorCode ===
+                              2 &&
+                              "Position indisponible"}
 
-                              {localisationErrorCode ===
-                                3 &&
-                                "Délai dépassé"}
-                            </p>
-                          </div>
-                        )}
+                            {localisationErrorCode ===
+                              3 &&
+                              "Délai dépassé"}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* RETENTER */}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void recupererPosition()
+                        }
+                        disabled={
+                          localisationLoading
+                        }
+                        className="
+                          mt-3
+                          inline-flex
+                          items-center
+                          gap-2
+                          rounded-lg
+                          bg-white
+                          px-3
+                          py-2
+                          text-xs
+                          font-bold
+                          text-red-700
+                          shadow-sm
+                          ring-1
+                          ring-red-200
+                          transition
+                          hover:bg-red-50
+                          disabled:cursor-not-allowed
+                          disabled:opacity-50
+                        "
+                      >
+                        <RefreshCw
+                          size={14}
+                        />
+                        Réessayer
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* =================================================
+                  DIAGNOSTIC GPS
+              ================================================== */}
+
               {gpsDebug.url && (
-                <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
-                  <p className="text-xs font-bold text-blue-800">
+                <details className="mt-4 overflow-hidden rounded-xl border border-blue-200 bg-blue-50">
+                  <summary className="cursor-pointer px-4 py-3 text-xs font-bold text-blue-800">
                     Diagnostic GPS
-                  </p>
+                  </summary>
 
-                  <div className="mt-3 space-y-1.5 text-xs text-blue-700">
-                    <p>
-                      <strong>URL :</strong> {gpsDebug.url}
-                    </p>
+                  <div className="border-t border-blue-200 px-4 py-3">
+                    <div className="space-y-1.5 text-xs text-blue-700">
+                      <p className="break-all">
+                        <strong>
+                          URL :
+                        </strong>{" "}
+                        {gpsDebug.url}
+                      </p>
 
-                    <p>
-                      <strong>Protocole :</strong> {gpsDebug.protocol}
-                    </p>
+                      <p>
+                        <strong>
+                          Protocole :
+                        </strong>{" "}
+                        {gpsDebug.protocol}
+                      </p>
 
-                    <p>
-                      <strong>Contexte sécurisé :</strong>{" "}
-                      {gpsDebug.secure ? "Oui" : "Non"}
-                    </p>
+                      <p>
+                        <strong>
+                          Contexte sécurisé :
+                        </strong>{" "}
+                        {gpsDebug.secure
+                          ? "Oui"
+                          : "Non"}
+                      </p>
 
-                    <p>
-                      <strong>Géolocalisation disponible :</strong>{" "}
-                      {gpsDebug.geolocation ? "Oui" : "Non"}
-                    </p>
+                      <p>
+                        <strong>
+                          Géolocalisation :
+                        </strong>{" "}
+                        {gpsDebug.geolocation
+                          ? "Disponible"
+                          : "Indisponible"}
+                      </p>
+
+                      <p>
+                        <strong>
+                          Appareil :
+                        </strong>{" "}
+                        {gpsDebug.device}
+                      </p>
+
+                      <p>
+                        <strong>
+                          Navigateur :
+                        </strong>{" "}
+                        {gpsDebug.browser}
+                      </p>
+
+                      <p>
+                        <strong>
+                          Permission :
+                        </strong>{" "}
+                        {gpsDebug.permission}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                </details>
               )}
             </div>
           </div>
@@ -1411,11 +1913,12 @@ navigator.geolocation.getCurrentPosition(
                     <span className="font-bold text-gray-900">
                       {!tarifSelectionne
                         ? "À calculer"
-                        : tarifLivraison === 0
+                        : tarifLivraison ===
+                            0
                           ? "Gratuit"
                           : `${tarifLivraison.toLocaleString(
-                            "fr-FR"
-                          )} FCFA`}
+                              "fr-FR"
+                            )} FCFA`}
                     </span>
                   </div>
                 </div>
@@ -1447,6 +1950,18 @@ navigator.geolocation.getCurrentPosition(
                       Sélectionnez une zone de
                       livraison pour connaître le
                       montant exact.
+                    </p>
+                  </div>
+                )}
+
+                {/* GPS NON DISPONIBLE */}
+
+                {(latitude === null ||
+                  longitude === null) && (
+                  <div className="mt-3 rounded-xl border border-red-100 bg-red-50 p-3">
+                    <p className="text-xs leading-5 text-red-700">
+                      La position GPS est nécessaire
+                      avant de passer la commande.
                     </p>
                   </div>
                 )}
@@ -1499,7 +2014,9 @@ navigator.geolocation.getCurrentPosition(
                   ) : (
                     <>
                       Passer la commande
-                      <ChevronRight size={18} />
+                      <ChevronRight
+                        size={18}
+                      />
                     </>
                   )}
                 </button>
@@ -1541,3 +2058,4 @@ navigator.geolocation.getCurrentPosition(
     </main>
   );
 }
+
