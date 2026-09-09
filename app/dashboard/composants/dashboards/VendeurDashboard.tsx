@@ -48,41 +48,48 @@ export default function VendeurDashboard({
           EN-TÊTE
       ===================================================== */}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-            <FaStore size={11} />
-            Espace vendeur
+      {/* HEADER */}
+      <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+        <div className="relative p-5 sm:p-6 lg:p-7">
+          <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-blue-50 blur-3xl" />
+
+          <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">
+                <FaStore size={12} />
+                Espace vendeur
+              </div>
+
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+                Tableau de bord
+              </h1>
+
+              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-gray-500 sm:text-base">
+                Suivez les performances de votre boutique, vos commandes et vos
+                ventes depuis un seul espace.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/dashboard/produits"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+              >
+                <FaBox size={14} />
+                Mes produits
+              </Link>
+
+              <Link
+                href="/dashboard/commandes"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <FaShoppingCart size={14} />
+                Mes commandes
+              </Link>
+            </div>
           </div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            Tableau de bord
-          </h1>
-
-          <p className="mt-1 max-w-2xl text-sm text-gray-500 sm:text-base">
-            Suivez les performances de votre boutique, vos commandes et vos
-            ventes depuis un seul espace.
-          </p>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/dashboard/produits"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50"
-          >
-            <FaBox size={14} />
-            Mes produits
-          </Link>
-
-          <Link
-            href="/dashboard/commandes"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-          >
-            <FaShoppingCart size={14} />
-            Mes commandes
-          </Link>
-        </div>
-      </div>
+      </section>
 
 
       {/* =====================================================
@@ -180,11 +187,10 @@ export default function VendeurDashboard({
               </p>
 
               <p
-                className={`mt-1 text-xs ${
-                  stats.produits_en_rupture > 0
+                className={`mt-1 text-xs ${stats.produits_en_rupture > 0
                     ? "text-orange-600"
                     : "text-green-600"
-                }`}
+                  }`}
               >
                 {stats.produits_en_rupture > 0
                   ? "Stock à réapprovisionner"
@@ -193,11 +199,10 @@ export default function VendeurDashboard({
             </div>
 
             <div
-              className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-                stats.produits_en_rupture > 0
+              className={`flex h-11 w-11 items-center justify-center rounded-xl ${stats.produits_en_rupture > 0
                   ? "bg-orange-50 text-orange-600"
                   : "bg-green-50 text-green-600"
-              }`}
+                }`}
             >
               <FaExclamationTriangle size={19} />
             </div>
