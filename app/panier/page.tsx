@@ -16,12 +16,7 @@ import {
   Truck,
   XCircle,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import Navbar from "@/components/Navbar";
@@ -50,10 +45,6 @@ type PermissionState =
   | "denied"
   | "prompt"
   | "unknown";
-
-const GPS_TARGET_ACCURACY = 50;
-const GPS_MAX_ACCEPTED_ACCURACY = 300;
-const GPS_TIMEOUT = 30000;
 
 export default function PagePanier() {
   const router = useRouter();
@@ -123,18 +114,19 @@ export default function PagePanier() {
     useRef(false);
 
   /**
-   * Identifiant de la surveillance GPS actuelle.
+   * Empêche plusieurs requêtes GPS simultanées.
    */
-  const gpsWatchId =
-    useRef<number | null>(null);
+  const gpsRequestActive =
+    useRef(false);
 
   /**
-   * Timer utilisé pour arrêter la recherche GPS.
+   * Timer de sécurité.
+   *
+   * Certains navigateurs mobiles peuvent parfois
+   * ne jamais retourner le callback GPS.
    */
   const gpsTimeoutRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
    * =========================================================
@@ -153,10 +145,15 @@ export default function PagePanier() {
     const userAgent =
       navigator.userAgent || "";
 
+    const platform =
+      navigator.platform || "";
+
     const isIOS =
-      /iPad|iPhone|iPod/.test(userAgent) ||
-      (navigator.platform === "MacIntel" &&
-        navigator.maxTouchPoints > 1);
+      /iPad|iPhone|iPod/i.test(userAgent) ||
+      (
+        platform === "MacIntel" &&
+        navigator.maxTouchPoints > 1
+      );
 
     const isAndroid =
       /Android/i.test(userAgent);
@@ -204,89 +201,73 @@ export default function PagePanier() {
 
   /**
    * =========================================================
-   * VÉRIFICATION PERMISSION GPS
+   * PERMISSION GPS
    * =========================================================
+   *
+   * IMPORTANT :
+   *
+   * On ne bloque JAMAIS la récupération GPS
+   * en attendant navigator.permissions.query().
+   *
+   * Sur certains Safari iOS, cette API peut être
+   * incomplète ou se comporter de manière imprévisible.
    */
 
   const verifierPermissionGPS =
     useCallback(async (): Promise<PermissionState> => {
-      if (typeof window === "undefined") {
-        return "unknown";
-      }
-
       if (
+        typeof window === "undefined" ||
         !navigator.permissions ||
-        typeof navigator.permissions.query !==
-          "function"
+        typeof navigator.permissions.query !== "function"
       ) {
-        setGpsPermission("unknown");
-
         return "unknown";
       }
 
       try {
         const permission =
-          await navigator.permissions.query({
-            name: "geolocation" as PermissionName,
-          });
+          await Promise.race([
+            navigator.permissions.query({
+              name: "geolocation" as PermissionName,
+            }),
+
+            new Promise<null>((resolve) => {
+              setTimeout(() => {
+                resolve(null);
+              }, 1500);
+            }),
+          ]);
+
+        if (!permission) {
+          return "unknown";
+        }
 
         const state =
           permission.state as PermissionState;
 
         setGpsPermission(state);
 
+        setGpsDebug((previous) => ({
+          ...previous,
+          permission: state,
+        }));
+
         return state;
-      } catch (error) {
-        console.warn(
-          "Impossible de vérifier directement la permission GPS :",
-          error
-        );
-
-        setGpsPermission("unknown");
-
+      } catch {
         return "unknown";
       }
     }, []);
 
   /**
    * =========================================================
-   * NETTOYAGE GPS
-   * =========================================================
-   */
-
-  const nettoyerGps =
-    useCallback(() => {
-      if (
-        gpsWatchId.current !== null &&
-        typeof navigator !== "undefined" &&
-        "geolocation" in navigator
-      ) {
-        navigator.geolocation.clearWatch(
-          gpsWatchId.current
-        );
-
-        gpsWatchId.current = null;
-      }
-
-      if (gpsTimeoutRef.current !== null) {
-        clearTimeout(
-          gpsTimeoutRef.current
-        );
-
-        gpsTimeoutRef.current = null;
-      }
-    }, []);
-
-  /**
-   * =========================================================
-   * PRIX PROMOTIONNELS
+   * PRIX FINAL
    * =========================================================
    */
 
   function getPrixFinal(
     item: (typeof items)[number]
   ): number {
-    const prix = Number(item.prix);
+    const prix =
+      Number(item.prix);
 
     if (!Number.isFinite(prix)) {
       return 0;
@@ -294,14 +275,13 @@ export default function PagePanier() {
 
     if (
       item.promotion_type === "percentage" &&
-      item.promotion_reduction_pourcentage !==
-        null &&
-      item.promotion_reduction_pourcentage !==
-        undefined
+      item.promotion_reduction_pourcentage !== null &&
+      item.promotion_reduction_pourcentage !== undefined
     ) {
-      const reduction = Number(
-        item.promotion_reduction_pourcentage
-      );
+      const reduction =
+        Number(
+          item.promotion_reduction_pourcentage
+        );
 
       if (
         Number.isFinite(reduction) &&
@@ -317,14 +297,13 @@ export default function PagePanier() {
 
     if (
       item.promotion_type === "special_price" &&
-      item.promotion_prix_promotionnel !==
-        null &&
-      item.promotion_prix_promotionnel !==
-        undefined
+      item.promotion_prix_promotionnel !== null &&
+      item.promotion_prix_promotionnel !== undefined
     ) {
-      const prixPromotionnel = Number(
-        item.promotion_prix_promotionnel
-      );
+      const prixPromotionnel =
+        Number(
+          item.promotion_prix_promotionnel
+        );
 
       if (
         Number.isFinite(prixPromotionnel) &&
@@ -343,13 +322,14 @@ export default function PagePanier() {
    * =========================================================
    */
 
-  const totalNormal = items.reduce(
-    (sum, item) =>
-      sum +
-      Number(item.prix) *
-        item.quantity,
-    0
-  );
+  const totalNormal =
+    items.reduce(
+      (sum, item) =>
+        sum +
+        Number(item.prix) *
+          item.quantity,
+      0
+    );
 
   /**
    * =========================================================
@@ -357,20 +337,32 @@ export default function PagePanier() {
    * =========================================================
    */
 
-  const economie = Math.max(
-    0,
-    totalNormal - total
-  );
+  const economie =
+    Math.max(
+      0,
+      totalNormal - total
+    );
 
   /**
    * =========================================================
-   * GPS HAUTE PRÉCISION
+   * GPS
    * =========================================================
    */
 
   const recupererPosition =
     useCallback(async () => {
       if (typeof window === "undefined") {
+        return;
+      }
+
+      /**
+       * Empêche deux demandes GPS simultanées.
+       */
+      if (gpsRequestActive.current) {
+        console.log(
+          "Une demande GPS est déjà en cours."
+        );
+
         return;
       }
 
@@ -384,29 +376,34 @@ export default function PagePanier() {
         "geolocation" in navigator;
 
       /**
-       * Arrêter une éventuelle recherche
-       * précédente.
-       */
-      nettoyerGps();
-
-      /**
-       * Diagnostic.
+       * Diagnostic
        */
       setGpsDebug((previous) => ({
         ...previous,
-        url: window.location.href,
+
+        url:
+          window.location.href,
+
         protocol:
           window.location.protocol,
+
         secure,
+
         geolocation,
+
         device:
           appareil.device,
+
         browser:
           appareil.browser,
       }));
 
       console.log(
-        "========== GPS CLIENT =========="
+        "================================"
+      );
+
+      console.log(
+        "GPS MarketMali"
       );
 
       console.log(
@@ -415,17 +412,12 @@ export default function PagePanier() {
       );
 
       console.log(
-        "Protocol :",
-        window.location.protocol
-      );
-
-      console.log(
-        "Contexte sécurisé :",
+        "HTTPS :",
         secure
       );
 
       console.log(
-        "Géolocalisation disponible :",
+        "Geolocation :",
         geolocation
       );
 
@@ -440,530 +432,446 @@ export default function PagePanier() {
       );
 
       console.log(
-        "Permission connue :",
-        gpsPermission
-      );
-
-      console.log(
-        "Précision recherchée :",
-        GPS_TARGET_ACCURACY,
-        "m"
-      );
-
-      console.log(
-        "Précision maximale acceptée :",
-        GPS_MAX_ACCEPTED_ACCURACY,
-        "m"
-      );
-
-      console.log(
         "================================"
       );
 
       /**
-       * HTTPS obligatoire.
+       * =====================================================
+       * VÉRIFICATION HTTPS
+       * =====================================================
        */
+
       if (!secure) {
         setLocalisationLoading(false);
-        setLocalisationErrorCode(null);
+
+        setLocalisationErrorCode(
+          null
+        );
 
         setLocalisationError(
-          "La localisation GPS nécessite une connexion sécurisée (HTTPS)."
+          "La localisation GPS nécessite une connexion sécurisée HTTPS. Ouvrez MarketMali avec son adresse HTTPS."
         );
 
         return;
       }
 
       /**
-       * API GPS absente.
+       * =====================================================
+       * VÉRIFICATION GEOLOCATION
+       * =====================================================
        */
+
       if (!geolocation) {
         setLocalisationLoading(false);
-        setLocalisationErrorCode(null);
+
+        setLocalisationErrorCode(
+          null
+        );
 
         setLocalisationError(
-          "La géolocalisation n'est pas disponible sur ce navigateur."
+          "La géolocalisation n'est pas disponible sur ce navigateur. Utilisez Safari ou Chrome."
         );
 
         return;
       }
 
       /**
-       * État initial.
+       * =====================================================
+       * NOUVELLE TENTATIVE
+       * =====================================================
        */
+
+      gpsRequestActive.current =
+        true;
+
       setLocalisationLoading(true);
+
       setLocalisationError("");
-      setLocalisationErrorCode(null);
 
-      /**
-       * Vérification permission.
-       */
-      const permission =
-        await verifierPermissionGPS();
-
-      setGpsDebug((previous) => ({
-        ...previous,
-        permission,
-      }));
-
-      console.log(
-        "Permission GPS :",
-        permission
+      setLocalisationErrorCode(
+        null
       );
 
       /**
-       * Permission refusée.
+       * Nettoyer un ancien timer.
        */
-      if (
-        permission === "denied"
-      ) {
-        setLocalisationLoading(false);
-        setLocalisationErrorCode(1);
 
-        if (
-          appareil.device ===
-          "iPhone / iPad"
-        ) {
-          setLocalisationError(
-            "L'accès à votre position est refusé. Sur iPhone, ouvrez Réglages → Confidentialité et sécurité → Service de localisation → Safari, autorisez la localisation et activez « Localisation précise ». Revenez ensuite ici et appuyez sur Actualiser."
-          );
-        } else if (
-          appareil.device ===
-          "Android"
-        ) {
-          setLocalisationError(
-            "L'accès à votre position est refusé. Autorisez la localisation pour votre navigateur dans les paramètres Android, puis autorisez également la localisation pour ce site."
-          );
-        } else {
-          setLocalisationError(
-            "L'accès à votre position est refusé. Autorisez la localisation pour ce site dans les paramètres de votre navigateur."
-          );
-        }
-
-        return;
+      if (gpsTimeoutRef.current) {
+        clearTimeout(
+          gpsTimeoutRef.current
+        );
       }
 
       /**
        * =====================================================
-       * RECHERCHE GPS
+       * VÉRIFICATION RAPIDE DE LA PERMISSION
        * =====================================================
        *
-       * On utilise watchPosition() afin de permettre au
-       * téléphone d'améliorer progressivement la précision.
+       * IMPORTANT :
+       *
+       * Cette vérification est informative.
+       * Elle NE BLOQUE PAS la demande GPS.
        */
 
-      let meilleurePosition:
-        GeolocationPosition | null =
-        null;
+      void verifierPermissionGPS();
 
-      let terminee = false;
+      /**
+       * =====================================================
+       * TIMER DE SÉCURITÉ
+       * =====================================================
+       *
+       * Si le navigateur ne retourne absolument rien
+       * après 20 secondes, on débloque l'interface.
+       */
 
-      const terminerAvecErreur = (
-        code: number,
-        message: string
-      ) => {
-        if (terminee) {
-          return;
-        }
-
-        terminee = true;
-
-        nettoyerGps();
-
-        setLocalisationLoading(false);
-        setLocalisationErrorCode(code);
-        setLocalisationError(message);
-      };
-
-      const validerPosition = (
-        position: GeolocationPosition
-      ) => {
-        if (terminee) {
-          return;
-        }
-
-        const lat =
-          position.coords.latitude;
-
-        const lng =
-          position.coords.longitude;
-
-        const accuracy =
-          position.coords.accuracy;
-
-        console.log(
-          "========== NOUVELLE POSITION =========="
-        );
-
-        console.log(
-          "Latitude :",
-          lat
-        );
-
-        console.log(
-          "Longitude :",
-          lng
-        );
-
-        console.log(
-          "Précision :",
-          accuracy,
-          "m"
-        );
-
-        console.log(
-          "========================================"
-        );
-
-        /**
-         * Position invalide.
-         */
-        if (
-          !Number.isFinite(lat) ||
-          !Number.isFinite(lng) ||
-          !Number.isFinite(accuracy)
-        ) {
-          return;
-        }
-
-        /**
-         * On conserve uniquement la meilleure
-         * précision obtenue.
-         */
-        if (
-          meilleurePosition === null ||
-          accuracy <
-            meilleurePosition.coords.accuracy
-        ) {
-          meilleurePosition =
-            position;
-        }
-
-        const meilleurePrecision =
-          meilleurePosition.coords.accuracy;
-
-        console.log(
-          "Meilleure précision actuelle :",
-          meilleurePrecision,
-          "m"
-        );
-
-        /**
-         * Position suffisamment précise.
-         *
-         * Dès que nous sommes à 50 m ou moins,
-         * nous arrêtons la surveillance.
-         */
-        if (
-          meilleurePrecision <=
-          GPS_TARGET_ACCURACY
-        ) {
-          terminee = true;
-
-          nettoyerGps();
-
-          const meilleureLat =
-            meilleurePosition.coords
-              .latitude;
-
-          const meilleureLng =
-            meilleurePosition.coords
-              .longitude;
-
-          const meilleureAccuracy =
-            meilleurePosition.coords
-              .accuracy;
-
-          setLatitude(
-            meilleureLat
+      gpsTimeoutRef.current =
+        setTimeout(() => {
+          console.warn(
+            "GPS : timeout de sécurité MarketMali."
           );
 
-          setLongitude(
-            meilleureLng
+          gpsRequestActive.current =
+            false;
+
+          setLocalisationLoading(
+            false
           );
+
+          setLocalisationErrorCode(
+            3
+          );
+
+          if (
+            appareil.device ===
+            "iPhone / iPad"
+          ) {
+            setLocalisationError(
+              "La recherche de votre position prend trop de temps. Vérifiez que le Service de localisation est activé pour Safari et que « Localisation précise » est autorisée, puis appuyez sur Actualiser."
+            );
+          } else {
+            setLocalisationError(
+              "La recherche de votre position prend trop de temps. Vérifiez que la localisation GPS est activée, puis appuyez sur Actualiser."
+            );
+          }
+        }, 20000);
+
+      /**
+       * =====================================================
+       * DEMANDE RÉELLE DE POSITION
+       * =====================================================
+       */
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log(
+            "========== GPS SUCCÈS =========="
+          );
+
+          console.log(
+            "Latitude :",
+            position.coords.latitude
+          );
+
+          console.log(
+            "Longitude :",
+            position.coords.longitude
+          );
+
+          console.log(
+            "Précision :",
+            position.coords.accuracy,
+            "m"
+          );
+
+          console.log(
+            "Source altitude :",
+            position.coords.altitude
+          );
+
+          console.log(
+            "================================"
+          );
+
+          /**
+           * Nettoyage timer.
+           */
+
+          if (gpsTimeoutRef.current) {
+            clearTimeout(
+              gpsTimeoutRef.current
+            );
+
+            gpsTimeoutRef.current =
+              null;
+          }
+
+          gpsRequestActive.current =
+            false;
+
+          const lat =
+            Number(
+              position.coords.latitude
+            );
+
+          const lng =
+            Number(
+              position.coords.longitude
+            );
+
+          const accuracy =
+            Number(
+              position.coords.accuracy
+            );
+
+          /**
+           * Vérification coordonnées.
+           */
+
+          if (
+            !Number.isFinite(lat) ||
+            !Number.isFinite(lng)
+          ) {
+            setLocalisationLoading(
+              false
+            );
+
+            setLocalisationErrorCode(
+              2
+            );
+
+            setLocalisationError(
+              "Le navigateur a retourné une position GPS invalide. Veuillez réessayer."
+            );
+
+            return;
+          }
+
+          /**
+           * Sauvegarde position.
+           */
+
+          setLatitude(lat);
+
+          setLongitude(lng);
 
           setGpsPrecision(
-            meilleureAccuracy
+            Number.isFinite(accuracy)
+              ? accuracy
+              : null
           );
 
           setGpsPermission(
             "granted"
           );
 
-          setGpsDebug((previous) => ({
-            ...previous,
-            permission: "granted",
-          }));
+          setGpsDebug(
+            (previous) => ({
+              ...previous,
 
-          setLocalisationError("");
+              permission:
+                "granted",
+            })
+          );
+
+          setLocalisationError(
+            "");
+
           setLocalisationErrorCode(
             null
           );
+
+          setLocalisationLoading(
+            false
+          );
+        },
+
+        (error) => {
+          console.error(
+            "========== GPS ERREUR =========="
+          );
+
+          console.error(
+            "Code :",
+            error.code
+          );
+
+          console.error(
+            "Message :",
+            error.message
+          );
+
+          console.error(
+            "Appareil :",
+            appareil.device
+          );
+
+          console.error(
+            "Navigateur :",
+            appareil.browser
+          );
+
+          console.error(
+            "================================"
+          );
+
+          /**
+           * Nettoyage.
+           */
+
+          if (gpsTimeoutRef.current) {
+            clearTimeout(
+              gpsTimeoutRef.current
+            );
+
+            gpsTimeoutRef.current =
+              null;
+          }
+
+          gpsRequestActive.current =
+            false;
+
           setLocalisationLoading(
             false
           );
 
-          console.log(
-            "GPS VALIDÉ — précision :",
-            meilleureAccuracy,
-            "m"
+          setLocalisationErrorCode(
+            error.code
           );
-
-          return;
-        }
-      };
-
-      /**
-       * Démarrage surveillance.
-       */
-      try {
-        gpsWatchId.current =
-          navigator.geolocation.watchPosition(
-            (position) => {
-              validerPosition(
-                position
-              );
-            },
-
-            (error) => {
-              console.error(
-                "========== GPS ERREUR =========="
-              );
-
-              console.error(
-                "Code :",
-                error.code
-              );
-
-              console.error(
-                "Message :",
-                error.message
-              );
-
-              console.error(
-                "Appareil :",
-                appareil.device
-              );
-
-              console.error(
-                "Navigateur :",
-                appareil.browser
-              );
-
-              console.error(
-                "================================"
-              );
-
-              /**
-               * Permission refusée.
-               */
-              if (
-                error.code === 1
-              ) {
-                terminerAvecErreur(
-                  1,
-                  appareil.device ===
-                    "iPhone / iPad"
-                    ? "L'accès à votre position a été refusé. Sur iPhone, vérifiez Réglages → Confidentialité et sécurité → Service de localisation → Safari et activez « Localisation précise »."
-                    : appareil.device ===
-                        "Android"
-                      ? "L'accès à votre position a été refusé. Autorisez la localisation pour votre navigateur et pour ce site dans les paramètres Android."
-                      : "L'accès à votre position a été refusé par le navigateur. Autorisez la localisation pour ce site."
-                );
-
-                setGpsPermission(
-                  "denied"
-                );
-
-                return;
-              }
-
-              /**
-               * Pour les erreurs 2 et 3, on ne coupe
-               * pas immédiatement la recherche.
-               *
-               * Le téléphone peut encore réussir à
-               * déterminer sa position.
-               */
-              if (
-                error.code === 2
-              ) {
-                console.warn(
-                  "Position momentanément indisponible. Nouvelle tentative automatique..."
-                );
-
-                return;
-              }
-
-              if (
-                error.code === 3
-              ) {
-                console.warn(
-                  "GPS trop lent. Nous continuons la recherche..."
-                );
-
-                return;
-              }
-
-              terminerAvecErreur(
-                error.code,
-                "Impossible de récupérer votre position GPS. Vérifiez les paramètres de localisation de votre téléphone puis réessayez."
-              );
-            },
-
-            {
-              /**
-               * IMPORTANT :
-               * demande explicitement la meilleure
-               * précision disponible.
-               */
-              enableHighAccuracy:
-                true,
-
-              /**
-               * 30 secondes maximum par tentative.
-               */
-              timeout:
-                GPS_TIMEOUT,
-
-              /**
-               * Aucune ancienne position.
-               *
-               * Nous voulons une position fraîche.
-               */
-              maximumAge: 0,
-            }
-          );
-      } catch (error) {
-        console.error(
-          "Erreur démarrage GPS :",
-          error
-        );
-
-        terminerAvecErreur(
-          2,
-          "Impossible de démarrer la localisation GPS. Vérifiez que la localisation est activée sur votre téléphone."
-        );
-
-        return;
-      }
-
-      /**
-       * =====================================================
-       * FIN DE RECHERCHE APRÈS 30 SECONDES
-       * =====================================================
-       */
-
-      gpsTimeoutRef.current =
-        setTimeout(() => {
-          if (terminee) {
-            return;
-          }
-
-          terminee = true;
-
-          nettoyerGps();
 
           /**
-           * Nous avons obtenu au moins une position.
+           * =================================================
+           * ERREUR 1
+           * PERMISSION REFUSÉE
+           * =================================================
            */
-          if (
-            meilleurePosition !== null
-          ) {
-            const accuracy =
-              meilleurePosition.coords
-                .accuracy;
 
-            const lat =
-              meilleurePosition.coords
-                .latitude;
-
-            const lng =
-              meilleurePosition.coords
-                .longitude;
-
-            console.log(
-              "Fin du délai GPS."
+          if (error.code === 1) {
+            setGpsPermission(
+              "denied"
             );
 
-            console.log(
-              "Meilleure précision :",
-              accuracy,
-              "m"
+            setGpsDebug(
+              (previous) => ({
+                ...previous,
+
+                permission:
+                  "denied",
+              })
             );
 
-            /**
-             * Position suffisamment correcte.
-             */
             if (
-              accuracy <=
-              GPS_MAX_ACCEPTED_ACCURACY
+              appareil.device ===
+              "iPhone / iPad"
             ) {
-              setLatitude(lat);
-              setLongitude(lng);
-              setGpsPrecision(
-                accuracy
-              );
-
-              setGpsPermission(
-                "granted"
-              );
-
-              setGpsDebug(
-                (previous) => ({
-                  ...previous,
-                  permission:
-                    "granted",
-                })
-              );
-
               setLocalisationError(
-                ""
+                "L'accès à votre position a été refusé. Sur iPhone, ouvrez Réglages → Confidentialité et sécurité → Service de localisation → Safari. Autorisez la localisation et activez « Localisation précise », puis revenez sur MarketMali et appuyez sur Actualiser."
               );
-
-              setLocalisationErrorCode(
-                null
+            } else if (
+              appareil.device ===
+              "Android"
+            ) {
+              setLocalisationError(
+                "L'accès à votre position a été refusé. Autorisez la localisation pour votre navigateur dans les paramètres Android, puis revenez sur MarketMali et appuyez sur Actualiser."
               );
-
-              setLocalisationLoading(
-                false
+            } else {
+              setLocalisationError(
+                "L'accès à votre position a été refusé. Autorisez la localisation pour ce site dans les paramètres du navigateur, puis appuyez sur Actualiser."
               );
-
-              return;
             }
 
-            /**
-             * Position beaucoup trop imprécise.
-             */
-            terminerAvecErreur(
-              2,
-              `La position obtenue est trop imprécise (${Math.round(
-                accuracy
-              )} m). Activez la localisation précise sur votre téléphone, placez-vous dans un endroit où le GPS capte mieux, puis appuyez sur Actualiser.`
+            return;
+          }
+
+          /**
+           * =================================================
+           * ERREUR 2
+           * POSITION INDISPONIBLE
+           * =================================================
+           */
+
+          if (error.code === 2) {
+            setLocalisationError(
+              "Votre position est actuellement indisponible. Vérifiez que la localisation GPS est activée sur votre téléphone et réessayez."
             );
 
             return;
           }
 
           /**
-           * Aucune position obtenue.
+           * =================================================
+           * ERREUR 3
+           * TIMEOUT
+           * =================================================
            */
-          terminerAvecErreur(
-            3,
-            "La récupération de votre position a pris trop de temps. Vérifiez que le GPS/localisation est activé, puis appuyez sur Actualiser."
+
+          if (error.code === 3) {
+            setLocalisationError(
+              "La récupération de votre position a pris trop de temps. Vérifiez votre signal GPS, activez la localisation précise si disponible, puis appuyez sur Actualiser."
+            );
+
+            return;
+          }
+
+          /**
+           * =================================================
+           * ERREUR INCONNUE
+           * =================================================
+           */
+
+          setLocalisationError(
+            "Impossible de récupérer votre position. Vérifiez les paramètres de localisation de votre appareil, puis réessayez."
           );
-        }, GPS_TIMEOUT);
-    },
-    [
+        },
+
+        {
+          /**
+           * IMPORTANT :
+           *
+           * true demande au navigateur de privilégier
+           * la meilleure précision disponible.
+           *
+           * C'est particulièrement important pour le
+           * client lorsque la position doit servir à la
+           * livraison.
+           */
+          enableHighAccuracy: true,
+
+          /**
+           * Timeout navigateur.
+           */
+          timeout: 15000,
+
+          /**
+           * Pour une commande, on préfère une nouvelle
+           * position plutôt qu'une ancienne position.
+           */
+          maximumAge: 0,
+        }
+      );
+    }, [
       detecterAppareil,
-      gpsPermission,
-      nettoyerGps,
       verifierPermissionGPS,
     ]);
 
   /**
    * =========================================================
-   * RÉCUPÉRATION AUTOMATIQUE
+   * NETTOYAGE GPS
+   * =========================================================
+   */
+
+  useEffect(() => {
+    return () => {
+      if (gpsTimeoutRef.current) {
+        clearTimeout(
+          gpsTimeoutRef.current
+        );
+      }
+    };
+  }, []);
+
+  /**
+   * =========================================================
+   * GPS AUTOMATIQUE
    * =========================================================
    */
 
@@ -977,24 +885,20 @@ export default function PagePanier() {
     localisationAutomatique.current =
       true;
 
-    void recupererPosition();
+    /**
+     * Petit délai pour laisser Safari/Chrome
+     * terminer l'initialisation de la page.
+     */
+
+    const timer =
+      setTimeout(() => {
+        void recupererPosition();
+      }, 300);
 
     return () => {
-      nettoyerGps();
+      clearTimeout(timer);
     };
-  }, [
-    recupererPosition,
-    nettoyerGps,
-  ]);
-
-  /**
-   * Nettoyage lorsque la page est démontée.
-   */
-  useEffect(() => {
-    return () => {
-      nettoyerGps();
-    };
-  }, [nettoyerGps]);
+  }, [recupererPosition]);
 
   /**
    * =========================================================
@@ -1085,9 +989,7 @@ export default function PagePanier() {
         setTarifsLivraison([]);
       } finally {
         if (actif) {
-          setTarifsLoading(
-            false
-          );
+          setTarifsLoading(false);
         }
       }
     }
@@ -1189,15 +1091,16 @@ export default function PagePanier() {
             body: JSON.stringify({
               boutique_id,
 
-              produits: items.map(
-                (item) => ({
-                  produit_id:
-                    item.produit_id,
+              produits:
+                items.map(
+                  (item) => ({
+                    produit_id:
+                      item.produit_id,
 
-                  quantite:
-                    item.quantity,
-                })
-              ),
+                    quantite:
+                      item.quantity,
+                  })
+                ),
 
               zone_livraison:
                 zoneLivraison,
@@ -1280,31 +1183,15 @@ export default function PagePanier() {
             </h1>
 
             <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
-              Découvrez nos produits et ajoutez
-              vos articles préférés à votre panier
-              pour commencer vos achats.
+              Découvrez nos produits et
+              ajoutez vos articles préférés
+              à votre panier pour commencer
+              vos achats.
             </p>
 
             <Link
               href="/produits"
-              className="
-                mt-7
-                inline-flex
-                items-center
-                justify-center
-                gap-2
-                rounded-xl
-                bg-[#14a800]
-                px-6
-                py-3
-                text-sm
-                font-bold
-                text-white
-                shadow-sm
-                transition
-                hover:bg-[#108f00]
-                hover:shadow-md
-              "
+              className="mt-7 inline-flex items-center justify-center gap-2 rounded-xl bg-[#14a800] px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#108f00] hover:shadow-md"
             >
               <ShoppingBag size={17} />
               Découvrir les produits
@@ -1315,12 +1202,6 @@ export default function PagePanier() {
     );
   }
 
-  /**
-   * =========================================================
-   * TARIF SÉLECTIONNÉ
-   * =========================================================
-   */
-
   const tarifSelectionne =
     tarifsLivraison.find(
       (tarif) =>
@@ -1328,28 +1209,14 @@ export default function PagePanier() {
         zoneLivraison
     );
 
-  /**
-   * =========================================================
-   * TOTAL GÉNÉRAL
-   * =========================================================
-   */
-
   const totalGeneral =
     total + tarifLivraison;
-
-  /**
-   * =========================================================
-   * PAGE
-   * =========================================================
-   */
 
   return (
     <main className="min-h-screen bg-[#f7f8fa]">
       <Navbar />
 
-      {/* =====================================================
-          HERO
-      ====================================================== */}
+      {/* HERO */}
 
       <section className="border-b border-gray-100 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -1377,25 +1244,7 @@ export default function PagePanier() {
 
             <Link
               href="/produits"
-              className="
-                inline-flex
-                w-fit
-                items-center
-                gap-2
-                rounded-xl
-                border
-                border-gray-200
-                bg-white
-                px-4
-                py-2.5
-                text-sm
-                font-bold
-                text-gray-700
-                transition
-                hover:border-[#14a800]/30
-                hover:bg-[#14a800]/5
-                hover:text-[#14a800]
-              "
+              className="inline-flex w-fit items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-[#14a800]/30 hover:bg-[#14a800]/5 hover:text-[#14a800]"
             >
               <ArrowLeft size={16} />
               Continuer mes achats
@@ -1410,16 +1259,12 @@ export default function PagePanier() {
         </div>
       </section>
 
-      {/* =====================================================
-          CONTENU
-      ====================================================== */}
+      {/* CONTENU */}
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
 
-          {/* =================================================
-              ARTICLES
-          ================================================== */}
+          {/* ARTICLES */}
 
           <div className="space-y-5">
             <div className="flex items-center justify-between">
@@ -1440,20 +1285,7 @@ export default function PagePanier() {
               <button
                 type="button"
                 onClick={clearCart}
-                className="
-                  inline-flex
-                  items-center
-                  gap-1.5
-                  rounded-lg
-                  px-3
-                  py-2
-                  text-xs
-                  font-bold
-                  text-red-500
-                  transition
-                  hover:bg-red-50
-                  hover:text-red-600
-                "
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-red-500 transition hover:bg-red-50 hover:text-red-600"
               >
                 <Trash2 size={14} />
                 Vider
@@ -1491,29 +1323,13 @@ export default function PagePanier() {
               return (
                 <div
                   key={item.uuid}
-                  className="
-                    overflow-hidden
-                    rounded-2xl
-                    border
-                    border-gray-100
-                    bg-white
-                    shadow-sm
-                  "
+                  className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
                 >
                   <div className="flex gap-4 p-4 sm:p-5">
+
                     <Link
                       href={`/produits/${item.uuid}`}
-                      className="
-                        relative
-                        h-24
-                        w-24
-                        shrink-0
-                        overflow-hidden
-                        rounded-xl
-                        bg-gray-50
-                        sm:h-28
-                        sm:w-28
-                      "
+                      className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-50 sm:h-28 sm:w-28"
                     >
                       {item.image ? (
                         <img
@@ -1607,20 +1423,7 @@ export default function PagePanier() {
                               item.quantity <=
                               1
                             }
-                            aria-label="Diminuer la quantité"
-                            className="
-                              flex
-                              h-9
-                              w-9
-                              items-center
-                              justify-center
-                              text-gray-500
-                              transition
-                              hover:bg-gray-50
-                              hover:text-[#14a800]
-                              disabled:cursor-not-allowed
-                              disabled:opacity-40
-                            "
+                            className="flex h-9 w-9 items-center justify-center text-gray-500 transition hover:bg-gray-50 hover:text-[#14a800] disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <Minus size={15} />
                           </button>
@@ -1640,20 +1443,7 @@ export default function PagePanier() {
                               item.quantity >=
                               item.stock
                             }
-                            aria-label="Augmenter la quantité"
-                            className="
-                              flex
-                              h-9
-                              w-9
-                              items-center
-                              justify-center
-                              text-gray-500
-                              transition
-                              hover:bg-gray-50
-                              hover:text-[#14a800]
-                              disabled:cursor-not-allowed
-                              disabled:opacity-40
-                            "
+                            className="flex h-9 w-9 items-center justify-center text-gray-500 transition hover:bg-gray-50 hover:text-[#14a800] disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <Plus size={15} />
                           </button>
@@ -1666,19 +1456,7 @@ export default function PagePanier() {
                               item.uuid
                             )
                           }
-                          className="
-                            inline-flex
-                            items-center
-                            gap-1.5
-                            rounded-lg
-                            px-2
-                            py-1.5
-                            text-xs
-                            font-semibold
-                            text-red-500
-                            transition
-                            hover:bg-red-50
-                          "
+                          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50"
                         >
                           <Trash2 size={14} />
                           Supprimer
@@ -1722,9 +1500,7 @@ export default function PagePanier() {
               );
             })}
 
-            {/* =================================================
-                LIVRAISON
-            ================================================== */}
+            {/* LIVRAISON */}
 
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
               <div className="flex items-start gap-3">
@@ -1776,23 +1552,7 @@ export default function PagePanier() {
                         event.target.value
                       )
                     }
-                    className="
-                      h-12
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-white
-                      px-4
-                      text-sm
-                      font-medium
-                      text-gray-700
-                      outline-none
-                      transition
-                      focus:border-[#14a800]
-                      focus:ring-4
-                      focus:ring-[#14a800]/10
-                    "
+                    className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 outline-none transition focus:border-[#14a800] focus:ring-4 focus:ring-[#14a800]/10"
                   >
                     <option value="">
                       Sélectionnez votre zone
@@ -1819,9 +1579,7 @@ export default function PagePanier() {
               </div>
             </div>
 
-            {/* =================================================
-                LOCALISATION
-            ================================================== */}
+            {/* LOCALISATION */}
 
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1836,8 +1594,9 @@ export default function PagePanier() {
                     </h2>
 
                     <p className="mt-1 text-xs leading-5 text-gray-500 sm:text-sm">
-                      Votre position GPS permettra de
-                      faciliter la livraison.
+                      Votre position GPS précise
+                      permettra de faciliter la
+                      livraison.
                     </p>
                   </div>
                 </div>
@@ -1850,27 +1609,7 @@ export default function PagePanier() {
                   disabled={
                     localisationLoading
                   }
-                  className="
-                    inline-flex
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-white
-                    px-4
-                    py-2.5
-                    text-xs
-                    font-bold
-                    text-gray-700
-                    transition
-                    hover:border-[#14a800]/30
-                    hover:bg-[#14a800]/5
-                    hover:text-[#14a800]
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
-                  "
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-700 transition hover:border-[#14a800]/30 hover:bg-[#14a800]/5 hover:text-[#14a800] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {localisationLoading ? (
                     <Loader2
@@ -1878,9 +1617,7 @@ export default function PagePanier() {
                       className="animate-spin"
                     />
                   ) : (
-                    <RefreshCw
-                      size={15}
-                    />
+                    <RefreshCw size={15} />
                   )}
 
                   {localisationLoading
@@ -1889,17 +1626,41 @@ export default function PagePanier() {
                 </button>
               </div>
 
-              {/* =================================================
-                  ADRESSE
-              ================================================== */}
+              {/* MESSAGE PENDANT GPS */}
+
+              {localisationLoading && (
+                <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <Loader2
+                      size={20}
+                      className="mt-0.5 shrink-0 animate-spin text-blue-600"
+                    />
+
+                    <div>
+                      <p className="text-sm font-bold text-blue-800">
+                        Recherche de votre position
+                        GPS précise en cours...
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-blue-700">
+                        Gardez la page ouverte quelques
+                        secondes. Votre navigateur
+                        recherche la meilleure position
+                        disponible.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ADRESSE */}
 
               <div className="mt-5">
                 <label
                   htmlFor="adresse"
                   className="mb-2 block text-xs font-bold text-gray-700"
                 >
-                  Adresse / indication de
-                  livraison
+                  Adresse / indication de livraison
                 </label>
 
                 <textarea
@@ -1912,31 +1673,11 @@ export default function PagePanier() {
                   }
                   placeholder="Ex : Hamdallaye ACI 2000, près de..., porte..."
                   rows={3}
-                  className="
-                    w-full
-                    resize-none
-                    rounded-xl
-                    border
-                    border-gray-200
-                    bg-gray-50
-                    px-4
-                    py-3
-                    text-sm
-                    text-gray-900
-                    outline-none
-                    transition
-                    placeholder:text-gray-400
-                    focus:border-[#14a800]
-                    focus:bg-white
-                    focus:ring-4
-                    focus:ring-[#14a800]/10
-                  "
+                  className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#14a800] focus:bg-white focus:ring-4 focus:ring-[#14a800]/10"
                 />
               </div>
 
-              {/* =================================================
-                  POSITION
-              ================================================== */}
+              {/* POSITION RÉCUPÉRÉE */}
 
               {latitude !== null &&
               longitude !== null ? (
@@ -1948,7 +1689,7 @@ export default function PagePanier() {
                     />
 
                     <span className="text-sm font-bold text-green-800">
-                      Position récupérée
+                      Position GPS récupérée
                     </span>
                   </div>
 
@@ -1978,54 +1719,36 @@ export default function PagePanier() {
                         : "-"}
                     </div>
                   </div>
-
-                  <div className="mt-3 rounded-lg bg-white/70 px-3 py-2">
-                    <p className="text-[11px] font-semibold text-green-700">
-                      {gpsPrecision !==
-                        null &&
-                      gpsPrecision <= 20
-                        ? "Excellente précision GPS"
-                        : gpsPrecision !==
-                              null &&
-                            gpsPrecision <= 50
-                          ? "Très bonne précision GPS"
-                          : gpsPrecision !==
-                                null &&
-                              gpsPrecision <=
-                                100
-                            ? "Bonne précision GPS"
-                            : "Précision GPS acceptable"}
-                    </p>
-                  </div>
                 </div>
               ) : (
-                <div className="mt-5 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
-                  <MapPin
-                    size={18}
-                    className="mt-0.5 shrink-0 text-yellow-600"
-                  />
+                !localisationLoading && (
+                  <div className="mt-5 flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+                    <MapPin
+                      size={18}
+                      className="mt-0.5 shrink-0 text-yellow-600"
+                    />
 
-                  <div>
-                    <p className="text-xs leading-5 text-yellow-800 sm:text-sm">
-                      {localisationLoading
-                        ? "Recherche de votre position GPS précise en cours..."
-                        : "Votre position n'a pas encore été récupérée. Autorisez la géolocalisation puis appuyez sur « Actualiser »."}
-                    </p>
-
-                    {gpsPermission ===
-                      "denied" && (
-                      <p className="mt-2 text-xs font-bold text-yellow-900">
-                        La permission de localisation
-                        est actuellement refusée.
+                    <div>
+                      <p className="text-xs leading-5 text-yellow-800 sm:text-sm">
+                        Votre position n'a pas
+                        encore été récupérée.
+                        Autorisez la géolocalisation
+                        puis appuyez sur « Actualiser ».
                       </p>
-                    )}
+
+                      {gpsPermission ===
+                        "denied" && (
+                        <p className="mt-2 text-xs font-bold text-yellow-900">
+                          La permission de localisation
+                          est actuellement refusée.
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )
               )}
 
-              {/* =================================================
-                  ERREUR GPS
-              ================================================== */}
+              {/* ERREUR */}
 
               {localisationError && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -2057,7 +1780,7 @@ export default function PagePanier() {
 
                             {localisationErrorCode ===
                               2 &&
-                              "Position indisponible ou trop imprécise"}
+                              "Position indisponible"}
 
                             {localisationErrorCode ===
                               3 &&
@@ -2066,7 +1789,7 @@ export default function PagePanier() {
                         </div>
                       )}
 
-                      <button
+                                            <button
                         type="button"
                         onClick={() =>
                           void recupererPosition()
@@ -2074,26 +1797,7 @@ export default function PagePanier() {
                         disabled={
                           localisationLoading
                         }
-                        className="
-                          mt-3
-                          inline-flex
-                          items-center
-                          gap-2
-                          rounded-lg
-                          bg-white
-                          px-3
-                          py-2
-                          text-xs
-                          font-bold
-                          text-red-700
-                          shadow-sm
-                          ring-1
-                          ring-red-200
-                          transition
-                          hover:bg-red-50
-                          disabled:cursor-not-allowed
-                          disabled:opacity-50
-                        "
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-red-700 shadow-sm ring-1 ring-red-200 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <RefreshCw
                           size={14}
@@ -2105,9 +1809,7 @@ export default function PagePanier() {
                 </div>
               )}
 
-              {/* =================================================
-                  DIAGNOSTIC GPS
-              ================================================== */}
+              {/* DIAGNOSTIC */}
 
               {gpsDebug.url && (
                 <details className="mt-4 overflow-hidden rounded-xl border border-blue-200 bg-blue-50">
@@ -2118,9 +1820,7 @@ export default function PagePanier() {
                   <div className="border-t border-blue-200 px-4 py-3">
                     <div className="space-y-1.5 text-xs text-blue-700">
                       <p className="break-all">
-                        <strong>
-                          URL :
-                        </strong>{" "}
+                        <strong>URL :</strong>{" "}
                         {gpsDebug.url}
                       </p>
 
@@ -2170,37 +1870,15 @@ export default function PagePanier() {
                         {gpsDebug.permission}
                       </p>
 
-                      <p>
-                        <strong>
-                          Précision cible :
-                        </strong>{" "}
-                        ≤{" "}
-                        {
-                          GPS_TARGET_ACCURACY
-                        }{" "}
-                        m
-                      </p>
-
-                      <p>
-                        <strong>
-                          Précision maximale :
-                        </strong>{" "}
-                        {
-                          GPS_MAX_ACCEPTED_ACCURACY
-                        }{" "}
-                        m
-                      </p>
-
-                      {gpsPrecision !==
-                        null && (
+                      {gpsPrecision !== null && (
                         <p>
                           <strong>
-                            Dernière précision :
+                            Précision obtenue :
                           </strong>{" "}
                           {Math.round(
                             gpsPrecision
                           )}{" "}
-                          m
+                          mètres
                         </p>
                       )}
                     </div>
@@ -2210,9 +1888,7 @@ export default function PagePanier() {
             </div>
           </div>
 
-          {/* =================================================
-              RÉCAPITULATIF
-          ================================================== */}
+          {/* RÉCAPITULATIF */}
 
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
@@ -2330,27 +2006,7 @@ export default function PagePanier() {
                     !zoneLivraison ||
                     tarifsLoading
                   }
-                  className="
-                    mt-6
-                    flex
-                    w-full
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-xl
-                    bg-[#14a800]
-                    px-5
-                    py-3.5
-                    text-sm
-                    font-bold
-                    text-white
-                    shadow-sm
-                    transition
-                    hover:bg-[#108f00]
-                    hover:shadow-md
-                    disabled:cursor-not-allowed
-                    disabled:opacity-50
-                  "
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#14a800] px-5 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#108f00] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? (
                     <>
