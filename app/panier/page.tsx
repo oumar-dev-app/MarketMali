@@ -65,6 +65,16 @@ export default function PagePanier() {
   const [localisationError, setLocalisationError] =
     useState("");
 
+  /**
+   * Code d'erreur GPS :
+   *
+   * 1 = Permission refusée
+   * 2 = Position indisponible
+   * 3 = Timeout
+   */
+  const [localisationErrorCode, setLocalisationErrorCode] =
+    useState<number | null>(null);
+
   const [latitude, setLatitude] =
     useState<number | null>(null);
 
@@ -83,7 +93,9 @@ export default function PagePanier() {
    * =========================================================
    */
 
-  function getPrixFinal(item: (typeof items)[number]): number {
+  function getPrixFinal(
+    item: (typeof items)[number]
+  ): number {
     const prix = Number(item.prix);
 
     if (!Number.isFinite(prix)) {
@@ -135,8 +147,11 @@ export default function PagePanier() {
   }
 
   /**
-   * Total du panier sans promotion
+   * =========================================================
+   * TOTAL PANIER SANS PROMOTION
+   * =========================================================
    */
+
   const totalNormal = items.reduce(
     (sum, item) =>
       sum + Number(item.prix) * item.quantity,
@@ -144,8 +159,11 @@ export default function PagePanier() {
   );
 
   /**
-   * Économie réalisée grâce aux promotions
+   * =========================================================
+   * ÉCONOMIE
+   * =========================================================
    */
+
   const economie = Math.max(
     0,
     totalNormal - total
@@ -158,21 +176,47 @@ export default function PagePanier() {
    */
 
   const recupererPosition = () => {
+    /**
+     * Sécurité côté navigateur
+     */
     if (typeof window === "undefined") {
       return;
     }
 
+    /**
+     * Vérification de la disponibilité
+     * de la géolocalisation
+     */
     if (!navigator.geolocation) {
       setLocalisationError(
         "La géolocalisation n'est pas supportée par votre navigateur."
       );
+
+      setLocalisationErrorCode(null);
+
       return;
     }
 
+    /**
+     * État de chargement
+     */
     setLocalisationLoading(true);
-    setLocalisationError("");
 
+    /**
+     * Réinitialisation des anciennes erreurs
+     */
+    setLocalisationError("");
+    setLocalisationErrorCode(null);
+
+    /**
+     * Demande de position
+     */
     navigator.geolocation.getCurrentPosition(
+      /**
+       * =====================================================
+       * SUCCÈS
+       * =====================================================
+       */
       (position) => {
         const {
           latitude: lat,
@@ -184,34 +228,74 @@ export default function PagePanier() {
         setLongitude(lng);
         setGpsPrecision(accuracy);
 
+        /**
+         * Nettoyage des erreurs précédentes
+         */
+        setLocalisationError("");
+        setLocalisationErrorCode(null);
+
         setLocalisationLoading(false);
       },
 
+      /**
+       * =====================================================
+       * ERREUR
+       * =====================================================
+       */
       (error) => {
-        console.error("Erreur géolocalisation :", {
-          code: error.code,
-          message: error.message,
-        });
+        /**
+         * Log console pour le développement
+         */
+        console.error(
+          "Erreur géolocalisation :",
+          {
+            code: error.code,
+            message: error.message,
+          }
+        );
 
+        /**
+         * Sauvegarde du code pour l'afficher
+         * directement sur le téléphone.
+         */
+        setLocalisationErrorCode(
+          error.code
+        );
+
+        /**
+         * Message utilisateur
+         */
         switch (error.code) {
+          /**
+           * Permission refusée
+           */
           case error.PERMISSION_DENIED:
             setLocalisationError(
               "L'accès à votre position a été refusé. Autorisez la localisation dans les réglages de votre navigateur."
             );
             break;
 
+          /**
+           * Position indisponible
+           */
           case error.POSITION_UNAVAILABLE:
             setLocalisationError(
               "Votre position est actuellement indisponible. Vérifiez que les services de localisation sont activés."
             );
             break;
 
+          /**
+           * Timeout
+           */
           case error.TIMEOUT:
             setLocalisationError(
               "La récupération de votre position a pris trop de temps. Réessayez."
             );
             break;
 
+          /**
+           * Autre erreur
+           */
           default:
             setLocalisationError(
               "Impossible de récupérer votre position. Réessayez."
@@ -221,6 +305,11 @@ export default function PagePanier() {
         setLocalisationLoading(false);
       },
 
+      /**
+       * =====================================================
+       * OPTIONS GPS
+       * =====================================================
+       */
       {
         enableHighAccuracy: true,
         timeout: 20000,
@@ -229,11 +318,13 @@ export default function PagePanier() {
     );
   };
 
-  /*   useEffect(() => {
-      if (items.length > 0) {
-        recupererPosition();
-      }
-    }, [items.length]); */
+  /**
+   * IMPORTANT :
+   * Aucun appel automatique à recupererPosition().
+   *
+   * La géolocalisation est uniquement déclenchée
+   * lorsque l'utilisateur appuie sur "Actualiser".
+   */
 
   /**
    * =========================================================
@@ -246,6 +337,7 @@ export default function PagePanier() {
       setTarifsLivraison([]);
       setZoneLivraison("");
       setTarifLivraison(0);
+
       return;
     }
 
@@ -273,7 +365,7 @@ export default function PagePanier() {
         ) {
           throw new Error(
             data.message ||
-            "Impossible de récupérer les tarifs."
+              "Impossible de récupérer les tarifs."
           );
         }
 
@@ -310,7 +402,7 @@ export default function PagePanier() {
 
   /**
    * =========================================================
-   * TARIF DE LA ZONE SÉLECTIONNÉE
+   * TARIF ZONE SÉLECTIONNÉE
    * =========================================================
    */
 
@@ -333,27 +425,40 @@ export default function PagePanier() {
 
   /**
    * =========================================================
-   * COMMANDE
+   * PASSER COMMANDE
    * =========================================================
    */
 
   async function passerCommande() {
+    /**
+     * Vérification authentification
+     */
     if (!token || !user) {
       router.push("/login");
       return;
     }
 
+    /**
+     * Vérification rôle
+     */
     if (user.role !== "client") {
       alert(
         "Vous devez être connecté avec un compte client pour passer une commande."
       );
+
       return;
     }
 
+    /**
+     * Panier vide
+     */
     if (items.length === 0) {
       return;
     }
 
+    /**
+     * GPS obligatoire
+     */
     if (
       latitude === null ||
       longitude === null
@@ -361,13 +466,18 @@ export default function PagePanier() {
       alert(
         "Veuillez autoriser la localisation avant de passer la commande."
       );
+
       return;
     }
 
+    /**
+     * Zone obligatoire
+     */
     if (!zoneLivraison) {
       alert(
         "Veuillez sélectionner une zone de livraison."
       );
+
       return;
     }
 
@@ -429,10 +539,13 @@ export default function PagePanier() {
       ) {
         throw new Error(
           data.message ||
-          "Impossible de créer la commande."
+            "Impossible de créer la commande."
         );
       }
 
+      /**
+       * Commande créée
+       */
       clearCart();
 
       router.push("/commandes");
@@ -518,14 +631,32 @@ export default function PagePanier() {
     );
   }
 
+  /**
+   * =========================================================
+   * TARIF SÉLECTIONNÉ
+   * =========================================================
+   */
+
   const tarifSelectionne =
     tarifsLivraison.find(
       (tarif) =>
         tarif.zone === zoneLivraison
     );
 
+  /**
+   * =========================================================
+   * TOTAL GÉNÉRAL
+   * =========================================================
+   */
+
   const totalGeneral =
     total + tarifLivraison;
+
+  /**
+   * =========================================================
+   * PAGE
+   * =========================================================
+   */
 
   return (
     <main className="min-h-screen bg-[#f7f8fa]">
@@ -541,9 +672,7 @@ export default function PagePanier() {
             <div>
               <div className="mb-3 flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
-                  <ShoppingBag
-                    size={18}
-                  />
+                  <ShoppingBag size={18} />
                 </div>
 
                 <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
@@ -653,8 +782,7 @@ export default function PagePanier() {
                 getPrixFinal(item);
 
               const sousTotal =
-                prixFinal *
-                item.quantity;
+                prixFinal * item.quantity;
 
               const promotionActive =
                 Boolean(item.promotion_uuid) &&
@@ -663,11 +791,11 @@ export default function PagePanier() {
               const reductionPourcentage =
                 item.promotion_reduction_pourcentage !==
                   null &&
-                  item.promotion_reduction_pourcentage !==
+                item.promotion_reduction_pourcentage !==
                   undefined
                   ? Number(
-                    item.promotion_reduction_pourcentage
-                  )
+                      item.promotion_reduction_pourcentage
+                    )
                   : null;
 
               return (
@@ -731,7 +859,7 @@ export default function PagePanier() {
                             {item.promotion_type ===
                               "percentage" &&
                               reductionPourcentage !==
-                              null && (
+                                null && (
                                 <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
                                   -
                                   {
@@ -743,10 +871,10 @@ export default function PagePanier() {
 
                             {item.promotion_type ===
                               "special_price" && (
-                                <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
-                                  PROMOTION
-                                </span>
-                              )}
+                              <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-extrabold text-red-600">
+                                PROMOTION
+                              </span>
+                            )}
                           </div>
 
                           <div className="mt-1 flex flex-wrap items-baseline gap-2">
@@ -792,8 +920,7 @@ export default function PagePanier() {
                               )
                             }
                             disabled={
-                              item.quantity <=
-                              1
+                              item.quantity <= 1
                             }
                             aria-label="Diminuer la quantité"
                             className="
@@ -810,9 +937,7 @@ export default function PagePanier() {
                               disabled:opacity-40
                             "
                           >
-                            <Minus
-                              size={15}
-                            />
+                            <Minus size={15} />
                           </button>
 
                           <span className="flex h-9 min-w-9 items-center justify-center border-x border-gray-200 px-2 text-sm font-bold text-gray-900">
@@ -845,9 +970,7 @@ export default function PagePanier() {
                               disabled:opacity-40
                             "
                           >
-                            <Plus
-                              size={15}
-                            />
+                            <Plus size={15} />
                           </button>
                         </div>
 
@@ -874,9 +997,7 @@ export default function PagePanier() {
                             hover:bg-red-50
                           "
                         >
-                          <Trash2
-                            size={14}
-                          />
+                          <Trash2 size={14} />
                           Supprimer
                         </button>
                       </div>
@@ -929,9 +1050,7 @@ export default function PagePanier() {
             <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
-                  <Truck
-                    size={20}
-                  />
+                  <Truck size={20} />
                 </div>
 
                 <div>
@@ -1029,9 +1148,7 @@ export default function PagePanier() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                    <MapPin
-                      size={20}
-                    />
+                    <MapPin size={20} />
                   </div>
 
                   <div>
@@ -1045,6 +1162,8 @@ export default function PagePanier() {
                     </p>
                   </div>
                 </div>
+
+                {/* BOUTON GPS */}
 
                 <button
                   type="button"
@@ -1082,9 +1201,7 @@ export default function PagePanier() {
                       className="animate-spin"
                     />
                   ) : (
-                    <RefreshCw
-                      size={15}
-                    />
+                    <RefreshCw size={15} />
                   )}
 
                   {localisationLoading
@@ -1093,7 +1210,9 @@ export default function PagePanier() {
                 </button>
               </div>
 
-              {/* ADRESSE */}
+              {/* =================================================
+                  ADRESSE
+              ================================================== */}
 
               <div className="mt-5">
                 <label
@@ -1136,10 +1255,12 @@ export default function PagePanier() {
                 />
               </div>
 
-              {/* POSITION */}
+              {/* =================================================
+                  POSITION
+              ================================================== */}
 
               {latitude !== null &&
-                longitude !== null ? (
+              longitude !== null ? (
                 <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4">
                   <div className="flex items-center gap-2">
                     <CheckCircle2
@@ -1157,29 +1278,24 @@ export default function PagePanier() {
                       <span className="font-bold">
                         Latitude :
                       </span>{" "}
-                      {latitude.toFixed(
-                        7
-                      )}
+                      {latitude.toFixed(7)}
                     </div>
 
                     <div>
                       <span className="font-bold">
                         Longitude :
                       </span>{" "}
-                      {longitude.toFixed(
-                        7
-                      )}
+                      {longitude.toFixed(7)}
                     </div>
 
                     <div>
                       <span className="font-bold">
                         Précision :
                       </span>{" "}
-                      {gpsPrecision !==
-                        null
+                      {gpsPrecision !== null
                         ? `${Math.round(
-                          gpsPrecision
-                        )} m`
+                            gpsPrecision
+                          )} m`
                         : "-"}
                     </div>
                   </div>
@@ -1200,16 +1316,50 @@ export default function PagePanier() {
                 </div>
               )}
 
-              {localisationError && (
-                <div className="mt-4 flex items-start gap-3 rounded-xl border border-red-100 bg-red-50 p-4">
-                  <XCircle
-                    size={18}
-                    className="mt-0.5 shrink-0 text-red-500"
-                  />
+              {/* =================================================
+                  ERREUR GPS
+              ================================================== */}
 
-                  <p className="text-xs leading-5 text-red-700 sm:text-sm">
-                    {localisationError}
-                  </p>
+              {localisationError && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <div className="flex items-start gap-3">
+                    <XCircle
+                      size={18}
+                      className="mt-0.5 shrink-0 text-red-500"
+                    />
+
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-red-800 sm:text-sm">
+                        {localisationError}
+                      </p>
+
+                      {localisationErrorCode !==
+                        null && (
+                        <div className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2">
+                          <p className="text-xs font-bold text-red-600">
+                            Code erreur GPS :{" "}
+                            {
+                              localisationErrorCode
+                            }
+                          </p>
+
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            {localisationErrorCode ===
+                              1 &&
+                              "Permission refusée"}
+
+                            {localisationErrorCode ===
+                              2 &&
+                              "Position indisponible"}
+
+                            {localisationErrorCode ===
+                              3 &&
+                              "Délai dépassé"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1277,8 +1427,8 @@ export default function PagePanier() {
                         : tarifLivraison === 0
                           ? "Gratuit"
                           : `${tarifLivraison.toLocaleString(
-                            "fr-FR"
-                          )} FCFA`}
+                              "fr-FR"
+                            )} FCFA`}
                     </span>
                   </div>
                 </div>
@@ -1362,9 +1512,7 @@ export default function PagePanier() {
                   ) : (
                     <>
                       Passer la commande
-                      <ChevronRight
-                        size={18}
-                      />
+                      <ChevronRight size={18} />
                     </>
                   )}
                 </button>
@@ -1406,4 +1554,3 @@ export default function PagePanier() {
     </main>
   );
 }
-
