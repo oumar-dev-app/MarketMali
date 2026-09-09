@@ -157,83 +157,83 @@ export default function PagePanier() {
    * =========================================================
    */
 
-const recupererPosition = () => {
-  if (typeof window === "undefined") {
-    return;
-  }
+  const recupererPosition = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
 
-  if (!navigator.geolocation) {
-    setLocalisationError(
-      "La géolocalisation n'est pas supportée par votre navigateur."
-    );
-    return;
-  }
+    if (!navigator.geolocation) {
+      setLocalisationError(
+        "La géolocalisation n'est pas supportée par votre navigateur."
+      );
+      return;
+    }
 
-  setLocalisationLoading(true);
-  setLocalisationError("");
+    setLocalisationLoading(true);
+    setLocalisationError("");
 
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const {
-        latitude: lat,
-        longitude: lng,
-        accuracy,
-      } = position.coords;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const {
+          latitude: lat,
+          longitude: lng,
+          accuracy,
+        } = position.coords;
 
-      setLatitude(lat);
-      setLongitude(lng);
-      setGpsPrecision(accuracy);
+        setLatitude(lat);
+        setLongitude(lng);
+        setGpsPrecision(accuracy);
 
-      setLocalisationLoading(false);
-    },
+        setLocalisationLoading(false);
+      },
 
-    (error) => {
-      console.error("Erreur géolocalisation :", {
-        code: error.code,
-        message: error.message,
-      });
+      (error) => {
+        console.error("Erreur géolocalisation :", {
+          code: error.code,
+          message: error.message,
+        });
 
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          setLocalisationError(
-            "L'accès à votre position a été refusé. Autorisez la localisation dans les réglages de votre navigateur."
-          );
-          break;
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocalisationError(
+              "L'accès à votre position a été refusé. Autorisez la localisation dans les réglages de votre navigateur."
+            );
+            break;
 
-        case error.POSITION_UNAVAILABLE:
-          setLocalisationError(
-            "Votre position est actuellement indisponible. Vérifiez que les services de localisation sont activés."
-          );
-          break;
+          case error.POSITION_UNAVAILABLE:
+            setLocalisationError(
+              "Votre position est actuellement indisponible. Vérifiez que les services de localisation sont activés."
+            );
+            break;
 
-        case error.TIMEOUT:
-          setLocalisationError(
-            "La récupération de votre position a pris trop de temps. Réessayez."
-          );
-          break;
+          case error.TIMEOUT:
+            setLocalisationError(
+              "La récupération de votre position a pris trop de temps. Réessayez."
+            );
+            break;
 
-        default:
-          setLocalisationError(
-            "Impossible de récupérer votre position. Réessayez."
-          );
+          default:
+            setLocalisationError(
+              "Impossible de récupérer votre position. Réessayez."
+            );
+        }
+
+        setLocalisationLoading(false);
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 10000,
       }
+    );
+  };
 
-      setLocalisationLoading(false);
-    },
-
-    {
-      enableHighAccuracy: true,
-      timeout: 20000,
-      maximumAge: 10000,
-    }
-  );
-};
-
-/*   useEffect(() => {
-    if (items.length > 0) {
-      recupererPosition();
-    }
-  }, [items.length]); */
+  /*   useEffect(() => {
+      if (items.length > 0) {
+        recupererPosition();
+      }
+    }, [items.length]); */
 
   /**
    * =========================================================
