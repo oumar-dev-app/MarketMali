@@ -182,37 +182,11 @@ export default function PagePanier() {
    */
 
   const recupererPosition = () => {
-    /**
-     * Sécurité côté navigateur
-     */
     if (typeof window === "undefined") {
       return;
     }
 
-    /**
-     * Vérification de la disponibilité
-     * de la géolocalisation
-     */
-    if (!navigator.geolocation) {
-      setLocalisationError(
-        "La géolocalisation n'est pas supportée par votre navigateur."
-      );
-
-      setLocalisationErrorCode(null);
-
-      return;
-    }
-
-    /**
-     * État de chargement
-     */
-    setLocalisationLoading(true);
-
-    /**
-     * Réinitialisation des anciennes erreurs
-     */
-    setLocalisationError("");
-    setLocalisationErrorCode(null);
+    console.log("========== GPS MARKETMALI ==========");
 
     const debug = {
       url: window.location.href,
@@ -226,93 +200,101 @@ export default function PagePanier() {
     setGpsDebug(debug);
 
     /**
+     * Vérification de la géolocalisation
+     */
+    if (!navigator.geolocation) {
+      setLocalisationError(
+        "La géolocalisation n'est pas disponible sur votre navigateur."
+      );
+
+      setLocalisationErrorCode(null);
+      return;
+    }
+
+    /**
+     * Préparation
+     */
+    setLocalisationLoading(true);
+    setLocalisationError("");
+    setLocalisationErrorCode(null);
+
+    /**
      * Demande de position
      */
     navigator.geolocation.getCurrentPosition(
-      /**
-       * =====================================================
-       * SUCCÈS
-       * =====================================================
-       */
       (position) => {
-        const {
-          latitude: lat,
-          longitude: lng,
-          accuracy,
-        } = position.coords;
+        console.log("========== GPS SUCCÈS ==========");
 
-        setLatitude(lat);
-        setLongitude(lng);
-        setGpsPrecision(accuracy);
+        console.log(
+          "Latitude :",
+          position.coords.latitude
+        );
 
-        /**
-         * Nettoyage des erreurs précédentes
-         */
+        console.log(
+          "Longitude :",
+          position.coords.longitude
+        );
+
+        console.log(
+          "Précision :",
+          position.coords.accuracy
+        );
+
+        setLatitude(
+          position.coords.latitude
+        );
+
+        setLongitude(
+          position.coords.longitude
+        );
+
+        setGpsPrecision(
+          position.coords.accuracy
+        );
+
         setLocalisationError("");
         setLocalisationErrorCode(null);
-
         setLocalisationLoading(false);
       },
 
-      /**
-       * =====================================================
-       * ERREUR
-       * =====================================================
-       */
       (error) => {
-        /**
-         * Log console pour le développement
-         */
         console.error(
-          "Erreur géolocalisation :",
-          {
-            code: error.code,
-            message: error.message,
-          }
+          "========== GPS ERREUR =========="
         );
 
-        /**
-         * Sauvegarde du code pour l'afficher
-         * directement sur le téléphone.
-         */
+        console.error(
+          "Code erreur :",
+          error.code
+        );
+
+        console.error(
+          "Message erreur :",
+          error.message
+        );
+
         setLocalisationErrorCode(
           error.code
         );
 
-        /**
-         * Message utilisateur
-         */
         switch (error.code) {
-          /**
-           * Permission refusée
-           */
-          case error.PERMISSION_DENIED:
+          case 1:
             setLocalisationError(
-              "L'accès à votre position a été refusé. Autorisez la localisation dans les réglages de votre navigateur."
+              "L'accès à votre position a été refusé par le navigateur. Vérifiez l'autorisation de localisation pour MarketMali dans les réglages de Safari."
             );
             break;
 
-          /**
-           * Position indisponible
-           */
-          case error.POSITION_UNAVAILABLE:
+          case 2:
             setLocalisationError(
               "Votre position est actuellement indisponible. Vérifiez que les services de localisation sont activés."
             );
             break;
 
-          /**
-           * Timeout
-           */
-          case error.TIMEOUT:
+          case 3:
             setLocalisationError(
               "La récupération de votre position a pris trop de temps. Réessayez."
             );
             break;
 
-          /**
-           * Autre erreur
-           */
           default:
             setLocalisationError(
               "Impossible de récupérer votre position. Réessayez."
@@ -322,11 +304,6 @@ export default function PagePanier() {
         setLocalisationLoading(false);
       },
 
-      /**
-       * =====================================================
-       * OPTIONS GPS
-       * =====================================================
-       */
       {
         enableHighAccuracy: true,
         timeout: 20000,
@@ -334,7 +311,6 @@ export default function PagePanier() {
       }
     );
   };
-
   /**
    * IMPORTANT :
    * Aucun appel automatique à recupererPosition().
