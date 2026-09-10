@@ -217,8 +217,9 @@ export default function Navbar() {
   const previousUnreadCountRef =
     useRef<number | null>(null);
 
-  const notificationRequestRef =
-    useRef(false);
+  const knownNotificationUuidsRef = useRef<Set<string>>(new Set());
+  const notificationsInitializedRef = useRef(false);
+  const notificationRequestRef = useRef(false);
 
   const audioUnlockedRef =
     useRef(false);
@@ -429,47 +430,36 @@ export default function Navbar() {
   async function fetchNotifications(
     playSoundForNew = false
   ) {
-    if (
-      !token ||
-      !user
-    ) {
+    if (!token || !user) {
       setNotifications([]);
-
       setUnreadCount(0);
-
-      previousUnreadCountRef.current =
-        null;
-
+      previousUnreadCountRef.current = null;
+      knownNotificationUuidsRef.current.clear();
+      notificationsInitializedRef.current = false;
       return;
     }
 
-    if (
-      notificationRequestRef.current
-    ) {
+    if (notificationRequestRef.current) {
       return;
     }
 
-    notificationRequestRef.current =
-      true;
+    notificationRequestRef.current = true;
 
     try {
-      const response =
-        await fetch(
-          "/api/notifications?page=1&limit=20",
-          {
-            method: "GET",
+      const response = await fetch(
+        "/api/notifications?page=1&limit=20",
+        {
+          method: "GET",
 
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
+          headers: {
+            Authorization: `Bearer ${token}`,
 
-              "Content-Type":
-                "application/json",
-            },
+            "Content-Type": "application/json",
+          },
 
-            cache: "no-store",
-          }
-        );
+          cache: "no-store",
+        }
+      );
 
       if (!response.ok) {
         console.error(
@@ -480,44 +470,58 @@ export default function Navbar() {
         return;
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       const list =
-        normalizeNotifications(
-          data
-        );
+        normalizeNotifications(data);
 
       const newUnreadCount =
         countUnread(list);
 
-      /* Première récupération */
+      /* ========================================================
+         DÉTECTER LES VRAIES NOUVELLES NOTIFICATIONS
+      ======================================================== */
+
+      const knownUuids = knownNotificationUuidsRef.current;
+
+      const isInitialized =
+        notificationsInitializedRef.current;
+
+      const newNotifications = isInitialized
+        ? list.filter(
+          (notification) =>
+            notification.uuid &&
+            !knownUuids.has(notification.uuid)
+        )
+        : [];
 
       if (
-        previousUnreadCountRef.current ===
-        null
-      ) {
-        previousUnreadCountRef.current =
-          newUnreadCount;
-      } else if (
+        isInitialized &&
         playSoundForNew &&
-        newUnreadCount >
-        previousUnreadCountRef.current
+        newNotifications.some(
+          (notification) =>
+            Number(notification.lu) === 0
+        )
       ) {
         playNotificationSound();
-
-        previousUnreadCountRef.current =
-          newUnreadCount;
-      } else {
-        previousUnreadCountRef.current =
-          newUnreadCount;
       }
+
+      list.forEach((notification) => {
+        if (notification.uuid) {
+          knownUuids.add(notification.uuid);
+        }
+      });
+
+      notificationsInitializedRef.current = true;
 
       setNotifications(list);
 
       setUnreadCount(
         newUnreadCount
       );
+
+      previousUnreadCountRef.current =
+        newUnreadCount;
     } catch (error) {
       console.error(
         "Erreur récupération notifications :",
@@ -675,6 +679,24 @@ export default function Navbar() {
 
       previousUnreadCountRef.current =
         newUnreadCount;
+
+      /*
+       * Les notifications affichées dans le panneau
+       * deviennent des notifications connues.
+       *
+       * Aucun son ici.
+       */
+      list.forEach(
+        (notification) => {
+          if (notification.uuid) {
+            knownNotificationUuidsRef.current.add(
+              notification.uuid
+            );
+          }
+        }
+      );
+
+      notificationsInitializedRef.current = true;
     } catch (error) {
       console.error(
         "Erreur chargement notifications :",
@@ -1219,17 +1241,13 @@ export default function Navbar() {
   ============================================================ */
 
   async function handleLogout() {
-    setProfileMenuOpen(
-      false
-    );
+    setProfileMenuOpen(false);
+    setMobileMenuOpen(false);
+    setShowNotifications(false);
 
-    setMobileMenuOpen(
-      false
-    );
+    knownNotificationUuidsRef.current.clear();
 
-    setShowNotifications(
-      false
-    );
+    previousUnreadCountRef.current = null;
 
     try {
       await logout();
@@ -1509,17 +1527,17 @@ export default function Navbar() {
                               className={`flex w-full gap-3 border-b border-gray-100 px-4 py-3 text-left transition hover:bg-gray-50 ${Number(
                                 notification.lu
                               ) ===
-                                  0
-                                  ? "bg-green-50/70"
-                                  : "bg-white"
+                                0
+                                ? "bg-green-50/70"
+                                : "bg-white"
                                 }`}
                             >
                               {/* ICON */}
 
                               <div
                                 className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${notification.commande_uuid
-                                    ? "bg-green-100 text-green-600"
-                                    : "bg-blue-100 text-blue-600"
+                                  ? "bg-green-100 text-green-600"
+                                  : "bg-blue-100 text-blue-600"
                                   }`}
                               >
                                 {notification.commande_uuid ? (
@@ -1541,9 +1559,9 @@ export default function Navbar() {
                                     className={`text-sm ${Number(
                                       notification.lu
                                     ) ===
-                                        0
-                                        ? "font-bold text-gray-900"
-                                        : "font-semibold text-gray-700"
+                                      0
+                                      ? "font-bold text-gray-900"
+                                      : "font-semibold text-gray-700"
                                       }`}
                                   >
                                     {
@@ -1658,8 +1676,8 @@ export default function Navbar() {
                   <FaChevronDown
                     size={11}
                     className={`text-gray-400 transition ${profileMenuOpen
-                        ? "rotate-180"
-                        : ""
+                      ? "rotate-180"
+                      : ""
                       }`}
                   />
                 </button>
@@ -2028,8 +2046,8 @@ export default function Navbar() {
 
                 <div
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${selectedNotification.commande_uuid
-                      ? "bg-green-100 text-green-600"
-                      : "bg-blue-100 text-blue-600"
+                    ? "bg-green-100 text-green-600"
+                    : "bg-blue-100 text-blue-600"
                     }`}
                 >
                   {selectedNotification.commande_uuid ? (
@@ -2729,12 +2747,12 @@ export default function Navbar() {
 
                                   <span
                                     className={`absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 border-white shadow-sm ${index ===
-                                        commandeDetail
-                                          .historique!
-                                          .length -
-                                        1
-                                        ? "bg-green-600"
-                                        : "bg-gray-300"
+                                      commandeDetail
+                                        .historique!
+                                        .length -
+                                      1
+                                      ? "bg-green-600"
+                                      : "bg-gray-300"
                                       }`}
                                   />
 

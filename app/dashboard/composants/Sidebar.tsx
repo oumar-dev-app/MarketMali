@@ -17,6 +17,7 @@ import {
   MapPinned,
   Menu,
   Package,
+  Share2,
   Store,
   Tags,
   Truck,
@@ -25,6 +26,9 @@ import {
   X,
   ChevronRight,
   UserRoundCheck,
+  Copy,
+  Check,
+  MessageCircle,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -269,6 +273,7 @@ function getRoleIcon(
   return Users;
 }
 
+
 type BoutiqueResponse = {
   success: boolean;
   data: {
@@ -297,6 +302,9 @@ export default function Sidebar() {
   const [boutiqueLoading, setBoutiqueLoading] =
     useState(false);
 
+  const [shareMessage, setShareMessage] =
+    useState<string | null>(null);
+
 
   const role =
     user?.role as UserRole | undefined;
@@ -306,6 +314,7 @@ export default function Sidebar() {
     role
       ? menuByRole[role]
       : [];
+
 
   useEffect(() => {
 
@@ -368,6 +377,7 @@ export default function Sidebar() {
 
   }, [role]);
 
+
   /*
    * Fermer automatiquement
    * la Sidebar mobile lorsque
@@ -378,6 +388,28 @@ export default function Sidebar() {
     setMobileOpen(false);
 
   }, [pathname]);
+
+
+  /*
+   * Masquer automatiquement
+   * le message de partage.
+   */
+  useEffect(() => {
+
+    if (!shareMessage) {
+      return;
+    }
+
+    const timeout =
+      window.setTimeout(() => {
+        setShareMessage(null);
+      }, 3000);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+
+  }, [shareMessage]);
 
 
   /*
@@ -431,6 +463,167 @@ export default function Sidebar() {
   }, []);
 
 
+  /*
+   * =========================================================
+   * PARTAGER MA BOUTIQUE
+   * =========================================================
+   */
+  async function handleShareBoutique() {
+
+    if (!boutiqueSlug) {
+      setShareMessage(
+        "Impossible de récupérer le lien de la boutique."
+      );
+      return;
+    }
+
+    const boutiqueUrl =
+      `${window.location.origin}/boutiques/${boutiqueSlug}`;
+
+    const shareText =
+      "🛍️ Découvrez ma boutique sur MarketMali !\n\nRetrouvez mes produits et passez directement votre commande 👇";
+
+
+    /*
+     * Partage natif Android / iPhone
+     */
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function"
+    ) {
+
+      try {
+
+        await navigator.share({
+          title: "Ma boutique sur MarketMali",
+          text: shareText,
+          url: boutiqueUrl,
+        });
+
+        setShareMessage(
+          "Boutique partagée avec succès."
+        );
+
+        return;
+
+      } catch (error) {
+
+        /*
+         * L'utilisateur peut simplement
+         * avoir fermé la fenêtre de partage.
+         * Dans ce cas, on ne considère pas
+         * cela comme une erreur.
+         */
+
+        if (
+          error instanceof DOMException &&
+          error.name === "AbortError"
+        ) {
+          return;
+        }
+
+        console.error(
+          "Erreur partage natif :",
+          error
+        );
+      }
+    }
+
+
+    /*
+     * Si le partage natif n'est pas disponible,
+     * on copie automatiquement le lien.
+     */
+    try {
+
+      await navigator.clipboard.writeText(
+        boutiqueUrl
+      );
+
+      setShareMessage(
+        "Lien de la boutique copié."
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Erreur copie lien :",
+        error
+      );
+
+      setShareMessage(
+        "Impossible de copier le lien."
+      );
+    }
+  }
+
+
+  /*
+   * =========================================================
+   * COPIER LE LIEN
+   * =========================================================
+   */
+  async function handleCopyBoutiqueLink() {
+
+    if (!boutiqueSlug) {
+      return;
+    }
+
+    const boutiqueUrl =
+      `${window.location.origin}/boutiques/${boutiqueSlug}`;
+
+    try {
+
+      await navigator.clipboard.writeText(
+        boutiqueUrl
+      );
+
+      setShareMessage(
+        "Lien de la boutique copié."
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Erreur copie lien boutique :",
+        error
+      );
+
+      setShareMessage(
+        "Impossible de copier le lien."
+      );
+    }
+  }
+
+
+  /*
+   * =========================================================
+   * PARTAGER SUR WHATSAPP
+   * =========================================================
+   */
+  function handleShareWhatsApp() {
+
+    if (!boutiqueSlug) {
+      return;
+    }
+
+    const boutiqueUrl =
+      `${window.location.origin}/boutiques/${boutiqueSlug}`;
+
+    const message =
+      `🛍️ Découvrez ma boutique sur MarketMali !\n\nRetrouvez mes produits et passez directement votre commande 👇\n\n${boutiqueUrl}`;
+
+    const whatsappUrl =
+      `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+    window.open(
+      whatsappUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }
+
+
   const RoleIcon =
     role
       ? getRoleIcon(role)
@@ -462,14 +655,14 @@ export default function Sidebar() {
               justify-center
               rounded-xl
               border
-            border-gray-200
-            bg-white
-            text-gray-700
+              border-gray-200
+              bg-white
+              text-gray-700
               shadow-sm
               transition
-            hover:bg-gray-50
+              hover:bg-gray-50
               lg:hidden
-              "
+            "
         >
           <Menu
             size={21}
@@ -561,6 +754,7 @@ export default function Sidebar() {
           >
 
             {/* Logo */}
+
             <div
               className="
                 flex
@@ -586,6 +780,7 @@ export default function Sidebar() {
 
 
             {/* Nom */}
+
             <div>
 
               <h1
@@ -794,72 +989,74 @@ export default function Sidebar() {
                       <Link
                         href={item.href}
                         className={`
-            group
-            relative
-            flex
-            items-center
-            gap-3
-            rounded-xl
-            px-3
-            py-3
-            text-sm
-            font-medium
-            transition-all
-            duration-200
+                          group
+                          relative
+                          flex
+                          items-center
+                          gap-3
+                          rounded-xl
+                          px-3
+                          py-3
+                          text-sm
+                          font-medium
+                          transition-all
+                          duration-200
 
-            ${active
+                          ${active
                             ? `
-                  bg-gray-900
-                  text-white
-                  shadow-sm
-                `
+                              bg-gray-900
+                              text-white
+                              shadow-sm
+                            `
                             : `
-                  text-gray-600
-                  hover:bg-gray-50
-                  hover:text-gray-900
-                `
+                              text-gray-600
+                              hover:bg-gray-50
+                              hover:text-gray-900
+                            `
                           }
-          `}
+                        `}
                       >
 
                         {active && (
                           <span
                             className="
-                absolute
-                left-0
-                top-1/2
-                h-6
-                w-1
-                -translate-y-1/2
-                rounded-r-full
-                bg-white
-              "
+                              absolute
+                              left-0
+                              top-1/2
+                              h-6
+                              w-1
+                              -translate-y-1/2
+                              rounded-r-full
+                              bg-white
+                            "
                           />
                         )}
 
                         <span
                           className={`
-              flex
-              h-9
-              w-9
-              shrink-0
-              items-center
-              justify-center
-              rounded-lg
-              transition
+                            flex
+                            h-9
+                            w-9
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-lg
+                            transition
 
-              ${active
+                            ${active
                               ? "bg-white/10 text-white"
                               : "bg-gray-100 text-gray-500 group-hover:bg-white group-hover:text-gray-900"
                             }
-            `}
+                          `}
                         >
+
                           <Icon
                             size={19}
                             strokeWidth={
                               active ? 2.2 : 2
                             }
                           />
+
                         </span>
 
                         <span className="flex-1 truncate">
@@ -870,22 +1067,23 @@ export default function Sidebar() {
                           size={15}
                           strokeWidth={2}
                           className={`
-              shrink-0
-              transition-transform
-              ${active
+                            shrink-0
+                            transition-transform
+
+                            ${active
                               ? "translate-x-0 opacity-100"
                               : "-translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-50"
                             }
-            `}
+                          `}
                         />
 
                       </Link>
 
 
                       {/* =========================================
-            VISITER MA BOUTIQUE
-            juste après Tableau de bord
-        ========================================= */}
+                          VISITER MA BOUTIQUE
+                          juste après Tableau de bord
+                      ========================================= */}
 
                       {role === "vendeur" &&
                         index === 0 &&
@@ -894,69 +1092,69 @@ export default function Sidebar() {
                           <Link
                             href={`/boutiques/${boutiqueSlug}`}
                             className={`
-              group
-              relative
-              mt-1
-              flex
-              items-center
-              gap-3
-              rounded-xl
-              px-3
-              py-3
-              text-sm
-              font-medium
-              transition-all
-              duration-200
+                              group
+                              relative
+                              mt-1
+                              flex
+                              items-center
+                              gap-3
+                              rounded-xl
+                              px-3
+                              py-3
+                              text-sm
+                              font-medium
+                              transition-all
+                              duration-200
 
-              ${pathname ===
+                              ${pathname ===
                                 `/boutiques/${boutiqueSlug}`
                                 ? `
-                      bg-gray-900
-                      text-white
-                      shadow-sm
-                    `
+                                  bg-gray-900
+                                  text-white
+                                  shadow-sm
+                                `
                                 : `
-                      text-gray-600
-                      hover:bg-gray-50
-                      hover:text-gray-900
-                    `
+                                  text-gray-600
+                                  hover:bg-gray-50
+                                  hover:text-gray-900
+                                `
                               }
-            `}
+                            `}
                           >
 
                             {pathname ===
                               `/boutiques/${boutiqueSlug}` && (
                                 <span
                                   className="
-                  absolute
-                  left-0
-                  top-1/2
-                  h-6
-                  w-1
-                  -translate-y-1/2
-                  rounded-r-full
-                  bg-white
-                "
+                                    absolute
+                                    left-0
+                                    top-1/2
+                                    h-6
+                                    w-1
+                                    -translate-y-1/2
+                                    rounded-r-full
+                                    bg-white
+                                  "
                                 />
                               )}
 
                             <span
                               className={`
-                flex
-                h-9
-                w-9
-                shrink-0
-                items-center
-                justify-center
-                rounded-lg
-                transition
+                                flex
+                                h-9
+                                w-9
+                                shrink-0
+                                items-center
+                                justify-center
+                                rounded-lg
+                                transition
 
-                ${pathname ===
+                                ${pathname ===
                                   `/boutiques/${boutiqueSlug}`
                                   ? "bg-white/10 text-white"
                                   : "bg-gray-100 text-gray-500 group-hover:bg-white group-hover:text-gray-900"
                                 }
-              `}
+                              `}
                             >
 
                               <Store
@@ -979,17 +1177,125 @@ export default function Sidebar() {
                               size={15}
                               strokeWidth={2}
                               className={`
-                shrink-0
-                transition-transform
-                ${pathname ===
+                                shrink-0
+                                transition-transform
+
+                                ${pathname ===
                                   `/boutiques/${boutiqueSlug}`
                                   ? "translate-x-0 opacity-100"
                                   : "-translate-x-1 opacity-0 group-hover:translate-x-0 group-hover:opacity-50"
                                 }
-              `}
+                              `}
                             />
 
                           </Link>
+                        )}
+
+
+                      {/* =========================================
+                          PARTAGER MA BOUTIQUE
+                          juste après Visiter ma boutique
+                      ========================================= */}
+
+                      {role === "vendeur" &&
+                        index === 0 &&
+                        boutiqueSlug && (
+
+                          <button
+                            type="button"
+                            onClick={
+                              handleShareBoutique
+                            }
+                            disabled={
+                              boutiqueLoading
+                            }
+                            className="
+                              group
+                              relative
+                              mt-1
+                              flex
+                              w-full
+                              items-center
+                              gap-3
+                              rounded-xl
+                              px-3
+                              py-3
+                              text-left
+                              text-sm
+                              font-medium
+                              text-gray-600
+                              transition-all
+                              duration-200
+                              hover:bg-gray-50
+                              hover:text-gray-900
+                              disabled:cursor-not-allowed
+                              disabled:opacity-50
+                            "
+                          >
+
+                            <span
+                              className="
+                                flex
+                                h-9
+                                w-9
+                                shrink-0
+                                items-center
+                                justify-center
+                                rounded-lg
+                                bg-gray-100
+                                text-gray-500
+                                transition
+                                group-hover:bg-white
+                                group-hover:text-gray-900
+                              "
+                            >
+
+                              <Share2
+                                size={19}
+                                strokeWidth={2}
+                              />
+
+                            </span>
+
+                            <span className="flex-1 truncate">
+                              Partager ma boutique
+                            </span>
+
+                            <ChevronRight
+                              size={15}
+                              strokeWidth={2}
+                              className="
+                                shrink-0
+                                -translate-x-1
+                                opacity-0
+                                transition-all
+                                group-hover:translate-x-0
+                                group-hover:opacity-50
+                              "
+                            />
+
+                          </button>
+                        )}
+
+
+                      {/* =========================================
+                          OPTIONS DE PARTAGE
+                      ========================================= */}
+
+                      {role === "vendeur" &&
+                        index === 0 &&
+                        boutiqueSlug && (
+
+                          <div
+                            className="
+                              mt-1
+                              grid
+                              grid-cols-2
+                              gap-1
+                              px-1
+                            "
+                          >
+                          </div>
                         )}
 
                     </div>
@@ -1002,6 +1308,63 @@ export default function Sidebar() {
           )}
 
         </div>
+
+
+        {/* =================================================
+            MESSAGE DE CONFIRMATION PARTAGE
+        ================================================= */}
+
+        {shareMessage && (
+          <div
+            className="
+              absolute
+              bottom-24
+              left-4
+              right-4
+              z-20
+              flex
+              items-center
+              gap-2
+              rounded-xl
+              border
+              border-gray-200
+              bg-white
+              px-3
+              py-3
+              text-xs
+              font-medium
+              text-gray-700
+              shadow-lg
+            "
+          >
+
+            <span
+              className="
+                flex
+                h-7
+                w-7
+                shrink-0
+                items-center
+                justify-center
+                rounded-lg
+                bg-gray-900
+                text-white
+              "
+            >
+
+              <Check
+                size={15}
+                strokeWidth={2.5}
+              />
+
+            </span>
+
+            <span className="flex-1">
+              {shareMessage}
+            </span>
+
+          </div>
+        )}
 
 
         {/* =================================================

@@ -69,7 +69,7 @@ export default function LoginPage() {
       if (!response.ok || !data.success) {
         setError(
           data.message ||
-            "Adresse e-mail ou mot de passe incorrect."
+          "Adresse e-mail ou mot de passe incorrect."
         );
         return;
       }
@@ -341,25 +341,25 @@ export default function LoginPage() {
                     required
                     disabled={loading}
                     className="
-                      h-12
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-gray-50
-                      pl-11
-                      pr-4
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition
-                      placeholder:text-gray-400
-                      focus:border-[#14a800]
-                      focus:bg-white
-                      focus:ring-4
-                      focus:ring-[#14a800]/10
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
+                    h-12
+                    w-full
+                    rounded-xl
+                    border
+                  border-gray-200
+                  bg-gray-50
+                    pl-11
+                    pr-4
+                    text-base
+                  text-gray-900
+                    outline-none
+                    transition
+                  placeholder:text-gray-400
+                  focus:border-[#14a800]
+                  focus:bg-white
+                    focus:ring-4
+                  focus:ring-[#14a800]/10
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
                     "
                   />
 
@@ -429,25 +429,25 @@ export default function LoginPage() {
                     required
                     disabled={loading}
                     className="
-                      h-12
-                      w-full
-                      rounded-xl
-                      border
-                      border-gray-200
-                      bg-gray-50
-                      pl-11
-                      pr-11
-                      text-sm
-                      text-gray-900
-                      outline-none
-                      transition
-                      placeholder:text-gray-400
-                      focus:border-[#14a800]
-                      focus:bg-white
-                      focus:ring-4
-                      focus:ring-[#14a800]/10
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
+                    h-12
+                    w-full
+                    rounded-xl
+                    border
+                  border-gray-200
+                  bg-gray-50
+                    pl-11
+                    pr-11
+                    text-base
+                  text-gray-900
+                    outline-none
+                    transition
+                  placeholder:text-gray-400
+                  focus:border-[#14a800]
+                  focus:bg-white
+                    focus:ring-4
+                  focus:ring-[#14a800]/10
+                    disabled:cursor-not-allowed
+                    disabled:opacity-60
                     "
                   />
 
