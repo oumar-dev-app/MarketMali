@@ -13,6 +13,7 @@ import { NotFoundError } from "../errors/NotFoundError";
 import { ForbiddenError } from "../errors/ForbiddenError";
 import { PromotionRepository } from "../repositories/promotion.repository";
 
+
 import {
     CreateCommandeDTO,
     UpdateCommandeDTO,
@@ -876,6 +877,9 @@ export class CommandeService {
 
             await connection.commit();
 
+            /*
+             * Notification au client.
+             */
             await NotificationService.create({
                 user_id: commande.client_id,
                 commande_id: commande.id,
@@ -884,6 +888,36 @@ export class CommandeService {
                 message:
                     `Un livreur a été affecté à votre commande #${commande.id}.`
             });
+
+            /*
+             * Notification au livreur.
+             */
+            /*
+             * Notification au livreur.
+             */
+            console.log("=== NOTIFICATION LIVREUR ===");
+            console.log({
+                livreur_id: livreur.id,
+                livreur_user_id: livreur.user_id,
+                commande_id: commande.id,
+            });
+
+            if (livreur.user_id !== null) {
+                const notificationId =
+                    await NotificationService.create({
+                        user_id: livreur.user_id,
+                        commande_id: commande.id,
+                        type: "delivery_assigned",
+                        titre: "Nouvelle livraison",
+                        message:
+                            `Une nouvelle livraison vous a été assignée pour la commande #${commande.id}.`
+                    });
+
+                console.log(
+                    "NOTIFICATION LIVREUR CRÉÉE :",
+                    notificationId
+                );
+            }
 
         } catch (error) {
 
@@ -1508,6 +1542,7 @@ export class CommandeService {
                 "Commande supprimée avec succès."
         };
     }
+
     static async findByUUIDForUser(
         uuid: string,
         user_id: number,
@@ -1517,7 +1552,6 @@ export class CommandeService {
             await CommandeRepository.findByUUID(uuid);
 
         if (!commande) {
-
             throw new NotFoundError(
                 "Commande introuvable."
             );
@@ -1528,31 +1562,24 @@ export class CommandeService {
             role === "admin" ||
             role === "super_admin"
         ) {
-
             return await this.findByUUID(uuid);
         }
 
         // Client : uniquement ses commandes
-        if (
-            role === "client"
-        ) {
-
+        if (role === "client") {
             if (
                 commande.client_id !== user_id
             ) {
-
                 throw new ForbiddenError(
                     "Vous n'avez pas accès à cette commande."
                 );
             }
+
             return await this.findByUUID(uuid);
         }
 
         // Vendeur : uniquement les commandes de sa boutique
-        if (
-            role === "vendeur"
-        ) {
-
+        if (role === "vendeur") {
             const boutique =
                 await BoutiqueRepository.findById(
                     commande.boutique_id
@@ -1562,19 +1589,37 @@ export class CommandeService {
                 !boutique ||
                 boutique.user_id !== user_id
             ) {
-
                 throw new ForbiddenError(
                     "Vous n'avez pas accès à cette commande."
                 );
-
             }
+
             return await this.findByUUID(uuid);
         }
+
+        // Livreur : uniquement les commandes qui lui sont affectées
+        if (role === "livreur") {
+            const livreur =
+                await LivreurRepository.findByUserId(
+                    user_id
+                );
+
+            if (
+                !livreur ||
+                commande.livreur_id !== livreur.id
+            ) {
+                throw new ForbiddenError(
+                    "Vous n'avez pas accès à cette commande."
+                );
+            }
+
+            return await this.findByUUID(uuid);
+        }
+
         throw new ForbiddenError(
             "Accès refusé."
         );
     }
-
     static async getHistorique(
         uuid: string
     ) {

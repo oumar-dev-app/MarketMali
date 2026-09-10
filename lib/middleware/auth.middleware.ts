@@ -31,10 +31,6 @@ export function authMiddleware(
 
   const token = parts[1];
 
-
-  console.log("Authorization Header:", authHeader);
-  console.log("Token extrait:", token);
-
   const payload = verifyToken(token) as AuthPayload;
 
 

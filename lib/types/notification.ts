@@ -7,7 +7,8 @@ export type NotificationType =
   | "role_request"
   | "boutique_pending"
   | "boutique_activated"
-  | "boutique_blocked";
+  | "boutique_blocked"
+  | "delivery_assigned";
 
 export interface Notification {
   id: number;

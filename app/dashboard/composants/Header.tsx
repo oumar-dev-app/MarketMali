@@ -12,9 +12,24 @@ import {
   FiClock,
   FiShoppingBag,
   FiChevronRight,
+  FiTruck,
+  FiPhone,
 } from "react-icons/fi";
 
+import LivreurNotificationModal from "@/app/dashboard/composants/notifications/LivreurNotificationModal";
 import { useAuth } from "@/contexts/AuthContext";
+
+interface LivraisonDetail {
+  uuid: string;
+  commande_id: number;
+  livreur_id: number;
+  status: string;
+  created_at: string;
+  updated_at?: string | null;
+  assigned_at?: string | null;
+  picked_up_at?: string | null;
+  delivered_at?: string | null;
+}
 
 interface Notification {
   id: number;
@@ -88,6 +103,9 @@ export default function Header() {
   const [commandeDetail, setCommandeDetail] =
     useState<CommandeDetail | null>(null);
 
+  const [livraisonDetail, setLivraisonDetail] =
+    useState<LivraisonDetail | null>(null);
+
   const [loadingCommande, setLoadingCommande] =
     useState(false);
 
@@ -124,7 +142,7 @@ export default function Header() {
    */
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !user?.id) return;
 
     let isMounted = true;
 
@@ -135,34 +153,57 @@ export default function Header() {
         const response = await fetch(
           "/api/notifications/unread",
           {
+            method: "GET",
             headers: {
               Authorization: `Bearer ${token}`,
             },
+            cache: "no-store",
           }
         );
 
         const data = await response.json();
 
-        if (!response.ok || !data.success) return;
+        if (!response.ok || !data.success) {
+          console.error(
+            "Erreur API notifications :",
+            data?.message
+          );
+          return;
+        }
 
-        const newCount = data.data.count;
+        const newCount = Number(
+          data.data?.count ?? 0
+        );
+
+        console.log(
+          "🔔 HEADER NOTIFICATIONS :",
+          {
+            userId: user?.id,
+            role: user?.role,
+            count: newCount,
+          }
+        );
+
+        if (!isMounted) return;
+
         setUnreadCount(newCount);
 
         const previousCount =
           previousUnreadCountRef.current;
 
-        // Initialisation sans jouer de son.
         if (previousCount === null) {
-          previousUnreadCountRef.current = newCount;
+          previousUnreadCountRef.current =
+            newCount;
+
           return;
         }
 
-        // Une nouvelle notification est arrivée.
         if (newCount > previousCount) {
           playNotificationSound();
         }
 
-        previousUnreadCountRef.current = newCount;
+        previousUnreadCountRef.current =
+          newCount;
       } catch (error) {
         console.error(
           "Erreur vérification notifications :",
@@ -173,19 +214,27 @@ export default function Header() {
 
     checkNotifications();
 
-    const interval = setInterval(
+    const interval = window.setInterval(
       checkNotifications,
       10000
     );
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      window.clearInterval(interval);
     };
-  }, [token]);
+  }, [token, user?.id, user?.role]);
+
+  /*
+   * =========================================================
+   * CLICK OUTSIDE
+   * =========================================================
+   */
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(
+      event: MouseEvent
+    ) {
       if (
         notificationRef.current &&
         !notificationRef.current.contains(
@@ -209,65 +258,83 @@ export default function Header() {
     };
   }, []);
 
+  /*
+   * =========================================================
+   * RÔLES
+   * =========================================================
+   */
+
   function getRoleTitle(role?: string) {
-  switch (role) {
-    case "vendeur":
-      return "Espace vendeur";
+    switch (role) {
+      case "vendeur":
+        return "Espace vendeur";
 
-    case "admin":
-      return "Administration";
+      case "admin":
+        return "Administration";
 
-    case "super_admin":
-      return "Super administration";
+      case "super_admin":
+        return "Super administration";
 
-    case "livreur":
-      return "Espace livreur";
+      case "livreur":
+        return "Espace livreur";
 
-    default:
-      return "Espace MarketMali";
+      default:
+        return "Espace MarketMali";
+    }
   }
-}
 
-function getRoleLabel(role?: string) {
-  switch (role) {
-    case "vendeur":
-      return "Vendeur";
+  function getRoleLabel(role?: string) {
+    switch (role) {
+      case "vendeur":
+        return "Vendeur";
 
-    case "admin":
-      return "Administrateur";
+      case "admin":
+        return "Administrateur";
 
-    case "super_admin":
-      return "Super administrateur";
+      case "super_admin":
+        return "Super administrateur";
 
-    case "livreur":
-      return "Livreur";
+      case "livreur":
+        return "Livreur";
 
-    default:
-      return "Utilisateur";
+      default:
+        return "Utilisateur";
+    }
   }
-}
 
-function getNotificationDescription(role?: string) {
-  switch (role) {
-    case "vendeur":
-      return "Activité récente de votre boutique";
+  function getNotificationDescription(
+    role?: string
+  ) {
+    switch (role) {
+      case "vendeur":
+        return "Activité récente de votre boutique";
 
-    case "livreur":
-      return "Activité récente de vos livraisons";
+      case "livreur":
+        return "Activité récente de vos livraisons";
 
-    case "admin":
-    case "super_admin":
-      return "Activité récente de la plateforme";
+      case "admin":
+      case "super_admin":
+        return "Activité récente de la plateforme";
 
-    default:
-      return "Activité récente";
+      default:
+        return "Activité récente";
+    }
   }
-}
+
+  /*
+   * =========================================================
+   * SON
+   * =========================================================
+   */
 
   function playNotificationSound() {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
 
-    const audio = notificationAudioRef.current;
+    const audio =
+      notificationAudioRef.current;
+
     if (!audio) return;
 
     audio.currentTime = 0;
@@ -280,6 +347,12 @@ function getNotificationDescription(role?: string) {
     });
   }
 
+  /*
+   * =========================================================
+   * COMPTEUR
+   * =========================================================
+   */
+
   async function loadUnreadCount() {
     if (!token) return;
 
@@ -290,13 +363,16 @@ function getNotificationDescription(role?: string) {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          cache: "no-store",
         }
       );
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setUnreadCount(data.data.count);
+        setUnreadCount(
+          Number(data.data?.count ?? 0)
+        );
       }
     } catch (error) {
       console.error(
@@ -305,6 +381,12 @@ function getNotificationDescription(role?: string) {
       );
     }
   }
+
+  /*
+   * =========================================================
+   * CHARGER NOTIFICATIONS
+   * =========================================================
+   */
 
   async function loadNotifications() {
     if (!token) return;
@@ -318,13 +400,18 @@ function getNotificationDescription(role?: string) {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          cache: "no-store",
         }
       );
 
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setNotifications(data.data);
+        setNotifications(
+          Array.isArray(data.data)
+            ? data.data
+            : []
+        );
       }
     } catch (error) {
       console.error(
@@ -336,14 +423,38 @@ function getNotificationDescription(role?: string) {
     }
   }
 
+  /*
+   * =========================================================
+   * FERMER MODAL
+   * =========================================================
+   */
+
+  function closeNotificationModal() {
+    setSelectedNotification(null);
+    setCommandeDetail(null);
+    setLivraisonDetail(null);
+    setStatusComment("");
+    setUpdatingStatus(false);
+    setLoadingCommande(false);
+  }
+
+  /*
+   * =========================================================
+   * CLIQUER SUR UNE NOTIFICATION
+   * =========================================================
+   */
+
   async function handleNotificationClick(
     notification: Notification
   ) {
     if (!token) return;
 
     /*
+     * -------------------------------------------------------
      * Marquer comme lue
+     * -------------------------------------------------------
      */
+
     if (notification.lu === 0) {
       try {
         const response = await fetch(
@@ -363,10 +474,11 @@ function getNotificationDescription(role?: string) {
             current.map((item) =>
               item.uuid === notification.uuid
                 ? {
-                  ...item,
-                  lu: 1,
-                  read_at: new Date().toISOString(),
-                }
+                    ...item,
+                    lu: 1,
+                    read_at:
+                      new Date().toISOString(),
+                  }
                 : item
             )
           );
@@ -384,24 +496,23 @@ function getNotificationDescription(role?: string) {
     }
 
     /*
-     * Fermer le panneau
+     * -------------------------------------------------------
+     * Ouvrir modal
+     * -------------------------------------------------------
      */
+
     setShowNotifications(false);
 
-    /*
-     * Ouvrir le modal
-     */
     setSelectedNotification(notification);
 
-    /*
-     * Réinitialiser l'ancien détail
-     */
     setCommandeDetail(null);
+    setLivraisonDetail(null);
     setStatusComment("");
 
     /*
-     * Pas de commande liée
+     * Notification sans commande
      */
+
     if (!notification.commande_uuid) {
       return;
     }
@@ -409,24 +520,78 @@ function getNotificationDescription(role?: string) {
     setLoadingCommande(true);
 
     try {
+      /*
+       * -----------------------------------------------------
+       * Récupération commande
+       * -----------------------------------------------------
+       */
+
       const response = await fetch(
         `/api/commandes/${notification.commande_uuid}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          cache: "no-store",
         }
       );
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
-        setCommandeDetail(data.data);
-      } else {
+      if (!response.ok || !data.success) {
         console.error(
           "Erreur récupération commande :",
-          data.message
+          data?.message
         );
+
+        return;
+      }
+
+      setCommandeDetail(data.data);
+
+      /*
+       * -----------------------------------------------------
+       * Livreur :
+       * récupération livraison
+       * -----------------------------------------------------
+       */
+
+      if (user?.role === "livreur") {
+        try {
+          const livraisonResponse =
+            await fetch(
+              `/api/livraisons/commande/${notification.commande_uuid}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+                cache: "no-store",
+              }
+            );
+
+          const livraisonData =
+            await livraisonResponse.json();
+
+          if (
+            livraisonResponse.ok &&
+            livraisonData.success
+          ) {
+            setLivraisonDetail(
+              livraisonData.data?.livraison ??
+                null
+            );
+          } else {
+            console.error(
+              "Erreur récupération livraison :",
+              livraisonData?.message
+            );
+          }
+        } catch (error) {
+          console.error(
+            "Erreur récupération détail livraison :",
+            error
+          );
+        }
       }
     } catch (error) {
       console.error(
@@ -438,8 +603,16 @@ function getNotificationDescription(role?: string) {
     }
   }
 
+  /*
+   * =========================================================
+   * TOUT MARQUER COMME LU
+   * =========================================================
+   */
+
   async function handleMarkAllAsRead() {
-    if (!token || unreadCount === 0) return;
+    if (!token || unreadCount === 0) {
+      return;
+    }
 
     try {
       const response = await fetch(
@@ -455,7 +628,8 @@ function getNotificationDescription(role?: string) {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        const now = new Date().toISOString();
+        const now =
+          new Date().toISOString();
 
         setNotifications((current) =>
           current.map((notification) => ({
@@ -467,6 +641,8 @@ function getNotificationDescription(role?: string) {
         );
 
         setUnreadCount(0);
+
+        previousUnreadCountRef.current = 0;
       }
     } catch (error) {
       console.error(
@@ -476,8 +652,15 @@ function getNotificationDescription(role?: string) {
     }
   }
 
+  /*
+   * =========================================================
+   * TOGGLE
+   * =========================================================
+   */
+
   function toggleNotifications() {
-    const nextState = !showNotifications;
+    const nextState =
+      !showNotifications;
 
     setShowNotifications(nextState);
 
@@ -488,7 +671,7 @@ function getNotificationDescription(role?: string) {
 
   /*
    * =========================================================
-   * COMMANDE
+   * STATUT COMMANDE
    * =========================================================
    */
 
@@ -498,7 +681,8 @@ function getNotificationDescription(role?: string) {
     if (
       !token ||
       !commandeDetail?.uuid ||
-      updatingStatus
+      updatingStatus ||
+      user?.role !== "vendeur"
     ) {
       return;
     }
@@ -517,7 +701,8 @@ function getNotificationDescription(role?: string) {
           body: JSON.stringify({
             status,
             commentaire:
-              statusComment.trim() || undefined,
+              statusComment.trim() ||
+              undefined,
           }),
         }
       );
@@ -527,23 +712,26 @@ function getNotificationDescription(role?: string) {
       if (!response.ok || !data.success) {
         alert(
           data.message ||
-          "Impossible de modifier le statut."
+            "Impossible de modifier le statut."
         );
 
         return;
       }
 
       /*
-       * Recharger la commande
+       * Recharger commande
        */
-      const refreshResponse = await fetch(
-        `/api/commandes/${commandeDetail.uuid}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+
+      const refreshResponse =
+        await fetch(
+          `/api/commandes/${commandeDetail.uuid}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
+          }
+        );
 
       const refreshData =
         await refreshResponse.json();
@@ -552,14 +740,13 @@ function getNotificationDescription(role?: string) {
         refreshResponse.ok &&
         refreshData.success
       ) {
-        setCommandeDetail(refreshData.data);
+        setCommandeDetail(
+          refreshData.data
+        );
       }
 
       setStatusComment("");
 
-      /*
-       * Actualiser le badge notifications
-       */
       await loadUnreadCount();
     } catch (error) {
       console.error(
@@ -575,8 +762,19 @@ function getNotificationDescription(role?: string) {
     }
   }
 
-  function getStatusLabel(status: string) {
-    const labels: Record<string, string> = {
+  /*
+   * =========================================================
+   * STATUTS
+   * =========================================================
+   */
+
+  function getStatusLabel(
+    status: string
+  ) {
+    const labels: Record<
+      string,
+      string
+    > = {
       pending: "En attente",
       confirmed: "Confirmée",
       preparing: "En préparation",
@@ -585,11 +783,18 @@ function getNotificationDescription(role?: string) {
       cancelled: "Annulée",
     };
 
-    return labels[status] ?? status;
+    return (
+      labels[status] ?? status
+    );
   }
 
-  function getStatusClass(status: string) {
-    const classes: Record<string, string> = {
+  function getStatusClass(
+    status: string
+  ) {
+    const classes: Record<
+      string,
+      string
+    > = {
       pending:
         "bg-amber-50 text-amber-700 border-amber-200",
 
@@ -615,8 +820,13 @@ function getNotificationDescription(role?: string) {
     );
   }
 
-  function getNextStatuses(status: string) {
-    const transitions: Record<string, string[]> = {
+  function getNextStatuses(
+    status: string
+  ) {
+    const transitions: Record<
+      string,
+      string[]
+    > = {
       pending: [
         "confirmed",
         "cancelled",
@@ -641,7 +851,9 @@ function getNotificationDescription(role?: string) {
       cancelled: [],
     };
 
-    return transitions[status] ?? [];
+    return (
+      transitions[status] ?? []
+    );
   }
 
   /*
@@ -671,7 +883,7 @@ function getNotificationDescription(role?: string) {
 
   /*
    * =========================================================
-   * UI
+   * RENDU
    * =========================================================
    */
 
@@ -682,6 +894,10 @@ function getNotificationDescription(role?: string) {
         src="/sounds/notification.mp3"
         preload="auto"
       />
+
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
 
       <header
         className="
@@ -694,20 +910,18 @@ function getNotificationDescription(role?: string) {
       >
         <div
           className="
-    h-full
-    pl-16
-    pr-3
-    sm:px-5
-    lg:px-6
-    flex
-    items-center
-    justify-between
-    gap-3
-  "
+            h-full
+            pl-16
+            pr-3
+            sm:px-5
+            lg:px-6
+            flex
+            items-center
+            justify-between
+            gap-3
+          "
         >
-          {/* =================================================
-              GAUCHE
-          ================================================== */}
+          {/* Gauche */}
 
           <div className="min-w-0">
             <p
@@ -736,12 +950,10 @@ function getNotificationDescription(role?: string) {
             </h2>
           </div>
 
-          {/* =================================================
-              DROITE
-          ================================================== */}
+          {/* Droite */}
 
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* Utilisateur desktop */}
+            {/* Utilisateur */}
 
             <div
               className="
@@ -756,7 +968,8 @@ function getNotificationDescription(role?: string) {
             >
               <div
                 className="
-                  w-9 h-9
+                  w-9
+                  h-9
                   rounded-full
                   bg-gray-900
                   text-white
@@ -767,7 +980,9 @@ function getNotificationDescription(role?: string) {
                   font-semibold
                 "
               >
-                {user?.prenom?.charAt(0)?.toUpperCase() ??
+                {user?.prenom
+                  ?.charAt(0)
+                  ?.toUpperCase() ??
                   "U"}
               </div>
 
@@ -779,7 +994,7 @@ function getNotificationDescription(role?: string) {
                 </p>
 
                 <p className="text-[11px] text-gray-400">
-                  {getRoleTitle(user?.role)}
+                  {getRoleLabel(user?.role)}
                 </p>
               </div>
             </div>
@@ -794,11 +1009,14 @@ function getNotificationDescription(role?: string) {
             >
               <button
                 type="button"
-                onClick={toggleNotifications}
+                onClick={
+                  toggleNotifications
+                }
                 aria-label="Notifications"
                 className="
                   relative
-                  w-10 h-10
+                  w-10
+                  h-10
                   rounded-xl
                   flex
                   items-center
@@ -817,6 +1035,7 @@ function getNotificationDescription(role?: string) {
                       absolute
                       -top-1
                       -right-1
+                      z-50
                       min-w-5
                       h-5
                       px-1
@@ -830,6 +1049,7 @@ function getNotificationDescription(role?: string) {
                       justify-center
                       border-2
                       border-white
+                      shadow-sm
                     "
                   >
                     {unreadCount > 99
@@ -840,7 +1060,7 @@ function getNotificationDescription(role?: string) {
               </button>
 
               {/* =================================================
-                  PANNEAU NOTIFICATIONS
+                  PANNEAU
               ================================================== */}
 
               {showNotifications && (
@@ -865,7 +1085,7 @@ function getNotificationDescription(role?: string) {
                     z-100
                   "
                 >
-                  {/* Header */}
+                  {/* Header panneau */}
 
                   <div
                     className="
@@ -905,17 +1125,22 @@ function getNotificationDescription(role?: string) {
                       </div>
 
                       <p className="text-[11px] text-gray-400 mt-1">
-                        {getNotificationDescription(user?.role)}
+                        {getNotificationDescription(
+                          user?.role
+                        )}
                       </p>
                     </div>
 
                     <button
                       type="button"
                       onClick={() =>
-                        setShowNotifications(false)
+                        setShowNotifications(
+                          false
+                        )
                       }
                       className="
-                        w-8 h-8
+                        w-8
+                        h-8
                         rounded-lg
                         flex
                         items-center
@@ -936,7 +1161,8 @@ function getNotificationDescription(role?: string) {
                       <div className="py-12 text-center">
                         <div
                           className="
-                            w-8 h-8
+                            w-8
+                            h-8
                             border-2
                             border-gray-200
                             border-t-gray-800
@@ -950,11 +1176,13 @@ function getNotificationDescription(role?: string) {
                           Chargement des notifications...
                         </p>
                       </div>
-                    ) : notifications.length === 0 ? (
+                    ) : notifications.length ===
+                      0 ? (
                       <div className="py-12 px-6 text-center">
                         <div
                           className="
-                            w-12 h-12
+                            w-12
+                            h-12
                             rounded-full
                             bg-gray-100
                             flex
@@ -981,7 +1209,9 @@ function getNotificationDescription(role?: string) {
                       notifications.map(
                         (notification) => (
                           <button
-                            key={notification.uuid}
+                            key={
+                              notification.uuid
+                            }
                             type="button"
                             onClick={() =>
                               handleNotificationClick(
@@ -997,15 +1227,15 @@ function getNotificationDescription(role?: string) {
                               border-gray-100
                               transition
                               hover:bg-gray-50
-                              ${notification.lu === 0
-                                ? "bg-blue-50/60"
-                                : "bg-white"
+                              ${
+                                notification.lu ===
+                                0
+                                  ? "bg-blue-50/60"
+                                  : "bg-white"
                               }
                             `}
                           >
                             <div className="flex gap-3">
-                              {/* Icône */}
-
                               <div
                                 className={`
                                   shrink-0
@@ -1015,20 +1245,29 @@ function getNotificationDescription(role?: string) {
                                   flex
                                   items-center
                                   justify-center
-                                  ${notification.lu === 0
-                                    ? "bg-blue-100 text-blue-600"
-                                    : "bg-gray-100 text-gray-400"
+                                  ${
+                                    notification.lu ===
+                                    0
+                                      ? "bg-blue-100 text-blue-600"
+                                      : "bg-gray-100 text-gray-400"
                                   }
                                 `}
                               >
-                                {notification.commande_uuid ? (
-                                  <FiPackage size={17} />
+                                {user?.role ===
+                                  "livreur" ? (
+                                  <FiTruck
+                                    size={17}
+                                  />
+                                ) : notification.commande_uuid ? (
+                                  <FiPackage
+                                    size={17}
+                                  />
                                 ) : (
-                                  <FiBell size={17} />
+                                  <FiBell
+                                    size={17}
+                                  />
                                 )}
                               </div>
-
-                              {/* Texte */}
 
                               <div className="flex-1 min-w-0">
                                 <div
@@ -1043,22 +1282,26 @@ function getNotificationDescription(role?: string) {
                                     className={`
                                       text-sm
                                       truncate
-                                      ${notification.lu === 0
-                                        ? "font-semibold text-gray-900"
-                                        : "font-medium text-gray-700"
+                                      ${
+                                        notification.lu ===
+                                        0
+                                          ? "font-semibold text-gray-900"
+                                          : "font-medium text-gray-700"
                                       }
                                     `}
                                   >
-                                    {notification.titre}
+                                    {
+                                      notification.titre
+                                    }
                                   </p>
 
                                   {notification.lu ===
                                     1 && (
-                                      <FiCheck
-                                        size={14}
-                                        className="text-emerald-500 shrink-0"
-                                      />
-                                    )}
+                                    <FiCheck
+                                      size={14}
+                                      className="text-emerald-500 shrink-0"
+                                    />
+                                  )}
                                 </div>
 
                                 <p
@@ -1070,7 +1313,9 @@ function getNotificationDescription(role?: string) {
                                     line-clamp-2
                                   "
                                 >
-                                  {notification.message}
+                                  {
+                                    notification.message
+                                  }
                                 </p>
 
                                 <div
@@ -1083,7 +1328,9 @@ function getNotificationDescription(role?: string) {
                                     text-gray-400
                                   "
                                 >
-                                  <FiClock size={11} />
+                                  <FiClock
+                                    size={11}
+                                  />
 
                                   {formatDate(
                                     notification.created_at
@@ -1142,9 +1389,7 @@ function getNotificationDescription(role?: string) {
               )}
             </div>
 
-            {/* =================================================
-                DÉCONNEXION
-            ================================================== */}
+            {/* Déconnexion desktop */}
 
             <button
               type="button"
@@ -1166,10 +1411,12 @@ function getNotificationDescription(role?: string) {
             >
               <FiLogOut size={17} />
 
-              <span>Déconnexion</span>
+              <span>
+                Déconnexion
+              </span>
             </button>
 
-            {/* Mobile logout */}
+            {/* Déconnexion mobile */}
 
             <button
               type="button"
@@ -1195,15 +1442,33 @@ function getNotificationDescription(role?: string) {
       </header>
 
       {/* =====================================================
-          MODAL NOTIFICATION / COMMANDE
+          MODAL LIVREUR
       ====================================================== */}
 
-      {selectedNotification && (
+      {selectedNotification &&
+      user?.role === "livreur" ? (
+        <LivreurNotificationModal
+          notification={selectedNotification}
+          commande={commandeDetail}
+          livraison={livraisonDetail}
+          loadingCommande={loadingCommande}
+          onClose={
+            closeNotificationModal
+          }
+        />
+      ) : null}
+
+      {/* =====================================================
+          MODAL VENDEUR
+      ====================================================== */}
+
+      {selectedNotification &&
+      user?.role === "vendeur" ? (
         <div
           className="
             fixed
             inset-0
-            z-[200]
+            z-200
             bg-black/50
             backdrop-blur-sm
             flex
@@ -1212,8 +1477,8 @@ function getNotificationDescription(role?: string) {
             p-2
             sm:p-4
           "
-          onClick={() =>
-            setSelectedNotification(null)
+          onClick={
+            closeNotificationModal
           }
         >
           <div
@@ -1234,11 +1499,12 @@ function getNotificationDescription(role?: string) {
               event.stopPropagation()
             }
           >
-            {/* Modal header */}
+            {/* =================================================
+                HEADER MODAL
+            ================================================== */}
 
             <div
               className="
-                shrink-0
                 px-4
                 sm:px-6
                 py-4
@@ -1247,59 +1513,45 @@ function getNotificationDescription(role?: string) {
                 flex
                 items-center
                 justify-between
-                gap-4
+                gap-3
               "
             >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="
-                      w-9 h-9
-                      rounded-xl
-                      bg-blue-100
-                      text-blue-600
-                      flex
-                      items-center
-                      justify-center
-                      shrink-0
-                    "
-                  >
-                    {selectedNotification.commande_uuid ? (
-                      <FiPackage size={18} />
-                    ) : (
-                      <FiBell size={18} />
-                    )}
-                  </div>
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="
+                    w-11
+                    h-11
+                    rounded-2xl
+                    bg-blue-50
+                    text-blue-600
+                    flex
+                    items-center
+                    justify-center
+                    shrink-0
+                  "
+                >
+                  <FiPackage size={22} />
+                </div>
 
-                  <div className="min-w-0">
-                    <h3
-                      className="
-                        text-base
-                        sm:text-lg
-                        font-bold
-                        text-gray-900
-                        truncate
-                      "
-                    >
-                      {selectedNotification.titre}
-                    </h3>
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 truncate">
+                    {selectedNotification.titre}
+                  </h2>
 
-                    <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5">
-                      {formatDate(
-                        selectedNotification.created_at
-                      )}
-                    </p>
-                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Notification de votre boutique
+                  </p>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedNotification(null)
+                onClick={
+                  closeNotificationModal
                 }
                 className="
-                  w-9 h-9
+                  w-9
+                  h-9
                   rounded-xl
                   flex
                   items-center
@@ -1310,49 +1562,21 @@ function getNotificationDescription(role?: string) {
                   shrink-0
                 "
               >
-                <FiX size={20} />
+                <FiX size={19} />
               </button>
             </div>
 
-            {/* Modal body */}
+            {/* =================================================
+                CONTENU
+            ================================================== */}
 
-            <div
-              className="
-                flex-1
-                overflow-y-auto
-                px-4
-                sm:px-6
-                py-5
-                space-y-4
-              "
-            >
-              {/* Message */}
-
-              <div
-                className="
-                  rounded-xl
-                  bg-blue-50
-                  border
-                  border-blue-100
-                  p-4
-                "
-              >
-                <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-wide">
-                  Notification
-                </p>
-
-                <p className="text-sm text-gray-700 mt-1 leading-6">
-                  {selectedNotification.message}
-                </p>
-              </div>
-
-              {/* Loading */}
-
-              {loadingCommande && (
-                <div className="py-10 text-center">
+            <div className="flex-1 overflow-y-auto">
+              {loadingCommande ? (
+                <div className="py-16 text-center">
                   <div
                     className="
-                      w-8 h-8
+                      w-10
+                      h-10
                       border-2
                       border-gray-200
                       border-t-gray-800
@@ -1362,181 +1586,204 @@ function getNotificationDescription(role?: string) {
                     "
                   />
 
-                  <p className="text-xs text-gray-400 mt-3">
+                  <p className="text-sm text-gray-500 mt-4">
                     Chargement de la commande...
                   </p>
                 </div>
-              )}
+              ) : !commandeDetail ? (
+                <div className="py-16 px-6 text-center">
+                  <div
+                    className="
+                      w-14
+                      h-14
+                      rounded-full
+                      bg-gray-100
+                      flex
+                      items-center
+                      justify-center
+                      mx-auto
+                    "
+                  >
+                    <FiPackage
+                      size={25}
+                      className="text-gray-400"
+                    />
+                  </div>
 
-              {/* =================================================
-                  COMMANDE
-              ================================================== */}
+                  <p className="text-sm font-semibold text-gray-700 mt-4">
+                    Commande introuvable
+                  </p>
 
-              {!loadingCommande &&
-                commandeDetail && (
-                  <>
-                    {/* Informations commande */}
+                  <p className="text-xs text-gray-400 mt-1">
+                    Impossible de récupérer les détails de cette commande.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 sm:p-6 space-y-5">
+                  {/* Notification */}
 
-                    <div className="rounded-2xl border border-gray-200 overflow-hidden">
-                      <div className="px-4 py-3 bg-gray-50 border-b">
-                        <div className="flex items-center gap-2">
-                          <FiShoppingBag
-                            size={16}
-                            className="text-gray-500"
-                          />
+                  <div
+                    className="
+                      rounded-2xl
+                      bg-blue-50
+                      border
+                      border-blue-100
+                      p-4
+                    "
+                  >
+                    <div className="flex gap-3">
+                      <FiBell
+                        size={19}
+                        className="text-blue-600 shrink-0 mt-0.5"
+                      />
 
-                          <h4 className="text-sm font-bold text-gray-900">
-                            Informations de la commande
-                          </h4>
-                        </div>
-                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-blue-900">
+                          {
+                            selectedNotification.titre
+                          }
+                        </p>
 
-                      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-[11px] text-gray-400">
-                            Numéro
-                          </p>
+                        <p className="text-xs text-blue-700 mt-1 leading-5">
+                          {
+                            selectedNotification.message
+                          }
+                        </p>
 
-                          <p className="text-sm font-bold text-gray-900 mt-1">
-                            #
-                            {
-                              selectedNotification.commande_id
-                            }
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-[11px] text-gray-400">
-                            Statut
-                          </p>
-
-                          <span
-                            className={`
-                              inline-flex
-                              items-center
-                              mt-1
-                              px-2.5
-                              py-1
-                              rounded-full
-                              text-xs
-                              font-semibold
-                              border
-                              ${getStatusClass(
-                              commandeDetail.status
-                            )}
-                            `}
-                          >
-                            {getStatusLabel(
-                              commandeDetail.status
-                            )}
-                          </span>
-                        </div>
-
-                        <div>
-                          <p className="text-[11px] text-gray-400">
-                            Total
-                          </p>
-
-                          <p className="text-sm font-bold text-gray-900 mt-1">
-                            {formatMoney(
-                              commandeDetail.total
-                            )}{" "}
-                            FCFA
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-[11px] text-gray-400">
-                            Livraison
-                          </p>
-
-                          <p className="text-sm font-semibold text-gray-900 mt-1">
-                            {formatMoney(
-                              commandeDetail.frais_livraison
-                            )}{" "}
-                            FCFA
-                          </p>
-                        </div>
+                        <p className="text-[10px] text-blue-500 mt-2">
+                          {formatDate(
+                            selectedNotification.created_at
+                          )}
+                        </p>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Client */}
+                  {/* Commande */}
 
-                    <div className="rounded-2xl border border-gray-200 p-4">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                          <FiUser
-                            size={15}
-                            className="text-gray-500"
-                          />
-                        </div>
+                  <section>
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                        <FiPackage size={17} />
+                        Commande
+                      </h3>
 
-                        <h4 className="text-sm font-bold text-gray-900">
-                          Client
-                        </h4>
+                      <span
+                        className={`
+                          px-3
+                          py-1
+                          rounded-full
+                          border
+                          text-[11px]
+                          font-semibold
+                          ${getStatusClass(
+                            commandeDetail.status
+                          )}
+                        `}
+                      >
+                        {getStatusLabel(
+                          commandeDetail.status
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                        <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                          Référence
+                        </p>
+
+                        <p className="text-sm font-bold text-gray-900 mt-1">
+                          #
+                          {commandeDetail.uuid.slice(
+                            0,
+                            8
+                          )}
+                        </p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                      <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+                        <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                          Date
+                        </p>
+
+                        <p className="text-xs font-medium text-gray-700 mt-1">
+                          {formatDate(
+                            commandeDetail.created_at
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Client */}
+
+                  <section>
+                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
+                      <FiUser size={17} />
+                      Client
+                    </h3>
+
+                    <div className="rounded-2xl border border-gray-100 p-4">
+                      <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[11px] text-gray-400">
-                            Nom
-                          </p>
-
-                          <p className="font-medium text-gray-900 mt-1">
-                            {commandeDetail.client.nom}{" "}
-                            {commandeDetail.client.prenom}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-[11px] text-gray-400">
-                            Téléphone
-                          </p>
-
-                          <p className="font-medium text-gray-900 mt-1">
+                          <p className="text-sm font-semibold text-gray-900">
                             {
                               commandeDetail.client
-                                .telephone
+                                .prenom
+                            }{" "}
+                            {
+                              commandeDetail.client
+                                .nom
                             }
                           </p>
-                        </div>
 
-                        <div className="sm:col-span-2">
-                          <p className="text-[11px] text-gray-400">
-                            Email
-                          </p>
-
-                          <p className="font-medium text-gray-900 mt-1 break-all">
+                          <p className="text-xs text-gray-400 mt-1">
                             {
                               commandeDetail.client
                                 .email
                             }
                           </p>
                         </div>
+
+                        <a
+                          href={`tel:${commandeDetail.client.telephone}`}
+                          className="
+                            w-10
+                            h-10
+                            rounded-xl
+                            bg-emerald-50
+                            text-emerald-600
+                            flex
+                            items-center
+                            justify-center
+                            shrink-0
+                          "
+                          aria-label="Appeler le client"
+                        >
+                          <FiPhone size={18} />
+                        </a>
                       </div>
-                    </div>
 
-                    {/* Livraison */}
-
-                    <div className="rounded-2xl border border-gray-200 p-4">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                          <FiMapPin
-                            size={15}
-                            className="text-gray-500"
-                          />
-                        </div>
-
-                        <h4 className="text-sm font-bold text-gray-900">
-                          Livraison
-                        </h4>
-                      </div>
-
-                      <p className="text-[11px] text-gray-400">
-                        Adresse
+                      <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">
+                        {
+                          commandeDetail.client
+                            .telephone
+                        }
                       </p>
+                    </div>
+                  </section>
 
-                      <p className="text-sm font-medium text-gray-900 mt-1">
+                  {/* Livraison */}
+
+                  <section>
+                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
+                      <FiMapPin size={17} />
+                      Livraison
+                    </h3>
+
+                    <div className="rounded-2xl border border-gray-100 p-4">
+                      <p className="text-sm text-gray-800 leading-6">
                         {commandeDetail.adresse_livraison ||
                           "Adresse non renseignée"}
                       </p>
@@ -1544,152 +1791,289 @@ function getNotificationDescription(role?: string) {
                       {commandeDetail.latitude !==
                         null &&
                         commandeDetail.longitude !==
-                        null && (
-                          <div className="mt-4 pt-3 border-t">
-                            <p className="text-[11px] text-gray-400">
-                              Position GPS
-                            </p>
-
-                            <p className="text-xs font-medium text-gray-700 mt-1">
-                              {
-                                commandeDetail.latitude
-                              }
-                              ,{" "}
-                              {
-                                commandeDetail.longitude
-                              }
-                            </p>
-                          </div>
+                          null && (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${commandeDetail.latitude},${commandeDetail.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="
+                              mt-3
+                              inline-flex
+                              items-center
+                              gap-2
+                              px-3
+                              py-2
+                              rounded-xl
+                              bg-gray-900
+                              text-white
+                              text-xs
+                              font-semibold
+                            "
+                          >
+                            <FiMapPin size={14} />
+                            Voir la position
+                          </a>
                         )}
                     </div>
+                  </section>
 
-                    {/* Produits */}
+                  {/* Produits */}
 
-                    <div className="rounded-2xl border border-gray-200 overflow-hidden">
-                      <div className="px-4 py-3 bg-gray-50 border-b">
-                        <div className="flex items-center gap-2">
-                          <FiPackage
-                            size={16}
-                            className="text-gray-500"
-                          />
+                  <section>
+                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
+                      <FiShoppingBag size={17} />
+                      Produits
+                    </h3>
 
-                          <h4 className="text-sm font-bold text-gray-900">
-                            Produits commandés
-                          </h4>
-                        </div>
-                      </div>
+                    <div className="space-y-2">
+                      {commandeDetail.produits.map(
+                        (produit) => (
+                          <div
+                            key={produit.id}
+                            className="
+                              flex
+                              items-center
+                              justify-between
+                              gap-3
+                              rounded-xl
+                              border
+                              border-gray-100
+                              p-3
+                            "
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              {produit.image ? (
+                                <img
+                                  src={
+                                    produit.image
+                                  }
+                                  alt={
+                                    produit.nom
+                                  }
+                                  className="
+                                    w-11
+                                    h-11
+                                    rounded-xl
+                                    object-cover
+                                    shrink-0
+                                  "
+                                />
+                              ) : (
+                                <div
+                                  className="
+                                    w-11
+                                    h-11
+                                    rounded-xl
+                                    bg-gray-100
+                                    flex
+                                    items-center
+                                    justify-center
+                                    shrink-0
+                                  "
+                                >
+                                  <FiPackage
+                                    size={18}
+                                    className="text-gray-400"
+                                  />
+                                </div>
+                              )}
 
-                      <div className="divide-y">
-                        {commandeDetail.produits.map(
-                          (produit) => (
-                            <div
-                              key={produit.id}
-                              className="
-                                p-4
-                                flex
-                                items-center
-                                justify-between
-                                gap-4
-                              "
-                            >
                               <div className="min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 truncate">
-                                  {produit.nom}
+                                <p className="text-sm font-medium text-gray-800 truncate">
+                                  {
+                                    produit.nom
+                                  }
                                 </p>
 
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {produit.quantite} ×{" "}
-                                  {formatMoney(
-                                    produit.prix
-                                  )}{" "}
-                                  FCFA
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Quantité :{" "}
+                                  {
+                                    produit.quantite
+                                  }
                                 </p>
                               </div>
-
-                              <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
-                                {formatMoney(
-                                  produit.sous_total
-                                )}{" "}
-                                FCFA
-                              </p>
                             </div>
-                          )
-                        )}
-                      </div>
 
-                      <div className="px-4 py-4 bg-gray-900 text-white flex items-center justify-between">
-                        <span className="text-sm">
-                          Total
-                        </span>
+                            <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                              {formatMoney(
+                                produit.sous_total
+                              )}{" "}
+                              FCFA
+                            </p>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </section>
 
-                        <span className="text-lg font-bold">
-                          {formatMoney(
-                            commandeDetail.total
-                          )}{" "}
-                          FCFA
-                        </span>
-                      </div>
+                  {/* Total */}
+
+                  <section
+                    className="
+                      rounded-2xl
+                      bg-gray-900
+                      text-white
+                      p-4
+                    "
+                  >
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-300">
+                        Sous-total
+                      </span>
+
+                      <span>
+                        {formatMoney(
+                          commandeDetail.total -
+                            commandeDetail.frais_livraison
+                        )}{" "}
+                        FCFA
+                      </span>
                     </div>
 
-                    {/* Historique */}
+                    <div className="flex justify-between text-xs mt-2">
+                      <span className="text-gray-300">
+                        Livraison
+                      </span>
 
-                    <div className="rounded-2xl border border-gray-200 p-4">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                          <FiClock
-                            size={15}
-                            className="text-gray-500"
-                          />
-                        </div>
+                      <span>
+                        {formatMoney(
+                          commandeDetail.frais_livraison
+                        )}{" "}
+                        FCFA
+                      </span>
+                    </div>
 
-                        <h4 className="text-sm font-bold text-gray-900">
-                          Historique
-                        </h4>
+                    <div className="border-t border-white/10 my-3" />
+
+                    <div className="flex justify-between">
+                      <span className="text-sm font-semibold">
+                        Total
+                      </span>
+
+                      <span className="text-lg font-bold">
+                        {formatMoney(
+                          commandeDetail.total
+                        )}{" "}
+                        FCFA
+                      </span>
+                    </div>
+                  </section>
+
+                  {/* =================================================
+                      ACTIONS VENDEUR
+                  ================================================== */}
+
+                  {getNextStatuses(
+                    commandeDetail.status
+                  ).length > 0 && (
+                    <section>
+                      <h3 className="text-sm font-bold text-gray-900 mb-3">
+                        Actions sur la commande
+                      </h3>
+
+                      <textarea
+                        value={statusComment}
+                        onChange={(event) =>
+                          setStatusComment(
+                            event.target.value
+                          )
+                        }
+                        placeholder="Ajouter un commentaire (facultatif)..."
+                        rows={3}
+                        className="
+                          w-full
+                          rounded-xl
+                          border
+                          border-gray-200
+                          px-3
+                          py-2.5
+                          text-sm
+                          outline-none
+                          focus:border-gray-400
+                          resize-none
+                        "
+                      />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                        {getNextStatuses(
+                          commandeDetail.status
+                        ).map((nextStatus) => (
+                          <button
+                            key={nextStatus}
+                            type="button"
+                            disabled={
+                              updatingStatus
+                            }
+                            onClick={() =>
+                              handleUpdateCommandeStatus(
+                                nextStatus
+                              )
+                            }
+                            className={`
+                              py-2.5
+                              rounded-xl
+                              text-xs
+                              font-semibold
+                              border
+                              transition
+                              disabled:opacity-50
+                              disabled:cursor-not-allowed
+                              ${
+                                nextStatus ===
+                                "cancelled"
+                                  ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+                                  : "bg-gray-900 text-white border-gray-900 hover:bg-gray-800"
+                              }
+                            `}
+                          >
+                            {updatingStatus
+                              ? "Traitement..."
+                              : getStatusLabel(
+                                  nextStatus
+                                )}
+                          </button>
+                        ))}
                       </div>
+                    </section>
+                  )}
 
-                      {commandeDetail.historique
-                        .length === 0 ? (
-                        <p className="text-sm text-gray-400">
-                          Aucun historique disponible.
-                        </p>
-                      ) : (
-                        <div className="space-y-4">
-                          {commandeDetail.historique.map(
-                            (item, index) => (
+                  {/* Historique */}
+
+                  {commandeDetail.historique
+                    ?.length > 0 && (
+                    <section>
+                      <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
+                        <FiClock size={17} />
+                        Historique
+                      </h3>
+
+                      <div className="space-y-3">
+                        {commandeDetail.historique
+                          .map(
+                            (
+                              item,
+                              index
+                            ) => (
                               <div
                                 key={
-                                  item.id ?? index
+                                  item.id ??
+                                  index
                                 }
                                 className="flex gap-3"
                               >
-                                <div className="flex flex-col items-center">
-                                  <div
-                                    className={`
-                                      w-3
-                                      h-3
-                                      rounded-full
-                                      ${index ===
-                                        commandeDetail
-                                          .historique
-                                          .length -
-                                        1
-                                        ? "bg-blue-600"
-                                        : "bg-gray-300"
-                                      }
-                                    `}
-                                  />
+                                <div
+                                  className="
+                                    w-2
+                                    h-2
+                                    rounded-full
+                                    bg-gray-400
+                                    mt-2
+                                    shrink-0
+                                  "
+                                />
 
-                                  {index !==
-                                    commandeDetail
-                                      .historique
-                                      .length -
-                                    1 && (
-                                      <div className="w-px flex-1 bg-gray-200 mt-1" />
-                                    )}
-                                </div>
-
-                                <div className="pb-2">
-                                  <p className="text-sm font-semibold text-gray-900">
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-700">
                                     {getStatusLabel(
                                       item.status
                                     )}
@@ -1712,119 +2096,17 @@ function getNotificationDescription(role?: string) {
                               </div>
                             )
                           )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-
-                    {getNextStatuses(
-                      commandeDetail.status
-                    ).length > 0 && (
-                        <div className="rounded-2xl border border-gray-200 p-4">
-                          <h4 className="text-sm font-bold text-gray-900 mb-3">
-                            Gestion de la commande
-                          </h4>
-
-                          <textarea
-                            value={statusComment}
-                            onChange={(event) =>
-                              setStatusComment(
-                                event.target.value
-                              )
-                            }
-                            rows={3}
-                            placeholder="Ajouter un commentaire facultatif..."
-                            className="
-                            w-full
-                            rounded-xl
-                            border
-                            border-gray-200
-                            px-3
-                            py-2.5
-                            text-sm
-                            outline-none
-                            resize-none
-                            focus:border-blue-500
-                            focus:ring-4
-                            focus:ring-blue-50
-                          "
-                          />
-
-                          <div className="flex flex-wrap gap-2 mt-3">
-                            {getNextStatuses(
-                              commandeDetail.status
-                            ).map(
-                              (nextStatus) => (
-                                <button
-                                  key={nextStatus}
-                                  type="button"
-                                  disabled={
-                                    updatingStatus
-                                  }
-                                  onClick={() =>
-                                    handleUpdateCommandeStatus(
-                                      nextStatus
-                                    )
-                                  }
-                                  className={`
-                                  px-4
-                                  py-2.5
-                                  rounded-xl
-                                  text-xs
-                                  font-semibold
-                                  text-white
-                                  transition
-                                  disabled:opacity-50
-                                  disabled:cursor-not-allowed
-                                  ${nextStatus ===
-                                      "cancelled"
-                                      ? "bg-red-600 hover:bg-red-700"
-                                      : "bg-gray-900 hover:bg-gray-800"
-                                    }
-                                `}
-                                >
-                                  {updatingStatus
-                                    ? "Mise à jour..."
-                                    : getStatusLabel(
-                                      nextStatus
-                                    )}
-                                </button>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-                  </>
-                )}
-
-              {/* Erreur */}
-
-              {!loadingCommande &&
-                selectedNotification.commande_uuid &&
-                !commandeDetail && (
-                  <div
-                    className="
-                      rounded-xl
-                      border
-                      border-red-200
-                      bg-red-50
-                      p-4
-                    "
-                  >
-                    <p className="text-sm text-red-700">
-                      Impossible de récupérer les
-                      informations de cette commande.
-                    </p>
-                  </div>
-                )}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer */}
 
             <div
               className="
-                shrink-0
                 px-4
                 sm:px-6
                 py-3
@@ -1837,20 +2119,20 @@ function getNotificationDescription(role?: string) {
             >
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedNotification(null)
+                onClick={
+                  closeNotificationModal
                 }
                 className="
-                  px-5
-                  py-2.5
+                  px-4
+                  py-2
                   rounded-xl
-                  bg-gray-900
-                  text-white
+                  bg-white
+                  border
+                  border-gray-200
                   text-xs
-                  sm:text-sm
                   font-semibold
-                  hover:bg-gray-800
-                  transition
+                  text-gray-700
+                  hover:bg-gray-100
                 "
               >
                 Fermer
@@ -1858,7 +2140,249 @@ function getNotificationDescription(role?: string) {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
+
+      {/* =====================================================
+          MODAL AUTRES RÔLES
+      ====================================================== */}
+
+      {selectedNotification &&
+      user?.role !== "livreur" &&
+      user?.role !== "vendeur" ? (
+        <div
+          className="
+            fixed
+            inset-0
+            z-200
+            bg-black/50
+            backdrop-blur-sm
+            flex
+            items-center
+            justify-center
+            p-2
+            sm:p-4
+          "
+          onClick={
+            closeNotificationModal
+          }
+        >
+          <div
+            className="
+              w-full
+              max-w-2xl
+              max-h-[95vh]
+              bg-white
+              rounded-2xl
+              shadow-2xl
+              overflow-hidden
+              flex
+              flex-col
+            "
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div
+              className="
+                px-4
+                sm:px-6
+                py-4
+                border-b
+                border-gray-100
+                flex
+                items-center
+                justify-between
+              "
+            >
+              <div>
+                <h2 className="text-base font-bold text-gray-900">
+                  {
+                    selectedNotification.titre
+                  }
+                </h2>
+
+                <p className="text-xs text-gray-400 mt-1">
+                  {
+                    selectedNotification.message
+                  }
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  closeNotificationModal
+                }
+                className="
+                  w-9
+                  h-9
+                  rounded-xl
+                  flex
+                  items-center
+                  justify-center
+                  hover:bg-gray-100
+                "
+              >
+                <FiX size={19} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              {loadingCommande ? (
+                <div className="py-16 text-center">
+                  <div
+                    className="
+                      w-9
+                      h-9
+                      border-2
+                      border-gray-200
+                      border-t-gray-800
+                      rounded-full
+                      animate-spin
+                      mx-auto
+                    "
+                  />
+
+                  <p className="text-sm text-gray-500 mt-4">
+                    Chargement...
+                  </p>
+                </div>
+              ) : commandeDetail ? (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-400">
+                        Commande
+                      </p>
+
+                      <p className="text-lg font-bold text-gray-900">
+                        #
+                        {commandeDetail.uuid.slice(
+                          0,
+                          8
+                        )}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`
+                        px-3
+                        py-1
+                        rounded-full
+                        border
+                        text-xs
+                        font-semibold
+                        ${getStatusClass(
+                          commandeDetail.status
+                        )}
+                      `}
+                    >
+                      {getStatusLabel(
+                        commandeDetail.status
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-100 p-4">
+                    <p className="text-xs text-gray-400">
+                      Boutique
+                    </p>
+
+                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                      {
+                        commandeDetail.boutique
+                          .nom
+                      }
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-100 p-4">
+                    <p className="text-xs text-gray-400">
+                      Client
+                    </p>
+
+                    <p className="text-sm font-semibold text-gray-900 mt-1">
+                      {
+                        commandeDetail.client
+                          .prenom
+                      }{" "}
+                      {
+                        commandeDetail.client
+                          .nom
+                      }
+                    </p>
+
+                    <p className="text-xs text-gray-500 mt-1">
+                      {
+                        commandeDetail.client
+                          .telephone
+                      }
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-gray-900 text-white p-4 flex justify-between">
+                    <span className="text-sm">
+                      Total
+                    </span>
+
+                    <span className="text-lg font-bold">
+                      {formatMoney(
+                        commandeDetail.total
+                      )}{" "}
+                      FCFA
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-16 text-center">
+                  <FiPackage
+                    size={30}
+                    className="mx-auto text-gray-300"
+                  />
+
+                  <p className="text-sm text-gray-500 mt-3">
+                    Aucun détail disponible.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div
+              className="
+                px-4
+                sm:px-6
+                py-3
+                border-t
+                border-gray-100
+                bg-gray-50
+                flex
+                justify-end
+              "
+            >
+              <button
+                type="button"
+                onClick={
+                  closeNotificationModal
+                }
+                className="
+                  px-4
+                  py-2
+                  rounded-xl
+                  bg-white
+                  border
+                  border-gray-200
+                  text-xs
+                  font-semibold
+                  text-gray-700
+                  hover:bg-gray-100
+                "
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
