@@ -23,112 +23,112 @@ export class DemandeRoleService {
    * Créer une demande pour devenir vendeur
    * ou livreur.
    */
-static async create(
-  user_id: number,
-  type: DemandeRoleType,
-  motif?: string | null
-) {
-  const user =
-    await UserRepository.findById(user_id);
+  static async create(
+    user_id: number,
+    type: DemandeRoleType,
+    motif?: string | null
+  ) {
+    const user =
+      await UserRepository.findById(user_id);
 
-  if (!user) {
-    throw new NotFoundError(
-      "Utilisateur introuvable."
-    );
-  }
+    if (!user) {
+      throw new NotFoundError(
+        "Utilisateur introuvable."
+      );
+    }
 
-  /*
-   * Seul un client peut demander
-   * un nouveau rôle.
-   */
-  if (user.role !== "client") {
-    throw new ForbiddenError(
-      "Seul un client peut effectuer une demande de rôle."
-    );
-  }
+    /*
+     * Seul un client peut demander
+     * un nouveau rôle.
+     */
+    if (user.role !== "client") {
+      throw new ForbiddenError(
+        "Seul un client peut effectuer une demande de rôle."
+      );
+    }
 
-  /*
-   * Vérifier qu'il n'existe pas
-   * déjà une demande en attente.
-   */
-  const existing =
-    await DemandeRoleRepository.findPendingByUserAndType(
+    /*
+     * Vérifier qu'il n'existe pas
+     * déjà une demande en attente.
+     */
+    const existing =
+      await DemandeRoleRepository.findPendingByUserAndType(
+        user_id,
+        type
+      );
+
+    if (existing) {
+      throw new ConflictError(
+        `Vous avez déjà une demande pour devenir ${type} en attente de traitement.`
+      );
+    }
+
+    /*
+     * Créer la demande.
+     */
+    const uuid = randomUUID();
+
+    await DemandeRoleRepository.create({
+      uuid,
       user_id,
-      type
-    );
-
-  if (existing) {
-    throw new ConflictError(
-      `Vous avez déjà une demande pour devenir ${type} en attente de traitement.`
-    );
-  }
-
-  /*
-   * Créer la demande.
-   */
-  const uuid = randomUUID();
-
-  await DemandeRoleRepository.create({
-    uuid,
-    user_id,
-    type,
-    motif: motif?.trim() || null,
-  });
-
-  const typeLabel =
-    type === "vendeur"
-      ? "vendeur"
-      : "livreur";
-
-  /*
-   * Notification destinée au client.
-   *
-   * À ce stade, l'utilisateur est toujours
-   * client. Il doit donc être informé que
-   * sa demande est simplement en cours
-   * de traitement.
-   */
-  await NotificationService.create({
-    user_id,
-    type: "role_request",
-    titre: "Demande envoyée",
-    message:
-      `Votre demande pour devenir ${typeLabel} a bien été envoyée. Elle est actuellement en cours de traitement par le super administrateur.`,
-  });
-
-  /*
-   * Notification destinée aux
-   * super administrateurs.
-   */
-  const superAdmins =
-    await UserRepository.findSuperAdministrators();
-
-  for (const admin of superAdmins) {
-    await NotificationService.create({
-      user_id: admin.id,
-      type: "role_request",
-      titre: "Nouvelle demande de rôle",
-      message:
-        `${user.prenom} ${user.nom} souhaite devenir ${typeLabel}.`,
+      type,
+      motif: motif?.trim() || null,
     });
+
+    const typeLabel =
+      type === "vendeur"
+        ? "vendeur"
+        : "livreur";
+
+    /*
+     * Notification destinée au client.
+     *
+     * À ce stade, l'utilisateur est toujours
+     * client. Il doit donc être informé que
+     * sa demande est simplement en cours
+     * de traitement.
+     */
+    await NotificationService.create({
+      user_id,
+      type: "role_request",
+      titre: "Demande envoyée",
+      message:
+        `Votre demande pour devenir ${typeLabel} a bien été envoyée. Elle est actuellement en cours de traitement par le super administrateur.`,
+    });
+
+    /*
+     * Notification destinée aux
+     * super administrateurs.
+     */
+    const superAdmins =
+      await UserRepository.findSuperAdministrators();
+
+    for (const admin of superAdmins) {
+      await NotificationService.create({
+        user_id: admin.id,
+        type: "role_request",
+        titre: "Nouvelle demande de rôle",
+        message:
+          `${user.prenom} ${user.nom} souhaite devenir ${typeLabel}.`,
+      });
+    }
+
+    /*
+     * Retourner la demande créée.
+     */
+    const demande =
+      await DemandeRoleRepository.findByUUID(
+        uuid
+      );
+
+    if (!demande) {
+      throw new NotFoundError(
+        "Impossible de récupérer la demande créée."
+      );
+    }
+
+    return demande;
   }
-
-  /*
-   * Retourner la demande créée.
-   */
-  const demande =
-    await DemandeRoleRepository.findByUUID(
-      uuid
-    );
-
-  if (!demande) {
-    throw new NotFoundError(
-      "Impossible de récupérer la demande créée."
-    );
-  }
-
-  return demande;
-}
 
 
   /**
@@ -272,26 +272,26 @@ static async create(
     await NotificationService.create({
       user_id: demande.user_id,
       type: "role_request",
-      titre: "Demande de rôle approuvée",
+      titre:
+        demande.type === "vendeur"
+          ? "Demande vendeur approuvée"
+          : "Demande de rôle approuvée",
       message:
-        `Votre demande pour devenir ${demande.type} a été approuvée. Votre nouveau rôle est maintenant ${demande.type}.`,
+        demande.type === "vendeur"
+          ? "Félicitations ! Votre demande pour devenir vendeur a été approuvée. Votre compte est maintenant activé en tant que vendeur.\n\n🔄 Déconnectez-vous puis reconnectez-vous pour accéder à votre nouvelle interface vendeur."
+          : `Votre demande pour devenir ${demande.type} a été approuvée. Votre nouveau rôle est maintenant ${demande.type}.`,
     });
-
-    return DemandeRoleRepository.findByUUID(
-      uuid
-    );
   }
-
 
   /**
    * Refuser une demande de rôle.
    */
   static async reject(
-    uuid: string,
-    adminId: number,
-    requesterRole: string,
-    commentaire?: string | null
-  ) {
+      uuid: string,
+      adminId: number,
+      requesterRole: string,
+      commentaire?: string | null
+    ) {
     if (requesterRole !== "super_admin") {
       throw new ForbiddenError(
         "Seul le super administrateur peut rejeter une demande."
