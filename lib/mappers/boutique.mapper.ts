@@ -25,6 +25,9 @@ export function boutiqueResponse(
 
     status: boutique.status,
 
+    livraison_configuree:
+      boutique.livraison_configuree,
+      
     activation_expires_at:
       boutique.activation_expires_at,
 

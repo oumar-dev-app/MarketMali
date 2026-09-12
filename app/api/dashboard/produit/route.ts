@@ -9,39 +9,69 @@ import { vendeurMiddleware } from "@/lib/middleware/vendeur.middleware";
 export async function GET(
   req: NextRequest
 ) {
-
   return apiHandler(async () => {
+    const mine =
+      req.nextUrl.searchParams.get("mine") === "true";
 
-    const user =
-      vendeurMiddleware(req);
+    // Produits de la boutique du vendeur connecté
+    if (mine) {
+      const user = vendeurMiddleware(req);
+
+      const produits =
+        await ProduitService.findByUser(
+          user.id,
+          user.role
+        );
+
+      return NextResponse.json(
+        {
+          success: true,
+
+          message:
+            produits.length
+              ? "Produits de votre boutique récupérés avec succès."
+              : "Aucun produit dans votre boutique.",
+
+          data: produits,
+        },
+        {
+          status: 200,
+        }
+      );
+    }
+
+    // Recherche publique existante
+    const search =
+      req.nextUrl.searchParams.get("search")
+      ?? undefined;
+
+    const categorie =
+      req.nextUrl.searchParams.get("categorie")
+      ?? undefined;
 
     const produits =
-      await ProduitService.findByUser(
-        user.id,
-        user.role
+      await ProduitService.search(
+        search,
+        categorie
       );
 
     return NextResponse.json(
       {
         success: true,
+
         message:
           produits.length
             ? "Produits récupérés avec succès."
             : "Aucun produit disponible.",
+
         data: produits,
       },
       {
         status: 200,
       }
     );
-
   });
-
 }
-
-
-
-
 
 export async function POST(
   req: NextRequest

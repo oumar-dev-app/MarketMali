@@ -43,16 +43,43 @@ export async function apiGet<T>(
     }
   );
 
-  const data = await response.json();
+  const text = await response.text();
+
+  console.log(
+    "[apiGet]",
+    endpoint,
+    response.status,
+    response.headers.get("content-type"),
+    text.slice(0, 300)
+  );
 
   if (!response.ok) {
-    throw new Error(
-      data.message ||
-        "Erreur lors de la récupération des données."
-    );
+    try {
+      const data = JSON.parse(text);
+
+      throw new Error(
+        data.message ||
+          "Erreur lors de la récupération des données."
+      );
+    } catch {
+      throw new Error(
+        `Erreur API ${endpoint} (${response.status})`
+      );
+    }
   }
 
-  return data;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    console.error(
+      `[apiGet] Réponse non JSON pour ${endpoint}:`,
+      text.slice(0, 500)
+    );
+
+    throw new Error(
+      `La réponse de ${endpoint} n'est pas un JSON valide.`
+    );
+  }
 }
 
 export async function apiPost<T>(

@@ -16,7 +16,7 @@ export interface Boutique {
   ville: string | null;
 
   status: "active" | "pending" | "blocked";
-
+  livraison_configuree: boolean;
   activation_expires_at: Date | null;
 
   created_at: Date;

@@ -104,24 +104,24 @@ export class BoutiqueRepository {
   }
 
   static async findByBoutiqueIdActive(
-  boutique_id: number
-): Promise<ProduitRow[]> {
+    boutique_id: number
+  ): Promise<ProduitRow[]> {
 
-  const [rows] =
-    await db.query<ProduitRow[]>(
-      `
+    const [rows] =
+      await db.query<ProduitRow[]>(
+        `
       SELECT *
       FROM produits
       WHERE boutique_id = ?
       AND status = 'active'
       ORDER BY created_at DESC
       `,
-      [boutique_id]
-    );
+        [boutique_id]
+      );
 
-  return rows;
+    return rows;
 
-}
+  }
 
 
 
@@ -318,6 +318,18 @@ export class BoutiqueRepository {
 
   }
 
+  static async markLivraisonConfiguree(
+    id: number
+  ) {
+    await db.execute(
+      `
+    UPDATE boutiques
+    SET livraison_configuree = 1
+    WHERE id = ?
+    `,
+      [id]
+    );
+  }
 
   static async activate(
     id: number

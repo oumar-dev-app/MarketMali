@@ -45,21 +45,16 @@ export class BoutiqueService {
 
     }
 
-
-
     if (user.role !== "vendeur") {
       throw new ForbiddenError(
         "Seuls les vendeurs approuvés peuvent créer une boutique."
       );
     }
 
-
-
     const existing =
       await BoutiqueRepository.findByUserId(
         data.user_id
       );
-
 
     if (existing) {
 
@@ -69,12 +64,8 @@ export class BoutiqueService {
 
     }
 
-
-
     let slug =
       generateSlug(data.nom);
-
-
 
     const slugExists =
       await BoutiqueRepository.findBySlug(
@@ -89,22 +80,15 @@ export class BoutiqueService {
 
     }
 
-
-
     const uuid =
       generateUUID();
-
-
 
     const expiration =
       new Date();
 
-
     expiration.setDate(
       expiration.getDate() + 30
     );
-
-
 
     const id =
       await BoutiqueRepository.create({
@@ -134,12 +118,8 @@ export class BoutiqueService {
 
       });
 
-
-
     const boutique =
       await BoutiqueRepository.findById(id);
-
-
 
     if (!boutique) {
 
@@ -164,16 +144,11 @@ export class BoutiqueService {
 
     }
 
-
     return boutiqueResponse(
       boutique
     );
 
   }
-
-
-
-
 
   static async findAll() {
 
@@ -188,24 +163,16 @@ export class BoutiqueService {
   }
 
 
-
-
-
   static async findAllActive() {
 
     const boutiques =
       await BoutiqueRepository.findAllActive();
-
 
     return boutiqueListResponse(
       boutiques
     );
 
   }
-
-
-
-
 
   static async findByUUID(
     uuid: string
@@ -216,7 +183,6 @@ export class BoutiqueService {
         uuid
       );
 
-
     if (!boutique) {
 
       throw new NotFoundError(
@@ -225,15 +191,11 @@ export class BoutiqueService {
 
     }
 
-
     return boutiqueResponse(
       boutique
     );
 
   }
-
-
-
 
 
   static async findBySlugActive(
@@ -261,10 +223,6 @@ export class BoutiqueService {
 
   }
 
-
-
-
-
   static async update(
     uuid: string,
     user_id: number,
@@ -279,11 +237,8 @@ export class BoutiqueService {
         role
       );
 
-
     const updateData:
       UpdateBoutiqueDTO = {};
-
-
 
     if (
       data.nom &&
@@ -293,14 +248,10 @@ export class BoutiqueService {
       let slug =
         generateSlug(data.nom);
 
-
-
       const exists =
         await BoutiqueRepository.findBySlug(
           slug
         );
-
-
 
       if (
         exists &&
@@ -312,8 +263,6 @@ export class BoutiqueService {
 
       }
 
-
-
       updateData.nom =
         data.nom;
 
@@ -323,28 +272,21 @@ export class BoutiqueService {
 
     }
 
-
-
-
     if (data.description !== undefined)
       updateData.description =
         data.description;
-
 
     if (data.logo !== undefined)
       updateData.logo =
         data.logo;
 
-
     if (data.telephone !== undefined)
       updateData.telephone =
         data.telephone;
 
-
     if (data.email !== undefined)
       updateData.email =
         data.email;
-
 
     if (data.adresse !== undefined)
       updateData.adresse =
@@ -355,21 +297,15 @@ export class BoutiqueService {
       updateData.ville =
         data.ville;
 
-
-
     await BoutiqueRepository.update(
       boutique.id,
       updateData
     );
 
-
-
     const updated =
       await BoutiqueRepository.findById(
         boutique.id
       );
-
-
 
     if (!updated) {
 
@@ -378,8 +314,6 @@ export class BoutiqueService {
       );
 
     }
-
-
 
     return boutiqueResponse(
       updated
@@ -406,7 +340,6 @@ export class BoutiqueService {
 
   }
 
-
   static async findByUser(
     user_id: number
   ) {
@@ -414,17 +347,13 @@ export class BoutiqueService {
       await BoutiqueRepository.findByUserId(user_id);
 
     if (!boutique) {
-      throw new NotFoundError(
-        "Boutique introuvable."
-      );
+      return null;
     }
 
     return boutiqueResponse(
       boutique
     );
   }
-
-
 
   static async verifyOwnership(
     uuid: string,
@@ -447,8 +376,6 @@ export class BoutiqueService {
 
     }
 
-
-
     if (
       role !== "admin" &&
       role !== "super_admin" &&
@@ -461,282 +388,269 @@ export class BoutiqueService {
 
     }
 
-
-
     return boutique;
 
   }
 
 
+  static async activate(
+    uuid: string,
+    role: string
+  ) {
 
+    // Seul le super administrateur peut activer une boutique
+    if (role !== "super_admin") {
 
+      throw new ForbiddenError(
+        "Seul le super administrateur peut activer une boutique."
+      );
 
-static async activate(
-  uuid: string,
-  role: string
-) {
+    }
 
-  // Seul le super administrateur peut activer une boutique
-  if (role !== "super_admin") {
+    // Récupération de la boutique
+    const boutique =
+      await BoutiqueRepository.findByUUID(
+        uuid
+      );
 
-    throw new ForbiddenError(
-      "Seul le super administrateur peut activer une boutique."
-    );
+    if (!boutique) {
 
-  }
+      throw new NotFoundError(
+        "Boutique introuvable."
+      );
 
+    }
 
-  // Récupération de la boutique
-  const boutique =
-    await BoutiqueRepository.findByUUID(
-      uuid
-    );
+    // Vérifier que la boutique est bien en attente
+    if (boutique.status !== "pending") {
 
+      throw new ConflictError(
+        "Cette boutique n'est pas en attente d'activation."
+      );
 
-  if (!boutique) {
+    }
 
-    throw new NotFoundError(
-      "Boutique introuvable."
-    );
-
-  }
-
-
-  // Vérifier que la boutique est bien en attente
-  if (boutique.status !== "pending") {
-
-    throw new ConflictError(
-      "Cette boutique n'est pas en attente d'activation."
-    );
-
-  }
-
-
-  // Activation de la boutique
-  await BoutiqueRepository.activate(
-    boutique.id
-  );
-
-
-  // Récupération du vendeur propriétaire
-  const vendeur =
-    await UserRepository.findById(
-      boutique.user_id
-    );
-
-
-  if (vendeur) {
-
-    await NotificationService.create({
-
-      user_id: vendeur.id,
-
-      type: "boutique_activated",
-
-      titre: "Votre boutique a été activée",
-
-      message:
-        `Bonne nouvelle ! Votre boutique "${boutique.nom}" a été activée. Elle est maintenant visible sur le marketplace.`,
-
-    });
-
-  }
-
-
-  // Récupération de la boutique mise à jour
-  const updated =
-    await BoutiqueRepository.findById(
+    // Activation de la boutique
+    await BoutiqueRepository.activate(
       boutique.id
     );
 
 
-  if (!updated) {
+    // Récupération du vendeur propriétaire
+    const vendeur =
+      await UserRepository.findById(
+        boutique.user_id
+      );
 
-    throw new NotFoundError(
-      "Impossible de récupérer la boutique."
+
+    if (vendeur) {
+
+      await NotificationService.create({
+
+        user_id: vendeur.id,
+
+        type: "boutique_activated",
+
+        titre: "Votre boutique a été activée",
+
+        message:
+          `Bonne nouvelle ! Votre boutique "${boutique.nom}" a été activée. Elle est maintenant visible sur le marketplace.`,
+
+      });
+
+    }
+
+
+    // Récupération de la boutique mise à jour
+    const updated =
+      await BoutiqueRepository.findById(
+        boutique.id
+      );
+
+
+    if (!updated) {
+
+      throw new NotFoundError(
+        "Impossible de récupérer la boutique."
+      );
+
+    }
+
+
+    return boutiqueResponse(
+      updated
     );
 
   }
 
-
-  return boutiqueResponse(
-    updated
-  );
-
-}
-
-
-
-
-
-static async unblock(
-  uuid: string,
-  role: string
-) {
-
-  if (
-    role !== "admin" &&
-    role !== "super_admin"
+  static async unblock(
+    uuid: string,
+    role: string
   ) {
 
-    throw new ForbiddenError(
-      "Accès refusé."
-    );
+    if (
+      role !== "admin" &&
+      role !== "super_admin"
+    ) {
 
-  }
+      throw new ForbiddenError(
+        "Accès refusé."
+      );
 
-
-  const boutique =
-    await BoutiqueRepository.findByUUID(
-      uuid
-    );
-
-
-  if (!boutique) {
-
-    throw new NotFoundError(
-      "Boutique introuvable."
-    );
-
-  }
+    }
 
 
-  if (boutique.status !== "blocked") {
-
-    throw new ConflictError(
-      "Cette boutique n'est pas bloquée."
-    );
-
-  }
+    const boutique =
+      await BoutiqueRepository.findByUUID(
+        uuid
+      );
 
 
-  await BoutiqueRepository.activate(
-    boutique.id
-  );
+    if (!boutique) {
+
+      throw new NotFoundError(
+        "Boutique introuvable."
+      );
+
+    }
 
 
-  const vendeur =
-    await UserRepository.findById(
-      boutique.user_id
-    );
+    if (boutique.status !== "blocked") {
+
+      throw new ConflictError(
+        "Cette boutique n'est pas bloquée."
+      );
+
+    }
 
 
-  if (vendeur) {
-
-    await NotificationService.create({
-
-      user_id: vendeur.id,
-
-      type: "boutique_activated",
-
-      titre: "Votre boutique a été débloquée",
-
-      message:
-        `Bonne nouvelle ! Votre boutique "${boutique.nom}" a été débloquée. Elle est maintenant de nouveau visible sur le marketplace.`,
-
-    });
-
-  }
-
-
-  const updated =
-    await BoutiqueRepository.findById(
+    await BoutiqueRepository.activate(
       boutique.id
     );
 
-  if (!updated) {
 
-    throw new NotFoundError(
-      "Impossible de récupérer la boutique."
+    const vendeur =
+      await UserRepository.findById(
+        boutique.user_id
+      );
+
+
+    if (vendeur) {
+
+      await NotificationService.create({
+
+        user_id: vendeur.id,
+
+        type: "boutique_activated",
+
+        titre: "Votre boutique a été débloquée",
+
+        message:
+          `Bonne nouvelle ! Votre boutique "${boutique.nom}" a été débloquée. Elle est maintenant de nouveau visible sur le marketplace.`,
+
+      });
+
+    }
+
+
+    const updated =
+      await BoutiqueRepository.findById(
+        boutique.id
+      );
+
+    if (!updated) {
+
+      throw new NotFoundError(
+        "Impossible de récupérer la boutique."
+      );
+
+    }
+
+    return boutiqueResponse(
+      updated
     );
 
   }
 
-  return boutiqueResponse(
-    updated
-  );
 
-}
-
-
-static async block(
-  uuid: string,
-  role: string
-) {
-
-  if (
-    role !== "admin" &&
-    role !== "super_admin"
+  static async block(
+    uuid: string,
+    role: string
   ) {
 
-    throw new ForbiddenError(
-      "Accès refusé."
+    if (
+      role !== "admin" &&
+      role !== "super_admin"
+    ) {
+
+      throw new ForbiddenError(
+        "Accès refusé."
+      );
+
+    }
+
+
+    const boutique =
+      await BoutiqueRepository.findByUUID(
+        uuid
+      );
+
+
+    if (!boutique) {
+
+      throw new NotFoundError(
+        "Boutique introuvable."
+      );
+
+    }
+
+
+    if (boutique.status === "blocked") {
+
+      throw new ConflictError(
+        "Cette boutique est déjà bloquée."
+      );
+
+    }
+
+
+    await BoutiqueRepository.block(
+      boutique.id
     );
 
-  }
+
+    const vendeur =
+      await UserRepository.findById(
+        boutique.user_id
+      );
 
 
-  const boutique =
-    await BoutiqueRepository.findByUUID(
-      uuid
-    );
+    if (vendeur) {
+
+      await NotificationService.create({
+
+        user_id: vendeur.id,
+
+        type: "boutique_blocked",
+
+        titre: "Votre boutique a été bloquée",
+
+        message:
+          `Votre boutique "${boutique.nom}" a été bloquée par l'administration. Elle n'est plus visible sur le marketplace.`,
+
+      });
+
+    }
 
 
-  if (!boutique) {
-
-    throw new NotFoundError(
-      "Boutique introuvable."
-    );
-
-  }
-
-
-  if (boutique.status === "blocked") {
-
-    throw new ConflictError(
-      "Cette boutique est déjà bloquée."
-    );
-
-  }
-
-
-  await BoutiqueRepository.block(
-    boutique.id
-  );
-
-
-  const vendeur =
-    await UserRepository.findById(
-      boutique.user_id
-    );
-
-
-  if (vendeur) {
-
-    await NotificationService.create({
-
-      user_id: vendeur.id,
-
-      type: "boutique_blocked",
-
-      titre: "Votre boutique a été bloquée",
+    return {
 
       message:
-        `Votre boutique "${boutique.nom}" a été bloquée par l'administration. Elle n'est plus visible sur le marketplace.`,
+        "Boutique bloquée avec succès."
 
-    });
+    };
 
   }
-
-
-  return {
-
-    message:
-      "Boutique bloquée avec succès."
-
-  };
-
-}
 
   static async findByUUIDActive(
     uuid: string
@@ -804,6 +718,40 @@ static async block(
 
     };
 
+  }
+
+  static async markLivraisonConfiguree(
+    user_id: number
+  ) {
+    const boutique =
+      await BoutiqueRepository.findByUserId(
+        user_id
+      );
+
+    if (!boutique) {
+      throw new NotFoundError(
+        "Aucune boutique associée à cet utilisateur."
+      );
+    }
+
+    await BoutiqueRepository.markLivraisonConfiguree(
+      boutique.id
+    );
+
+    const updatedBoutique =
+      await BoutiqueRepository.findById(
+        boutique.id
+      );
+
+    if (!updatedBoutique) {
+      throw new NotFoundError(
+        "Boutique introuvable après mise à jour."
+      );
+    }
+
+    return boutiqueResponse(
+      updatedBoutique
+    );
   }
 
 

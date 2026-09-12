@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import BoutiqueForm, {
   BoutiqueFormData,
 } from "../../composants/BoutiqueForm";
 
-export default function CreateBoutiquePage() {
-  const router = useRouter();
+interface CreateBoutiqueStepProps {
+  onCompleted: () => void;
+}
 
+export default function CreateBoutiqueStep({
+  onCompleted,
+}: CreateBoutiqueStepProps) {
   const { token, user, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(false);
@@ -59,13 +62,20 @@ export default function CreateBoutiquePage() {
       if (!response.ok || !result.success) {
         setError(
           result.message ||
-          "Impossible de créer la boutique."
+            "Impossible de créer la boutique."
         );
         return;
       }
 
-      router.push("/dashboard/ma-boutique");
-      router.refresh();
+      /*
+       * Important :
+       * On ne redirige plus vers une autre page.
+       *
+       * Le composant parent (ma-boutique/page.tsx)
+       * va recharger l'état depuis le serveur et passer
+       * automatiquement à l'étape 2.
+       */
+      onCompleted();
     } catch (error) {
       console.error(
         "Erreur création boutique :",
@@ -82,48 +92,40 @@ export default function CreateBoutiquePage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse space-y-5">
-            <div className="h-8 w-64 bg-gray-200 rounded-lg" />
-            <div className="h-4 w-96 max-w-full bg-gray-200 rounded" />
-            <div className="h-[600px] bg-white border border-gray-200 rounded-2xl" />
-          </div>
-        </div>
+      <div className="animate-pulse space-y-5">
+        <div className="h-8 w-64 bg-gray-200 rounded-lg" />
+        <div className="h-4 w-96 max-w-full bg-gray-200 rounded" />
+        <div className="h-125 bg-white border border-gray-200 rounded-2xl" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+          Créez votre boutique
+        </h2>
 
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-            Créer ma boutique
-          </h1>
-
-          <p className="text-sm text-gray-500 mt-2">
-            Créez votre boutique pour commencer à vendre
-            sur MarketMali.
-          </p>
-        </div>
-
-        {error && (
-          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <BoutiqueForm
-          loading={loading}
-          onSubmit={handleSubmit}
-          onCancel={() =>
-            router.push("/dashboard/boutiques")
-          }
-        />
-
+        <p className="text-sm text-gray-500 mt-2">
+          Commencez par renseigner les informations de votre
+          boutique. Vous pourrez ensuite ajouter vos produits.
+        </p>
       </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <BoutiqueForm
+        loading={loading}
+        onSubmit={handleSubmit}
+        onCancel={() => {
+          setError("");
+        }}
+      />
     </div>
   );
 }

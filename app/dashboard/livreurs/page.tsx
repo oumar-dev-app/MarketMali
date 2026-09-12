@@ -197,12 +197,11 @@ export default function LivreursPage() {
     try {
       const token = getToken();
 
-
       if (!token) return;
 
       const response = await fetch("/api/dashboard/boutiques", {
         headers: {
-          Authorization: `Bearer ${token} `,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         cache: "no-store",
@@ -210,14 +209,30 @@ export default function LivreursPage() {
 
       const result = await response.json();
 
-      if (response.ok && result.success) {
-        setBoutiques(result.data ?? []);
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.message ||
+          "Impossible de récupérer les boutiques."
+        );
+      }
+
+      const data = result.data;
+
+      if (Array.isArray(data)) {
+        setBoutiques(data);
+      } else if (data && typeof data === "object") {
+        setBoutiques([data]);
+      } else {
+        setBoutiques([]);
       }
     } catch (error) {
-      console.error("Erreur récupération boutiques:", error);
+      console.error(
+        "Erreur récupération boutiques:",
+        error
+      );
+
+      setBoutiques([]);
     }
-
-
   };
 
   useEffect(() => {

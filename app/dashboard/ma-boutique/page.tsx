@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Store,
@@ -17,10 +17,23 @@ import {
   AlertCircle,
   Ban,
   ArrowLeft,
+  Truck,
+  Settings2,
+  Users,
+  Tag,
+  Lock,
+  Loader2,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGet } from "@/lib/api";
+
+import CreateBoutiqueStep from "@/app/dashboard/_components/boutique-setup/CreateBoutiqueStep";
+import AddProductStep from "@/app/dashboard/_components/boutique-setup/AddProductStep";
+import DeliveryConfigurationStep from "@/app/dashboard/_components/boutique-setup/DeliveryConfigurationStep";
+import AddLivreurStep from "../_components/boutique-setup/AddLivreurStep";
+import DeliveryRatesStep from "@/app/dashboard/_components/boutique-setup/DeliveryRatesStep";
+import PromotionStep from "@/app/dashboard/_components/boutique-setup/PromotionStep";
 
 interface Boutique {
   uuid: string;
@@ -33,6 +46,7 @@ interface Boutique {
   adresse: string | null;
   ville: string | null;
   status: "active" | "pending" | "blocked";
+  livraison_configuree: boolean;
   activation_expires_at: string | null;
   created_at: string;
 }
@@ -40,16 +54,180 @@ interface Boutique {
 interface BoutiqueResponse {
   success: boolean;
   message?: string;
-  data: Boutique;
+  data: Boutique | null;
 }
+
+interface ListResponse {
+  success: boolean;
+  data: unknown[];
+}
+
+const TOTAL_STEPS = 6;
 
 export default function MaBoutiquePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
-  const [boutique, setBoutique] = useState<Boutique | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [boutique, setBoutique] =
+    useState<Boutique | null>(null);
+
+  const [hasProducts, setHasProducts] =
+    useState(false);
+
+  const [hasLivreur, setHasLivreur] =
+    useState(false);
+
+  const [hasDeliveryRates, setHasDeliveryRates] =
+    useState(false);
+
+  const [hasPromotion, setHasPromotion] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  /**
+   * ------------------------------------------------------------
+   * RÉCUPÉRATION DE L'ÉTAT RÉEL DE L'ONBOARDING
+   * ------------------------------------------------------------
+   *
+   * La base de données reste la source de vérité.
+   * Aucun état d'avancement n'est enregistré dans localStorage.
+   */
+  const fetchBoutiqueState = useCallback(
+    async (showLoader = true) => {
+      try {
+        if (showLoader) {
+          setLoading(true);
+        } else {
+          setRefreshing(true);
+        }
+
+        setError("");
+
+        const result =
+          await apiGet<BoutiqueResponse>(
+            "/dashboard/boutiques"
+          );
+
+        const currentBoutique =
+          result?.data ?? null;
+
+        setBoutique(currentBoutique);
+
+        if (!currentBoutique) {
+          setHasProducts(false);
+          setHasLivreur(false);
+          setHasDeliveryRates(false);
+          setHasPromotion(false);
+
+          return;
+        }
+
+        const [
+          productsResult,
+          livreursResult,
+          tarifsResult,
+          promotionsResult,
+        ] = await Promise.allSettled([
+          apiGet<ListResponse>(
+            "/dashboard/produit?mine=true"
+          ),
+
+          apiGet<ListResponse>(
+            "/dashboard/livreurs"
+          ),
+
+          apiGet<ListResponse>(
+            "/dashboard/tarifs-livraison"
+          ),
+
+          apiGet<ListResponse>(
+            "/promotions"
+          ),
+        ]);
+
+        if (productsResult.status === "fulfilled") {
+          setHasProducts(
+            Array.isArray(productsResult.value?.data) &&
+              productsResult.value.data.length > 0
+          );
+        } else {
+          console.error(
+            "Erreur récupération produits :",
+            productsResult.reason
+          );
+
+          setHasProducts(false);
+        }
+
+        if (livreursResult.status === "fulfilled") {
+          setHasLivreur(
+            Array.isArray(livreursResult.value?.data) &&
+              livreursResult.value.data.length > 0
+          );
+        } else {
+          console.error(
+            "Erreur récupération livreurs :",
+            livreursResult.reason
+          );
+
+          setHasLivreur(false);
+        }
+
+        if (tarifsResult.status === "fulfilled") {
+          setHasDeliveryRates(
+            Array.isArray(tarifsResult.value?.data) &&
+              tarifsResult.value.data.length > 0
+          );
+        } else {
+          console.error(
+            "Erreur récupération tarifs :",
+            tarifsResult.reason
+          );
+
+          setHasDeliveryRates(false);
+        }
+
+        if (promotionsResult.status === "fulfilled") {
+          setHasPromotion(
+            Array.isArray(
+              promotionsResult.value?.data
+            ) &&
+              promotionsResult.value.data.length > 0
+          );
+        } else {
+          console.error(
+            "Erreur récupération promotions :",
+            promotionsResult.reason
+          );
+
+          setHasPromotion(false);
+        }
+      } catch (err) {
+        console.error(err);
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Impossible de récupérer votre boutique."
+        );
+      } finally {
+        if (showLoader) {
+          setLoading(false);
+        } else {
+          setRefreshing(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (authLoading) return;
@@ -64,43 +242,71 @@ export default function MaBoutiquePage() {
       return;
     }
 
-    const fetchBoutique = async () => {
-      try {
-        setLoading(true);
-        setError("");
+    fetchBoutiqueState(true);
+  }, [
+    user,
+    authLoading,
+    router,
+    fetchBoutiqueState,
+  ]);
 
-        const result =
-          await apiGet<BoutiqueResponse>(
-            "/dashboard/boutiques"
-          );
+  /**
+   * ------------------------------------------------------------
+   * PROGRESSION
+   * ------------------------------------------------------------
+   */
 
-        if (!result?.data) {
-          throw new Error(
-            "Aucune boutique trouvée."
-          );
-        }
+  const completedSteps =
+    (boutique ? 1 : 0) +
+    (hasProducts ? 1 : 0) +
+    (boutique?.livraison_configuree ? 1 : 0) +
+    (hasLivreur ? 1 : 0) +
+    (hasDeliveryRates ? 1 : 0) +
+    (hasPromotion ? 1 : 0);
 
-        setBoutique(result.data);
-      } catch (err) {
-        console.error(err);
+  const progress =
+    (completedSteps / TOTAL_STEPS) * 100;
 
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Impossible de récupérer votre boutique."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+  /**
+   * Première étape non terminée.
+   *
+   * Même si plusieurs éléments existent déjà en base,
+   * on ne rend active qu'une seule étape à la fois.
+   */
+  const activeStep =
+    !boutique
+      ? 1
+      : !hasProducts
+        ? 2
+        : !boutique.livraison_configuree
+          ? 3
+          : !hasLivreur
+            ? 4
+            : !hasDeliveryRates
+              ? 5
+              : !hasPromotion
+                ? 6
+                : null;
 
-    fetchBoutique();
-  }, [user, authLoading, router]);
+  /**
+   * ------------------------------------------------------------
+   * VALIDATION D'UNE ÉTAPE
+   * ------------------------------------------------------------
+   */
+  const handleStepCompleted = async () => {
+    await fetchBoutiqueState(false);
+  };
+
+  /**
+   * ------------------------------------------------------------
+   * CHARGEMENT
+   * ------------------------------------------------------------
+   */
 
   if (authLoading || loading) {
     return (
       <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-5xl mx-auto space-y-6">
           <div className="h-10 w-56 bg-gray-200 rounded-xl animate-pulse" />
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
@@ -128,6 +334,12 @@ export default function MaBoutiquePage() {
     );
   }
 
+  /**
+   * ------------------------------------------------------------
+   * ERREUR
+   * ------------------------------------------------------------
+   */
+
   if (error) {
     return (
       <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
@@ -147,9 +359,12 @@ export default function MaBoutiquePage() {
 
             <button
               type="button"
-              onClick={() => window.location.reload()}
-              className="mt-6 inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition"
+              onClick={() =>
+                fetchBoutiqueState(true)
+              }
+              className="mt-6 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition"
             >
+              <ArrowLeft className="w-4 h-4 rotate-180" />
               Réessayer
             </button>
           </div>
@@ -158,48 +373,19 @@ export default function MaBoutiquePage() {
     );
   }
 
-  if (!boutique) {
-    return null;
-  }
+  /**
+   * ============================================================
+   * ONBOARDING
+   * ============================================================
+   */
 
-  const statusConfig = {
-    active: {
-      label: "Active",
-      icon: CheckCircle,
-      className:
-        "bg-emerald-50 text-emerald-700 border-emerald-200",
-      dot: "bg-emerald-500",
-    },
-    pending: {
-      label: "En attente de validation",
-      icon: Clock,
-      className:
-        "bg-amber-50 text-amber-700 border-amber-200",
-      dot: "bg-amber-500",
-    },
-    blocked: {
-      label: "Bloquée",
-      icon: Ban,
-      className:
-        "bg-red-50 text-red-700 border-red-200",
-      dot: "bg-red-500",
-    },
-  };
+  if (completedSteps < TOTAL_STEPS) {
+    return (
+      <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-5xl mx-auto">
 
-  const status =
-    statusConfig[boutique.status];
-
-  const StatusIcon = status.icon;
-
-  return (
-    <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-
-        {/* HEADER */}
-
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5 mb-8">
-
-          <div>
+          {/* HEADER */}
+          <div className="mb-8">
             <div className="flex items-center gap-3">
               <Link
                 href="/dashboard"
@@ -215,345 +401,634 @@ export default function MaBoutiquePage() {
                 </p>
 
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                  Ma boutique
+                  Bienvenue sur MarketMali 👋
                 </h1>
               </div>
             </div>
-
-            <p className="text-sm text-gray-500 mt-3">
-              Gérez les informations et la présence de votre boutique.
-            </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          {/* INTRODUCTION + PROGRESSION */}
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
+            <div className="h-2 bg-gray-900" />
 
-            <Link
-              href={`/boutiques/${boutique.slug}`}
-              target="_blank"
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white border border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-50 transition shadow-sm"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Visiter ma boutique
-            </Link>
+            <div className="p-6 sm:p-8 lg:p-10">
 
-            <Link
-              href={`/dashboard/boutiques/${boutique.uuid}/edit`}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition shadow-sm"
-            >
-              <Pencil className="w-4 h-4" />
-              Modifier
-            </Link>
+              <div className="max-w-3xl">
+                <div className="w-14 h-14 rounded-2xl bg-gray-900 flex items-center justify-center mb-5">
+                  <Store className="w-7 h-7 text-white" />
+                </div>
 
-          </div>
-        </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                  Configurez votre boutique
+                </h2>
 
-        {/* BOUTIQUE HERO */}
+                <p className="text-gray-600 mt-3 leading-relaxed">
+                  Votre espace vendeur est prêt. Nous allons maintenant
+                  vous accompagner étape par étape pour préparer votre
+                  boutique avant son ouverture aux clients.
+                </p>
 
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
+                <p className="text-sm text-gray-500 mt-3 leading-relaxed">
+                  Chaque étape est enregistrée directement dans votre
+                  compte. Vous pouvez quitter cette page et revenir
+                  plus tard : MarketMali reprendra automatiquement
+                  là où vous vous êtes arrêté.
+                </p>
+              </div>
 
-          <div className="h-2 bg-gray-900" />
+              {/* PROGRESSION */}
+              <div className="mt-8 p-5 rounded-2xl bg-gray-50 border border-gray-200">
 
-          <div className="p-5 sm:p-7 lg:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Configuration de votre boutique
+                    </p>
 
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
+                    <p className="text-xs text-gray-500 mt-1">
+                      Étape {activeStep} sur {TOTAL_STEPS}
+                    </p>
+                  </div>
 
-              {/* LOGO */}
+                  <span className="text-sm font-bold text-gray-900">
+                    {completedSteps}/{TOTAL_STEPS} étapes
+                  </span>
+                </div>
 
-              <div className="shrink-0">
-
-                {boutique.logo ? (
-                  <img
-                    src={boutique.logo}
-                    alt={boutique.nom}
-                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border border-gray-200 shadow-sm"
+                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gray-900 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${progress}%`,
+                    }}
                   />
-                ) : (
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center">
-                    <Store className="w-10 h-10 text-gray-400" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RÉSUMÉ DES ÉTAPES */}
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
+
+            <div className="px-5 sm:px-7 py-5 border-b border-gray-100">
+              <h2 className="font-semibold text-gray-900">
+                Votre parcours
+              </h2>
+
+              <p className="text-sm text-gray-500 mt-1">
+                Les étapes suivantes seront débloquées automatiquement
+                après validation de l'étape actuelle.
+              </p>
+            </div>
+
+            <div className="p-5 sm:p-7">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+                {/* 1 */}
+                <StepSummary
+                  number={1}
+                  title="Créer ma boutique"
+                  completed={Boolean(boutique)}
+                  active={activeStep === 1}
+                />
+
+                {/* 2 */}
+                <StepSummary
+                  number={2}
+                  title="Ajouter mes produits"
+                  completed={hasProducts}
+                  active={activeStep === 2}
+                  locked={!boutique}
+                />
+
+                {/* 3 */}
+                <StepSummary
+                  number={3}
+                  title="Organiser mes livraisons"
+                  completed={Boolean(
+                    boutique?.livraison_configuree
+                  )}
+                  active={activeStep === 3}
+                  locked={!hasProducts}
+                />
+
+                {/* 4 */}
+                <StepSummary
+                  number={4}
+                  title="Ajouter un livreur"
+                  completed={hasLivreur}
+                  active={activeStep === 4}
+                  locked={!boutique?.livraison_configuree}
+                />
+
+                {/* 5 */}
+                <StepSummary
+                  number={5}
+                  title="Configurer les tarifs"
+                  completed={hasDeliveryRates}
+                  active={activeStep === 5}
+                  locked={!hasLivreur}
+                />
+
+                {/* 6 */}
+                <StepSummary
+                  number={6}
+                  title="Créer une promotion"
+                  completed={hasPromotion}
+                  active={activeStep === 6}
+                  locked={!hasDeliveryRates}
+                />
+
+              </div>
+            </div>
+          </div>
+
+          {/* ====================================================
+              ÉTAPE ACTIVE
+              ==================================================== */}
+
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+
+            <div className="px-5 sm:px-7 py-5 border-b border-gray-100 bg-gray-50/70">
+              <div className="flex items-center justify-between gap-4">
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Étape {activeStep}
+                  </p>
+
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 mt-1">
+                    {activeStep === 1 &&
+                      "Créer votre boutique"}
+
+                    {activeStep === 2 &&
+                      "Ajouter votre premier produit"}
+
+                    {activeStep === 3 &&
+                      "Organiser vos livraisons"}
+
+                    {activeStep === 4 &&
+                      "Ajouter votre premier livreur"}
+
+                    {activeStep === 5 &&
+                      "Configurer vos tarifs de livraison"}
+
+                    {activeStep === 6 &&
+                      "Créer votre première promotion"}
+                  </h2>
+                </div>
+
+                {refreshing && (
+                  <div className="inline-flex items-center gap-2 text-xs text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Actualisation...
                   </div>
                 )}
 
               </div>
+            </div>
 
-              {/* INFORMATIONS */}
+            <div className="p-5 sm:p-7">
 
-              <div className="min-w-0 flex-1">
+              {activeStep === 1 && (
+                <CreateBoutiqueStep
+                  onCompleted={handleStepCompleted}
+                />
+              )}
 
-                <div className="flex flex-wrap items-center gap-3">
+              {activeStep === 2 && (
+                <AddProductStep
+                  onCompleted={handleStepCompleted}
+                />
+              )}
 
-                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate">
-                    {boutique.nom}
-                  </h2>
+              {activeStep === 3 && (
+                <DeliveryConfigurationStep
+                  onCompleted={handleStepCompleted}
+                />
+              )}
 
-                  <span
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold ${status.className}`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${status.dot}`}
-                    />
+              {activeStep === 4 && (
+                <AddLivreurStep
+                  onCompleted={handleStepCompleted}
+                />
+              )}
 
-                    <StatusIcon className="w-3.5 h-3.5" />
+              {activeStep === 5 && (
+                <DeliveryRatesStep
+                  onCompleted={handleStepCompleted}
+                />
+              )}
 
-                    {status.label}
-                  </span>
+              {activeStep === 6 && (
+                <PromotionStep
+                  onCompleted={handleStepCompleted}
+                />
+              )}
 
-                </div>
+            </div>
+          </div>
 
-                <p className="text-sm text-gray-400 mt-2">
-                  /{boutique.slug}
+          {/* CONSEIL */}
+          <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                <CheckCircle className="w-5 h-5 text-blue-600" />
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-blue-900">
+                  Votre progression est sauvegardée
+                </h3>
+
+                <p className="text-sm text-blue-800 mt-1 leading-relaxed">
+                  Vous n'avez pas besoin de terminer les six étapes
+                  immédiatement. Vous pouvez quitter votre espace vendeur
+                  et revenir plus tard. MarketMali vérifiera automatiquement
+                  ce qui a déjà été configuré.
                 </p>
-
-                {boutique.description && (
-                  <p className="text-sm text-gray-600 mt-4 max-w-2xl leading-relaxed">
-                    {boutique.description}
-                  </p>
-                )}
-
               </div>
 
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * ============================================================
+   * BOUTIQUE TERMINÉE
+   * ============================================================
+   */
+
+  const statusConfig = {
+    active: {
+      label: "Active",
+      className:
+        "bg-emerald-50 text-emerald-700 border-emerald-200",
+      icon: CheckCircle,
+    },
+    pending: {
+      label: "En attente",
+      className:
+        "bg-orange-50 text-orange-700 border-orange-200",
+      icon: Clock,
+    },
+    blocked: {
+      label: "Bloquée",
+      className:
+        "bg-red-50 text-red-700 border-red-200",
+      icon: Ban,
+    },
+  };
+
+  const currentStatus =
+    boutique?.status
+      ? statusConfig[boutique.status]
+      : statusConfig.pending;
+
+  const StatusIcon =
+    currentStatus.icon;
+
+  return (
+    <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+          <div className="flex items-center gap-3">
+
+            <Link
+              href="/dashboard"
+              className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
+              title="Retour au dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+
+            <div>
+              <p className="text-sm text-gray-500">
+                Espace vendeur
+              </p>
+
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Ma boutique
+              </h1>
             </div>
 
           </div>
-        </div>
 
-        {/* ACTIONS RAPIDES */}
+          {boutique && (
+            <div className="flex flex-wrap gap-2">
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              <Link
+                href={`/boutiques/${boutique.slug}`}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Voir ma boutique
+              </Link>
 
-          <Link
-            href="/dashboard/produits"
-            className="group bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-gray-300 transition"
-          >
-            <div className="flex items-center justify-between">
-
-              <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center">
-                <Package className="w-5 h-5 text-blue-600" />
-              </div>
-
-              <ArrowLeft className="w-4 h-4 rotate-180 text-gray-300 group-hover:text-gray-700 transition" />
-
-            </div>
-
-            <h3 className="font-semibold text-gray-900 mt-4">
-              Mes produits
-            </h3>
-
-            <p className="text-sm text-gray-500 mt-1">
-              Gérer les produits de votre boutique
-            </p>
-          </Link>
-
-          <Link
-            href="/dashboard/commandes"
-            className="group bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-gray-300 transition"
-          >
-            <div className="flex items-center justify-between">
-
-              <div className="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5 text-violet-600" />
-              </div>
-
-              <ArrowLeft className="w-4 h-4 rotate-180 text-gray-300 group-hover:text-gray-700 transition" />
+              <Link
+                href={`/dashboard/boutiques/${boutique.uuid}/edit`}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition"
+              >
+                <Pencil className="w-4 h-4" />
+                Modifier
+              </Link>
 
             </div>
-
-            <h3 className="font-semibold text-gray-900 mt-4">
-              Mes commandes
-            </h3>
-
-            <p className="text-sm text-gray-500 mt-1">
-              Consulter et gérer vos commandes
-            </p>
-          </Link>
-
-          <Link
-            href={`/boutiques/${boutique.slug}`}
-            target="_blank"
-            className="group bg-gray-900 rounded-2xl p-5 shadow-sm hover:bg-gray-800 transition"
-          >
-            <div className="flex items-center justify-between">
-
-              <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center">
-                <Store className="w-5 h-5 text-white" />
-              </div>
-
-              <ExternalLink className="w-4 h-4 text-white/50 group-hover:text-white transition" />
-
-            </div>
-
-            <h3 className="font-semibold text-white mt-4">
-              Ma vitrine
-            </h3>
-
-            <p className="text-sm text-gray-300 mt-1">
-              Voir votre boutique comme un client
-            </p>
-          </Link>
+          )}
 
         </div>
 
-        {/* INFORMATIONS */}
+        {/* BOUTIQUE */}
+        {boutique && (
+          <>
+            <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+              <div className="p-6 sm:p-8">
 
-          <div className="px-5 sm:px-7 py-5 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">
-              Informations de la boutique
-            </h2>
+                <div className="flex flex-col sm:flex-row gap-6">
 
-            <p className="text-sm text-gray-500 mt-1">
-              Les informations actuellement enregistrées.
-            </p>
-          </div>
+                  <div className="w-24 h-24 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
 
-          <div className="p-5 sm:p-7">
+                    {boutique.logo ? (
+                      <img
+                        src={boutique.logo}
+                        alt={boutique.nom}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Store className="w-10 h-10 text-gray-400" />
+                    )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                  </div>
 
-              {/* TELEPHONE */}
+                  <div className="flex-1 min-w-0">
 
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                  <Phone className="w-4 h-4 text-gray-600" />
+                    <div className="flex flex-wrap items-center gap-3">
+
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        {boutique.nom}
+                      </h2>
+
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${currentStatus.className}`}
+                      >
+                        <StatusIcon className="w-3.5 h-3.5" />
+                        {currentStatus.label}
+                      </span>
+
+                    </div>
+
+                    {boutique.description && (
+                      <p className="text-gray-600 mt-3 leading-relaxed">
+                        {boutique.description}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 text-sm text-gray-500">
+
+                      {boutique.telephone && (
+                        <span className="inline-flex items-center gap-2">
+                          <Phone className="w-4 h-4" />
+                          {boutique.telephone}
+                        </span>
+                      )}
+
+                      {boutique.email && (
+                        <span className="inline-flex items-center gap-2">
+                          <Mail className="w-4 h-4" />
+                          {boutique.email}
+                        </span>
+                      )}
+
+                      {(boutique.adresse ||
+                        boutique.ville) && (
+                        <span className="inline-flex items-center gap-2">
+                          <MapPin className="w-4 h-4" />
+
+                          {[
+                            boutique.adresse,
+                            boutique.ville,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </span>
+                      )}
+
+                    </div>
+
+                  </div>
+
                 </div>
 
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-400">
+              </div>
+
+            </section>
+
+            {/* ACTIONS */}
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+              <Link
+                href="/dashboard/produits"
+                className="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 hover:shadow-sm transition"
+              >
+                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+                  <Package className="w-5 h-5" />
+                </div>
+
+                <h3 className="font-semibold text-gray-900">
+                  Mes produits
+                </h3>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Gérez votre catalogue de produits.
+                </p>
+              </Link>
+
+              <Link
+                href="/dashboard/commandes"
+                className="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 hover:shadow-sm transition"
+              >
+                <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+
+                <h3 className="font-semibold text-gray-900">
+                  Mes commandes
+                </h3>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Suivez et gérez les commandes reçues.
+                </p>
+              </Link>
+
+              <Link
+                href={`/boutiques/${boutique.slug}`}
+                className="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 hover:shadow-sm transition"
+              >
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+                  <Store className="w-5 h-5" />
+                </div>
+
+                <h3 className="font-semibold text-gray-900">
+                  Ma boutique publique
+                </h3>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Consultez la boutique telle que les clients la voient.
+                </p>
+              </Link>
+
+            </section>
+
+            {/* INFORMATIONS */}
+            <section className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 sm:p-8">
+
+              <h2 className="font-semibold text-gray-900">
+                Informations de la boutique
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
+
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <p className="text-xs font-medium text-gray-500">
+                    Nom
+                  </p>
+
+                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                    {boutique.nom}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <p className="text-xs font-medium text-gray-500">
+                    Adresse
+                  </p>
+
+                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                    {[
+                      boutique.adresse,
+                      boutique.ville,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "Non renseignée"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <p className="text-xs font-medium text-gray-500">
                     Téléphone
                   </p>
 
-                  <p className="text-sm font-medium text-gray-800 mt-1 truncate">
-                    {boutique.telephone || "Non renseigné"}
+                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                    {boutique.telephone ||
+                      "Non renseigné"}
                   </p>
                 </div>
-              </div>
 
-              {/* EMAIL */}
-
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                  <Mail className="w-4 h-4 text-gray-600" />
-                </div>
-
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-400">
+                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+                  <p className="text-xs font-medium text-gray-500">
                     Email
                   </p>
 
-                  <p className="text-sm font-medium text-gray-800 mt-1 truncate">
-                    {boutique.email || "Non renseigné"}
+                  <p className="text-sm font-semibold text-gray-900 mt-1">
+                    {boutique.email ||
+                      "Non renseigné"}
                   </p>
                 </div>
+
               </div>
 
-              {/* LOCALISATION */}
-
-              <div className="flex items-start gap-3 md:col-span-2">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                  <MapPin className="w-4 h-4 text-gray-600" />
-                </div>
-
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-400">
-                    Localisation
-                  </p>
-
-                  <p className="text-sm font-medium text-gray-800 mt-1">
-                    {boutique.ville || "Ville non renseignée"}
-                  </p>
-
-                  {boutique.adresse && (
-                    <p className="text-sm text-gray-500 mt-0.5">
-                      {boutique.adresse}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* CREATION */}
-
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                  <Clock className="w-4 h-4 text-gray-600" />
-                </div>
-
-                <div>
-                  <p className="text-xs text-gray-400">
-                    Créée le
-                  </p>
-
-                  <p className="text-sm font-medium text-gray-800 mt-1">
-                    {new Date(
-                      boutique.created_at
-                    ).toLocaleDateString("fr-FR", {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-
-        {/* STATUT PENDING */}
-
-        {boutique.status === "pending" && (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
-
-            <div className="flex items-start gap-4">
-
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                <Clock className="w-5 h-5 text-amber-600" />
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-amber-900">
-                  Boutique en attente de validation
-                </h3>
-
-                <p className="text-sm text-amber-800 mt-1 leading-relaxed">
-                  Votre boutique a bien été créée. Elle doit maintenant être
-                  validée par un administrateur avant d'être pleinement
-                  opérationnelle sur MarketMali.
-                </p>
-              </div>
-
-            </div>
-
-          </div>
+            </section>
+          </>
         )}
 
-        {/* STATUT BLOCKED */}
+      </div>
+    </div>
+  );
+}
 
-        {boutique.status === "blocked" && (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 sm:p-6">
+/**
+ * ============================================================
+ * RÉSUMÉ D'UNE ÉTAPE
+ * ============================================================
+ */
 
-            <div className="flex items-start gap-4">
+interface StepSummaryProps {
+  number: number;
+  title: string;
+  completed: boolean;
+  active: boolean;
+  locked?: boolean;
+}
 
-              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                <Ban className="w-5 h-5 text-red-600" />
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-red-900">
-                  Boutique bloquée
-                </h3>
-
-                <p className="text-sm text-red-800 mt-1 leading-relaxed">
-                  Votre boutique est actuellement bloquée. Certaines
-                  fonctionnalités peuvent être indisponibles.
-                </p>
-              </div>
-
-            </div>
-
-          </div>
+function StepSummary({
+  number,
+  title,
+  completed,
+  active,
+  locked = false,
+}: StepSummaryProps) {
+  return (
+    <div
+      className={[
+        "flex items-center gap-3 rounded-xl border p-3 transition",
+        completed
+          ? "border-emerald-200 bg-emerald-50/50"
+          : active
+            ? "border-gray-300 bg-white shadow-sm"
+            : locked
+              ? "border-gray-200 bg-gray-50"
+              : "border-gray-200 bg-white",
+      ].join(" ")}
+    >
+      <div
+        className={[
+          "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+          completed
+            ? "bg-emerald-600 text-white"
+            : active
+              ? "bg-gray-900 text-white"
+              : "bg-gray-200 text-gray-400",
+        ].join(" ")}
+      >
+        {completed ? (
+          <CheckCircle className="w-4 h-4" />
+        ) : locked ? (
+          <Lock className="w-4 h-4" />
+        ) : (
+          <span className="text-sm font-bold">
+            {number}
+          </span>
         )}
+      </div>
 
+      <div className="min-w-0">
+        <p
+          className={[
+            "text-sm font-medium truncate",
+            completed || active
+              ? "text-gray-900"
+              : "text-gray-400",
+          ].join(" ")}
+        >
+          {title}
+        </p>
+
+        <p className="text-xs mt-0.5 text-gray-500">
+          {completed
+            ? "Terminée"
+            : active
+              ? "En cours"
+              : "Verrouillée"}
+        </p>
       </div>
     </div>
   );

@@ -316,6 +316,15 @@ export default function GestionLivraisons() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    const [livraisonConfiguree, setLivraisonConfiguree] =
+        useState(false);
+
+    const [configurationLoading, setConfigurationLoading] =
+        useState(true);
+
+    const [configurationSaving, setConfigurationSaving] =
+        useState(false);
+
     const [search, setSearch] = useState("");
     const [statut, setStatut] =
         useState<StatutFiltre>("all");
@@ -328,6 +337,93 @@ export default function GestionLivraisons() {
 
     const [activeAction, setActiveAction] =
         useState<ActionType>(null);
+
+
+    const loadConfigurationLivraison = async () => {
+        try {
+            setConfigurationLoading(true);
+
+            const token =
+                localStorage.getItem("token");
+
+            const response = await fetch(
+                "/api/dashboard/boutiques",
+                {
+                    headers: token
+                        ? {
+                            Authorization: `Bearer ${token}`,
+                        }
+                        : {},
+                    cache: "no-store",
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "Impossible de récupérer la configuration de la boutique."
+                );
+            }
+
+            const result = await response.json();
+
+            setLivraisonConfiguree(
+                Boolean(
+                    result?.data?.livraison_configuree
+                )
+            );
+        } catch (error) {
+            console.error(
+                "Erreur configuration livraison:",
+                error
+            );
+
+            setLivraisonConfiguree(false);
+        } finally {
+            setConfigurationLoading(false);
+        }
+    };
+
+    const markLivraisonConfiguree = async () => {
+        try {
+            setConfigurationSaving(true);
+
+            const token =
+                localStorage.getItem("token");
+
+            const response = await fetch(
+                "/api/dashboard/boutiques/livraison-configuree",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(token
+                            ? {
+                                Authorization: `Bearer ${token}`,
+                            }
+                            : {}),
+                    },
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || !result?.success) {
+                throw new Error(
+                    result?.message ??
+                    "Impossible d'enregistrer la configuration."
+                );
+            }
+
+            setLivraisonConfiguree(true);
+        } catch (error) {
+            console.error(
+                "Erreur validation configuration livraison:",
+                error
+            );
+        } finally {
+            setConfigurationSaving(false);
+        }
+    };
 
     const loadLivraisons = async (
         showRefresh = false
@@ -386,6 +482,7 @@ export default function GestionLivraisons() {
 
     useEffect(() => {
         loadLivraisons();
+        loadConfigurationLivraison();
     }, []);
 
     const stats = useMemo(() => {
@@ -624,6 +721,69 @@ export default function GestionLivraisons() {
                         }
                     />
                 </section>
+
+                {!configurationLoading && (
+                    <section
+                        className={`rounded-2xl border p-5 shadow-sm ${livraisonConfiguree
+                                ? "border-emerald-200 bg-emerald-50/60"
+                                : "border-orange-200 bg-orange-50/60"
+                            }`}
+                    >
+                        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-4">
+                                <div
+                                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${livraisonConfiguree
+                                            ? "bg-emerald-100 text-emerald-600"
+                                            : "bg-orange-100 text-orange-600"
+                                        }`}
+                                >
+                                    {livraisonConfiguree ? (
+                                        <CheckCircle className="h-6 w-6" />
+                                    ) : (
+                                        <Settings2 className="h-6 w-6" />
+                                    )}
+                                </div>
+
+                                <div>
+                                    <h2 className="font-bold text-gray-900">
+                                        {livraisonConfiguree
+                                            ? "Organisation des livraisons terminée"
+                                            : "Organisez vos livraisons"}
+                                    </h2>
+
+                                    <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
+                                        {livraisonConfiguree
+                                            ? "Cette étape de configuration est terminée. Vous pouvez maintenant continuer les autres étapes de préparation de votre boutique."
+                                            : "Préparez votre organisation logistique pour pouvoir gérer les commandes, les livreurs et le suivi des livraisons depuis MarketMali."}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {!livraisonConfiguree && (
+                                <button
+                                    type="button"
+                                    onClick={markLivraisonConfiguree}
+                                    disabled={configurationSaving}
+                                    className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {configurationSaving ? (
+                                        <>
+                                            <RefreshCw className="h-4 w-4 animate-spin" />
+                                            Enregistrement...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle className="h-4 w-4" />
+                                            Terminer cette étape
+                                        </>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                    </section>
+                )}
+
+                {/* STATS */}
 
                 {/* FILTERS */}
                 <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
