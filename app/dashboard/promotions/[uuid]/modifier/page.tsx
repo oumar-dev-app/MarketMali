@@ -588,37 +588,136 @@ export default function ModifierPromotionPage() {
         <div className="min-h-screen bg-gray-50">
             <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
 
-                {/* =========================
-                    HEADER
-                ========================== */}
+                {/* ============================================================
+    HEADER MARKETMALI
+============================================================ */}
 
-                <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                        <Link
-                            href={`/dashboard/promotions/${uuid}`}
-                            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-900"
-                        >
-                            <ArrowLeft size={16} />
-                            Retour à la promotion
-                        </Link>
+                <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
 
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-black text-white">
-                                <Tag size={20} />
-                            </div>
+                    {/* Décoration verte */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            -right-32
+            -top-32
+            h-72
+            w-72
+            rounded-full
+            bg-[#14a800]/5
+        "
+                    />
 
-                            <div className="min-w-0">
-                                <h1 className="truncate text-xl font-bold text-gray-900 sm:text-2xl">
-                                    Modifier la promotion
-                                </h1>
+                    {/* Décoration jaune */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            -bottom-40
+            -left-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#fcd116]/5
+        "
+                    />
 
-                                <p className="mt-1 text-sm text-gray-500">
-                                    Modifiez les paramètres de votre offre.
-                                </p>
-                            </div>
+                    {/* Décoration rouge */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            right-[12%]
+            top-[42%]
+            h-40
+            w-40
+            rounded-full
+            bg-[#ce1126]/[0.025]
+        "
+                    />
+
+                    <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-8">
+
+                        {/* Bande Mali */}
+                        <div className="mb-5 flex items-center gap-1">
+                            <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                            <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                            <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
                         </div>
+
+                        <div className="flex flex-col gap-5">
+
+                            {/* TITRE */}
+                            <div className="flex items-start gap-4">
+
+                                {/* Retour */}
+                                <Link
+                                    href={`/dashboard/promotions/${uuid}`}
+                                    aria-label="Retour à la promotion"
+                                    className="
+                        mt-0.5
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        text-gray-600
+                        shadow-sm
+                        transition
+                        hover:border-[#14a800]/30
+                        hover:bg-[#14a800]/5
+                        hover:text-[#14a800]
+                        focus:outline-none
+                        focus:ring-4
+                        focus:ring-[#14a800]/10
+                    "
+                                >
+                                    <ArrowLeft size={18} />
+                                </Link>
+
+                                <div className="min-w-0">
+
+                                    {/* Section */}
+                                    <div className="mb-3 flex items-center gap-2">
+
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                                            <Tag
+                                                size={18}
+                                                strokeWidth={2.2}
+                                            />
+                                        </div>
+
+                                        <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                                            Marketing & ventes
+                                        </span>
+
+                                    </div>
+
+                                    {/* Titre */}
+                                    <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
+                                        Modifier la promotion
+                                    </h1>
+
+                                    {/* Description */}
+                                    <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
+                                        Modifiez les paramètres de votre offre
+                                        promotionnelle.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
                     </div>
-                </div>
+
+                </section>
 
                 {/* =========================
                     MESSAGES
@@ -877,11 +976,10 @@ export default function ModifierPromotionPage() {
                                         }
                                         className={`
                                             rounded-xl border p-4 text-left transition
-                                            ${
-                                                form.type ===
+                                            ${form.type ===
                                                 "percentage"
-                                                    ? "border-black bg-gray-50 ring-1 ring-black"
-                                                    : "border-gray-200 bg-white hover:bg-gray-50"
+                                                ? "border-black bg-gray-50 ring-1 ring-black"
+                                                : "border-gray-200 bg-white hover:bg-gray-50"
                                             }
                                         `}
                                     >
@@ -924,11 +1022,10 @@ export default function ModifierPromotionPage() {
                                         }
                                         className={`
                                             rounded-xl border p-4 text-left transition
-                                            ${
-                                                form.type ===
+                                            ${form.type ===
                                                 "special_price"
-                                                    ? "border-black bg-gray-50 ring-1 ring-black"
-                                                    : "border-gray-200 bg-white hover:bg-gray-50"
+                                                ? "border-black bg-gray-50 ring-1 ring-black"
+                                                : "border-gray-200 bg-white hover:bg-gray-50"
                                             }
                                         `}
                                     >

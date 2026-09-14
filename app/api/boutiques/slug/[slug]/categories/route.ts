@@ -6,10 +6,9 @@ import { CategorieService } from "@/lib/services/categorie.service";
 export async function GET(
   req: NextRequest,
   context: {
-    params: Promise<{ slug: string }>
+    params: Promise<{ slug: string }>;
   }
 ) {
-
   return apiHandler(async () => {
 
     const { slug } =
@@ -23,7 +22,8 @@ export async function GET(
     return NextResponse.json(
       {
         success: true,
-        message: "Catégories récupérées avec succès.",
+        message:
+          "Catégories récupérées avec succès.",
         data: categories,
       },
       {
@@ -32,5 +32,4 @@ export async function GET(
     );
 
   })(req);
-
 }

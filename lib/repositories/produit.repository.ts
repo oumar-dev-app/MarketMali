@@ -290,13 +290,112 @@ export class ProduitRepository {
     return rows;
   }
 
-static async findByUUID(
-  uuid: string
-): Promise<ProduitDetailRow | null> {
+  static async searchForUser(
+    search: string | undefined,
+    categorieSlug: string | undefined,
+    user_id: number
+  ): Promise<any[]> {
 
-  const [rows] =
-    await db.query<ProduitDetailRow[]>(
-      `
+    let sql = `
+    SELECT
+      produits.*,
+
+      boutiques.uuid AS boutique_uuid,
+      boutiques.nom AS boutique_nom,
+      boutiques.slug AS boutique_slug,
+
+      categories.uuid AS categorie_uuid,
+      categories.nom AS categorie_nom,
+      categories.slug AS categorie_slug,
+
+      promotions.uuid AS promotion_uuid,
+      promotions.nom AS promotion_nom,
+      promotions.type AS promotion_type,
+      promotions.reduction_pourcentage AS promotion_reduction_pourcentage,
+      promotions.prix_promotionnel AS promotion_prix_promotionnel,
+      promotions.date_debut AS promotion_date_debut,
+      promotions.date_fin AS promotion_date_fin,
+      promotions.quantite_limite AS promotion_quantite_limite,
+
+      COALESCE(
+        (
+          SELECT SUM(cp.quantite)
+          FROM commande_produits cp
+          INNER JOIN commandes c
+            ON c.id = cp.commande_id
+          WHERE cp.promotion_id = promotions.id
+          AND c.status <> 'cancelled'
+        ),
+        0
+      ) AS promotion_quantite_vendue
+
+    FROM produits
+
+    INNER JOIN boutiques
+      ON produits.boutique_id = boutiques.id
+
+    INNER JOIN categories
+      ON produits.categorie_id = categories.id
+
+    LEFT JOIN promotions
+      ON promotions.produit_id = produits.id
+      AND promotions.boutique_id = produits.boutique_id
+      AND promotions.date_debut <= NOW()
+      AND promotions.date_fin >= NOW()
+
+    WHERE boutiques.user_id = ?
+  `;
+
+    const params: any[] = [user_id];
+
+    if (search) {
+      sql += `
+      AND (
+        produits.nom LIKE ?
+        OR produits.description LIKE ?
+        OR boutiques.nom LIKE ?
+        OR categories.nom LIKE ?
+      )
+    `;
+
+      const value = `%${search}%`;
+
+      params.push(
+        value,
+        value,
+        value,
+        value
+      );
+    }
+
+    if (categorieSlug) {
+      sql += `
+      AND categories.slug = ?
+    `;
+
+      params.push(categorieSlug);
+    }
+
+    sql += `
+    ORDER BY produits.created_at DESC
+  `;
+
+    const [rows] =
+      await db.query<any[]>(
+        sql,
+        params
+      );
+
+    return rows;
+  }
+
+  static async findByUUID(
+    uuid: string
+  ): Promise<ProduitDetailRow | null> {
+
+    const [rows] =
+      await db.query<ProduitDetailRow[]>(
+        `
       SELECT
         p.*,
 
@@ -331,11 +430,11 @@ static async findByUUID(
 
       LIMIT 1
       `,
-      [uuid]
-    );
+        [uuid]
+      );
 
-  return rows.length ? rows[0] : null;
-}
+    return rows.length ? rows[0] : null;
+  }
 
 
 
@@ -503,10 +602,6 @@ static async findByUUID(
 
   }
 
-
-
-
-
   static async create(
     data: {
       uuid: string;
@@ -559,10 +654,6 @@ static async findByUUID(
 
   }
 
-
-
-
-
   static async update(
     id: number,
     data: ProduitUpdate
@@ -584,20 +675,14 @@ static async findByUUID(
         field => data[field] !== undefined
       );
 
-
-
     if (!fields.length) {
       return;
     }
-
-
 
     const values =
       fields.map(
         field => data[field] ?? null
       );
-
-
 
     const sql = `
       UPDATE produits
@@ -606,8 +691,6 @@ static async findByUUID(
     ).join(", ")}
       WHERE id = ?
     `;
-
-
 
     await db.execute(
       sql,
@@ -618,9 +701,6 @@ static async findByUUID(
     );
 
   }
-
-
-
 
 
   static async block(
@@ -640,9 +720,6 @@ static async findByUUID(
     );
 
   }
-
-
-
 
 
   static async unblock(
@@ -715,6 +792,32 @@ static async findByUUID(
         "Produit introuvable."
       );
     }
+  }
+
+  /**
+ * Vérifie si une boutique possède des produits
+ * utilisant une catégorie donnée.
+ */
+  static async countByBoutiqueAndCategorie(
+    boutique_id: number,
+    categorie_id: number
+  ): Promise<number> {
+
+    const [rows] =
+      await db.query<RowDataPacket[]>(
+        `
+      SELECT COUNT(*) AS total
+      FROM produits
+      WHERE boutique_id = ?
+        AND categorie_id = ?
+      `,
+        [
+          boutique_id,
+          categorie_id,
+        ]
+      );
+
+    return Number(rows[0]?.total ?? 0);
   }
 }
 

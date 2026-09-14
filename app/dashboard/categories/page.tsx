@@ -341,7 +341,7 @@ export default function CategoriesPage() {
                 const matchesStatus =
                     statusFilter === "all" ||
                     categorie.status ===
-                        statusFilter;
+                    statusFilter;
 
                 return (
                     matchesSearch &&
@@ -426,174 +426,157 @@ export default function CategoriesPage() {
             {/* =====================================================
                 EN-TÊTE
             ====================================================== */}
-
-            <section
-                className="
-                    flex
-                    flex-col
-                    gap-4
-                    rounded-2xl
-                    border
-                    border-gray-200
-                    bg-white
-                    p-5
-                    shadow-sm
-                    sm:p-6
-                    lg:flex-row
-                    lg:items-center
-                    lg:justify-between
-                "
-            >
-                <div className="flex items-start gap-4">
-
-                    <div
-                        className="
-                            flex
-                            h-12
-                            w-12
-                            shrink-0
-                            items-center
-                            justify-center
-                            rounded-2xl
-                            bg-blue-50
-                            text-blue-600
-                        "
-                    >
-                        <FolderOpen size={23} />
-                    </div>
-
-                    <div className="min-w-0">
-
-                        <div
-                            className="
-                                flex
-                                flex-wrap
-                                items-center
-                                gap-2
-                            "
-                        >
-                            <h1
-                                className="
-                                    text-xl
-                                    font-bold
-                                    tracking-tight
-                                    text-gray-900
-                                    sm:text-2xl
-                                "
-                            >
-                                Catégories
-                            </h1>
-
-                            {!loading && (
-                                <span
-                                    className="
-                                        rounded-full
-                                        bg-gray-100
-                                        px-2.5
-                                        py-1
-                                        text-xs
-                                        font-semibold
-                                        text-gray-600
-                                    "
-                                >
-                                    {totalCount}
-                                </span>
-                            )}
-                        </div>
-
-                        <p
-                            className="
-                                mt-1
-                                max-w-2xl
-                                text-sm
-                                leading-6
-                                text-gray-500
-                            "
-                        >
-                            Gérez les catégories globales
-                            de MarketMali pour organiser
-                            les produits de manière claire
-                            et cohérente.
-                        </p>
-                    </div>
-                </div>
+            <section className="relative overflow-hidden border-b border-gray-100 bg-white rounded-2xl">
+                {/* Décorations discrètes */}
+                <div
+                    className="
+            pointer-events-none
+            absolute
+            -right-32
+            -top-32
+            h-72
+            w-72
+            rounded-full
+            bg-[#14a800]/5
+        "
+                />
 
                 <div
                     className="
-                        flex
-                        flex-col
+            pointer-events-none
+            absolute
+            -bottom-40
+            -left-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#fcd116]/5
+        "
+                />
+
+                <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+                    {/* Bande Mali */}
+                    <div className="mb-5 flex items-center gap-1">
+                        <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                        <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                        <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
+                    </div>
+
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                        {/* TITRE */}
+                        <div className="max-w-2xl">
+                            <div className="mb-3 flex items-center gap-2">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                                    <FolderOpen
+                                        size={18}
+                                        strokeWidth={2.2}
+                                    />
+                                </div>
+
+                                <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                                    Catalogue MarketMali
+                                </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                                <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
+                                    Catégories
+                                </h1>
+
+                                {!loading && (
+                                    <span
+                                        className="
+                                inline-flex
+                                items-center
+                                rounded-full
+                                bg-[#14a800]/10
+                                px-3
+                                py-1
+                                text-sm
+                                font-bold
+                                text-[#14a800]
+                            "
+                                    >
+                                        {totalCount}
+                                    </span>
+                                )}
+                            </div>
+
+                            <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
+                                Gérez les catégories globales de MarketMali pour organiser
+                                les produits de manière claire, cohérente et professionnelle.
+                            </p>
+                        </div>
+
+                        {/* ACTIONS */}
+                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                            <button
+                                type="button"
+                                onClick={fetchCategories}
+                                disabled={loading}
+                                className="
+                        inline-flex
+                        h-11
+                        items-center
+                        justify-center
                         gap-2
-                        sm:flex-row
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        px-4
+                        text-sm
+                        font-semibold
+                        text-gray-700
+                        shadow-sm
+                        transition
+                        hover:border-[#14a800]/30
+                        hover:bg-[#14a800]/5
+                        hover:text-[#14a800]
+                        focus:outline-none
+                        focus:ring-4
+                        focus:ring-[#14a800]/10
+                        disabled:cursor-not-allowed
+                        disabled:opacity-50
                     "
-                >
-                    <button
-                        type="button"
-                        onClick={fetchCategories}
-                        disabled={loading}
-                        className="
-                            inline-flex
-                            h-11
-                            items-center
-                            justify-center
-                            gap-2
-                            rounded-xl
-                            border
-                            border-gray-200
-                            bg-white
-                            px-4
-                            text-sm
-                            font-semibold
-                            text-gray-700
-                            shadow-sm
-                            transition
-                            hover:border-gray-300
-                            hover:bg-gray-50
-                            focus:outline-none
-                            focus:ring-4
-                            focus:ring-blue-500/10
-                            disabled:cursor-not-allowed
-                            disabled:opacity-50
-                        "
-                    >
-                        <RefreshCw
-                            size={16}
-                            className={
-                                loading
-                                    ? "animate-spin"
-                                    : ""
-                            }
-                        />
+                            >
+                                <RefreshCw
+                                    size={16}
+                                    className={loading ? "animate-spin" : ""}
+                                />
 
-                        Actualiser
-                    </button>
+                                Actualiser
+                            </button>
 
-                    <Link
-                        href="/dashboard/categories/create"
-                        className="
-                            inline-flex
-                            h-11
-                            items-center
-                            justify-center
-                            gap-2
-                            rounded-xl
-                            bg-gray-900
-                            px-4
-                            text-sm
-                            font-bold
-                            text-white
-                            shadow-sm
-                            transition
-                            hover:bg-gray-800
-                            hover:shadow
-                            focus:outline-none
-                            focus:ring-4
-                            focus:ring-gray-900/10
-                        "
-                    >
-                        <Plus size={17} />
+                            <Link
+                                href="/dashboard/categories/create"
+                                className="
+                        inline-flex
+                        h-11
+                        items-center
+                        justify-center
+                        gap-2
+                        rounded-xl
+                        bg-[#14a800]
+                        px-4
+                        text-sm
+                        font-bold
+                        text-white
+                        shadow-sm
+                        transition
+                        hover:bg-[#119400]
+                        hover:shadow-md
+                        focus:outline-none
+                        focus:ring-4
+                        focus:ring-[#14a800]/20
+                    "
+                            >
+                                <Plus size={17} />
 
-                        Nouvelle catégorie
-                    </Link>
+                                Nouvelle catégorie
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -606,10 +589,9 @@ export default function CategoriesPage() {
                     grid
                     grid-cols-1
                     gap-4
-                    ${
-                        isSuperAdmin
-                            ? "sm:grid-cols-3"
-                            : "sm:grid-cols-2"
+                    ${isSuperAdmin
+                        ? "sm:grid-cols-3"
+                        : "sm:grid-cols-2"
                     }
                 `}
             >
@@ -923,17 +905,15 @@ export default function CategoriesPage() {
                     >
                         {loading
                             ? "Chargement..."
-                            : `${filteredCategories.length} résultat${
-                                  filteredCategories.length >
-                                  1
-                                      ? "s"
-                                      : ""
-                              } affiché${
-                                  filteredCategories.length >
-                                  1
-                                      ? "s"
-                                      : ""
-                              }`}
+                            : `${filteredCategories.length} résultat${filteredCategories.length >
+                                1
+                                ? "s"
+                                : ""
+                            } affiché${filteredCategories.length >
+                                1
+                                ? "s"
+                                : ""
+                            }`}
                     </p>
                 </div>
             </div>
@@ -955,7 +935,7 @@ export default function CategoriesPage() {
                 {loading ? (
                     <LoadingState />
                 ) : filteredCategories.length ===
-                  0 ? (
+                    0 ? (
                     <EmptyState
                         hasFilters={
                             hasFilters
@@ -1281,7 +1261,7 @@ export default function CategoriesPage() {
                                                                         </Link>
 
                                                                         {categorie.status ===
-                                                                        "active" ? (
+                                                                            "active" ? (
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() =>
@@ -1521,7 +1501,7 @@ export default function CategoriesPage() {
                                                                         </Link>
 
                                                                         {categorie.status ===
-                                                                        "active" ? (
+                                                                            "active" ? (
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() =>
@@ -1707,10 +1687,9 @@ function CategoryImage({
                 border-gray-100
                 bg-gray-50
                 text-gray-400
-                ${
-                    large
-                        ? "h-14 w-14"
-                        : "h-11 w-11"
+                ${large
+                    ? "h-14 w-14"
+                    : "h-11 w-11"
                 }
             `}
         >
@@ -1774,7 +1753,7 @@ function StatusBadge({
 }) {
     const normalizedStatus =
         status === "active" ||
-        status === "blocked"
+            status === "blocked"
             ? status
             : null;
 
@@ -1857,9 +1836,9 @@ function CategoryStatCard({
     value: number;
     icon: React.ReactNode;
     color:
-        | "blue"
-        | "green"
-        | "red";
+    | "blue"
+    | "green"
+    | "red";
     active: boolean;
     onClick: () => void;
 }) {
@@ -1933,10 +1912,9 @@ function CategoryStatCard({
                 focus:ring-blue-500/20
                 sm:p-5
                 ${styles.border}
-                ${
-                    active
-                        ? styles.active
-                        : ""
+                ${active
+                    ? styles.active
+                    : ""
                 }
             `}
         >
@@ -1950,10 +1928,9 @@ function CategoryStatCard({
                     origin-left
                     transition-transform
                     duration-200
-                    ${
-                        active
-                            ? "scale-x-100 bg-current"
-                            : "scale-x-0"
+                    ${active
+                        ? "scale-x-100 bg-current"
+                        : "scale-x-0"
                     }
                 `}
             />

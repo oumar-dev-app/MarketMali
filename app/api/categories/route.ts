@@ -59,29 +59,20 @@ export const POST = apiHandler(
       body
     );
 
-
-
     const categorie =
       await CategorieService.create(
         {
-          boutique_id:
-            body.boutique_id,
-
-          nom:
-            body.nom,
-
-          description:
-            body.description,
-
-          image:
-            body.image,
-
+          nom: body.nom,
+          parent_id:
+            body.parent_id !== undefined
+              ? body.parent_id
+              : null,
+          description: body.description,
+          image: body.image,
         },
         user.id,
         user.role
       );
-
-
 
     return NextResponse.json(
       {

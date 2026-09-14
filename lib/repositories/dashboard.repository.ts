@@ -125,47 +125,48 @@ export class DashboardRepository {
     return rows[0].total;
 
   }
-
   static async countCategories(
     user_id: number,
     role: string
   ): Promise<number> {
 
-    let sql = `
-    SELECT COUNT(*) AS total
-    FROM categories
-  `;
-
-    const params: any[] = [];
-
     if (
-      role !== "admin" &&
-      role !== "super_admin"
+      role === "admin" ||
+      role === "super_admin"
     ) {
+      const [rows] =
+        await db.query<CountRow[]>(
+          `
+        SELECT COUNT(*) AS total
+        FROM categories
+        WHERE status = 'active'
+        `
+        );
 
-      sql = `
-      SELECT COUNT(*) AS total
-
-      FROM categories
-
-      INNER JOIN boutiques
-        ON boutiques.id = categories.boutique_id
-
-      WHERE boutiques.user_id = ?
-    `;
-
-      params.push(user_id);
-
+      return Number(rows[0].total);
     }
 
     const [rows] =
       await db.query<CountRow[]>(
-        sql,
-        params
+        `
+      SELECT COUNT(DISTINCT p.categorie_id) AS total
+      FROM produits p
+
+      INNER JOIN boutiques b
+        ON b.id = p.boutique_id
+
+      INNER JOIN categories c
+        ON c.id = p.categorie_id
+
+      WHERE b.user_id = ?
+        AND b.status = 'active'
+        AND p.status = 'active'
+        AND c.status = 'active'
+      `,
+        [user_id]
       );
 
-    return rows[0].total;
-
+    return Number(rows[0].total);
   }
 
   static async countCommandes(
@@ -263,29 +264,29 @@ export class DashboardRepository {
 
 
   static async countPendingCommandes(
-  user_id: number,
-  role: string
-): Promise<number> {
+    user_id: number,
+    role: string
+  ): Promise<number> {
 
-  if (
-    role === "admin" ||
-    role === "super_admin"
-  ) {
-    const [rows] =
-      await db.query<CountRow[]>(
-        `
+    if (
+      role === "admin" ||
+      role === "super_admin"
+    ) {
+      const [rows] =
+        await db.query<CountRow[]>(
+          `
         SELECT COUNT(*) AS total
         FROM commandes
         WHERE status = 'pending'
         `
-      );
+        );
 
-    return Number(rows[0].total);
-  }
+      return Number(rows[0].total);
+    }
 
-  const [rows] =
-    await db.query<CountRow[]>(
-      `
+    const [rows] =
+      await db.query<CountRow[]>(
+        `
       SELECT COUNT(*) AS total
       FROM commandes c
       INNER JOIN boutiques b
@@ -293,36 +294,36 @@ export class DashboardRepository {
       WHERE b.user_id = ?
         AND c.status = 'pending'
       `,
-      [user_id]
-    );
-
-  return Number(rows[0].total);
-}
-
-static async countDeliveredCommandes(
-  user_id: number,
-  role: string
-): Promise<number> {
-
-  if (
-    role === "admin" ||
-    role === "super_admin"
-  ) {
-    const [rows] =
-      await db.query<CountRow[]>(
-        `
-        SELECT COUNT(*) AS total
-        FROM commandes
-        WHERE status = 'delivered'
-        `
+        [user_id]
       );
 
     return Number(rows[0].total);
   }
 
-  const [rows] =
-    await db.query<CountRow[]>(
-      `
+  static async countDeliveredCommandes(
+    user_id: number,
+    role: string
+  ): Promise<number> {
+
+    if (
+      role === "admin" ||
+      role === "super_admin"
+    ) {
+      const [rows] =
+        await db.query<CountRow[]>(
+          `
+        SELECT COUNT(*) AS total
+        FROM commandes
+        WHERE status = 'delivered'
+        `
+        );
+
+      return Number(rows[0].total);
+    }
+
+    const [rows] =
+      await db.query<CountRow[]>(
+        `
       SELECT COUNT(*) AS total
       FROM commandes c
       INNER JOIN boutiques b
@@ -330,36 +331,36 @@ static async countDeliveredCommandes(
       WHERE b.user_id = ?
         AND c.status = 'delivered'
       `,
-      [user_id]
-    );
-
-  return Number(rows[0].total);
-}
-
-static async countOutOfStock(
-  user_id: number,
-  role: string
-): Promise<number> {
-
-  if (
-    role === "admin" ||
-    role === "super_admin"
-  ) {
-    const [rows] =
-      await db.query<CountRow[]>(
-        `
-        SELECT COUNT(*) AS total
-        FROM produits
-        WHERE stock <= 0
-        `
+        [user_id]
       );
 
     return Number(rows[0].total);
   }
 
-  const [rows] =
-    await db.query<CountRow[]>(
-      `
+  static async countOutOfStock(
+    user_id: number,
+    role: string
+  ): Promise<number> {
+
+    if (
+      role === "admin" ||
+      role === "super_admin"
+    ) {
+      const [rows] =
+        await db.query<CountRow[]>(
+          `
+        SELECT COUNT(*) AS total
+        FROM produits
+        WHERE stock <= 0
+        `
+        );
+
+      return Number(rows[0].total);
+    }
+
+    const [rows] =
+      await db.query<CountRow[]>(
+        `
       SELECT COUNT(*) AS total
       FROM produits p
       INNER JOIN boutiques b
@@ -367,24 +368,24 @@ static async countOutOfStock(
       WHERE b.user_id = ?
         AND p.stock <= 0
       `,
-      [user_id]
-    );
+        [user_id]
+      );
 
-  return Number(rows[0].total);
-}
+    return Number(rows[0].total);
+  }
 
-static async sumDeliveredSales(
-  user_id: number,
-  role: string
-): Promise<number> {
+  static async sumDeliveredSales(
+    user_id: number,
+    role: string
+  ): Promise<number> {
 
-  if (
-    role === "admin" ||
-    role === "super_admin"
-  ) {
-    const [rows] =
-      await db.query<RowDataPacket[]>(
-        `
+    if (
+      role === "admin" ||
+      role === "super_admin"
+    ) {
+      const [rows] =
+        await db.query<RowDataPacket[]>(
+          `
         SELECT COALESCE(
           SUM(total),
           0
@@ -392,14 +393,14 @@ static async sumDeliveredSales(
         FROM commandes
         WHERE status = 'delivered'
         `
-      );
+        );
 
-    return Number(rows[0].total);
-  }
+      return Number(rows[0].total);
+    }
 
-  const [rows] =
-    await db.query<RowDataPacket[]>(
-      `
+    const [rows] =
+      await db.query<RowDataPacket[]>(
+        `
       SELECT COALESCE(
         SUM(c.total),
         0
@@ -410,11 +411,11 @@ static async sumDeliveredSales(
       WHERE b.user_id = ?
         AND c.status = 'delivered'
       `,
-      [user_id]
-    );
+        [user_id]
+      );
 
-  return Number(rows[0].total);
-}
+    return Number(rows[0].total);
+  }
 
   static async countClients(
     user_id: number,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import CommandesTable from "../composants/CommandesTable";
+import { ShoppingBag } from "lucide-react";
 
 interface Commande {
     uuid: string;
@@ -566,17 +567,97 @@ export default function CommandesPage() {
 
     return (
         <div className="min-h-full bg-gray-50 p-4 sm:p-6">
-            {/* En-tête */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">
-                    Gestion des commandes
-                </h1>
+            {/* ============================================================
+    HEADER MARKETMALI
+============================================================ */}
 
-                <p className="mt-1 text-sm text-gray-500">
-                    Consultez et gérez les commandes de votre
-                    boutique.
-                </p>
-            </div>
+            <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+                {/* Décorations discrètes */}
+                <div
+                    className="
+            pointer-events-none
+            absolute
+            -right-32
+            -top-32
+            h-72
+            w-72
+            rounded-full
+            bg-[#14a800]/5
+        "
+                />
+
+                <div
+                    className="
+            pointer-events-none
+            absolute
+            -bottom-40
+            -left-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#fcd116]/5
+        "
+                />
+
+                <div
+                    className="
+            pointer-events-none
+            absolute
+            right-[12%]
+            top-[42%]
+            h-40
+            w-40
+            rounded-full
+            bg-[#ce1126]/[0.025]
+        "
+                />
+
+                <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-8">
+
+                    {/* Bande Mali */}
+                    <div className="mb-5 flex items-center gap-1">
+                        <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                        <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                        <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
+                    </div>
+
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+
+                        {/* TITRE */}
+                        <div className="max-w-2xl">
+
+                            <div className="mb-3 flex items-center gap-2">
+
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                                    <ShoppingBag
+                                        size={18}
+                                        strokeWidth={2.2}
+                                    />
+                                </div>
+
+                                <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                                    Gestion commerciale
+                                </span>
+
+                            </div>
+
+                            <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
+                                Commandes
+                            </h1>
+
+                            <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
+                                Consultez et gérez les commandes passées
+                                dans votre boutique.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
 
             {/* Messages */}
             {error && (

@@ -181,7 +181,7 @@ function getDurationInDays(
         0,
         Math.ceil(
             (endDate - startDate) /
-                (1000 * 60 * 60 * 24)
+            (1000 * 60 * 60 * 24)
         )
     );
 }
@@ -270,7 +270,7 @@ export default function PromotionDetailPage() {
                     ) {
                         throw new Error(
                             promotionData.message ||
-                                "Impossible de charger la promotion."
+                            "Impossible de charger la promotion."
                         );
                     }
 
@@ -280,7 +280,7 @@ export default function PromotionDetailPage() {
                     ) {
                         throw new Error(
                             statsData.message ||
-                                "Impossible de charger les statistiques."
+                            "Impossible de charger les statistiques."
                         );
                     }
 
@@ -334,13 +334,13 @@ export default function PromotionDetailPage() {
         const reduction =
             prixNormal > 0
                 ? Number(
-                      (
-                          (1 -
-                              prixPromotion /
-                                  prixNormal) *
-                          100
-                      ).toFixed(0)
-                  )
+                    (
+                        (1 -
+                            prixPromotion /
+                            prixNormal) *
+                        100
+                    ).toFixed(0)
+                )
                 : 0;
 
         const quantiteVendue =
@@ -355,13 +355,13 @@ export default function PromotionDetailPage() {
         const progression =
             promotion.quantite_limite !==
                 null &&
-            promotion.quantite_limite > 0
+                promotion.quantite_limite > 0
                 ? Math.min(
-                      100,
-                      (quantiteVendue /
-                          promotion.quantite_limite) *
-                          100
-                  )
+                    100,
+                    (quantiteVendue /
+                        promotion.quantite_limite) *
+                    100
+                )
                 : 0;
 
         return {
@@ -423,7 +423,7 @@ export default function PromotionDetailPage() {
                 ) {
                     throw new Error(
                         data.message ||
-                            "Impossible de supprimer la promotion."
+                        "Impossible de supprimer la promotion."
                     );
                 }
 
@@ -604,122 +604,200 @@ export default function PromotionDetailPage() {
                     </Link>
                 </div>
             </div>
+            {/* ============================================================
+    HEADER MARKETMALI — DÉTAIL PROMOTION
+============================================================ */}
 
-            {/* =========================
-                EN-TÊTE
-            ========================== */}
+            <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
 
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <div className="border-b border-gray-100 p-5 sm:p-6">
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
-                                    <Percent size={13} />
-                                    -{computed.reduction}%
-                                </span>
+                {/* Décoration verte */}
+                <div
+                    className="
+            pointer-events-none
+            absolute
+            -right-32
+            -top-32
+            h-72
+            w-72
+            rounded-full
+            bg-[#14a800]/5
+        "
+                />
 
-                                {computed.status ===
-                                    "active" && (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-                                        <CheckCircle2
-                                            size={13}
-                                        />
-                                        Active
+                {/* Décoration jaune */}
+                <div
+                    className="
+            pointer-events-none
+            absolute
+            -bottom-40
+            -left-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#fcd116]/5
+        "
+                />
+
+                {/* Décoration rouge */}
+                <div
+                    className="
+            pointer-events-none
+            absolute
+            right-[12%]
+            top-[42%]
+            h-40
+            w-40
+            rounded-full
+            bg-[#ce1126]/[0.025]
+        "
+                />
+
+                <div className="relative">
+
+                    {/* ========================================================
+            INFORMATIONS PROMOTION
+        ======================================================== */}
+
+                    <div className="p-5 sm:p-6 lg:p-7">
+
+                        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+
+                            {/* INFORMATIONS */}
+                            <div className="min-w-0">
+
+                                {/* Bande Mali */}
+                                <div className="mb-5 flex items-center gap-1">
+                                    <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                                    <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                                    <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
+                                </div>
+
+                                {/* Label + réduction + statut */}
+                                <div className="flex flex-wrap items-center gap-2">
+
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#14a800]/10 px-2.5 py-1 text-xs font-bold text-[#14a800]">
+                                        <Percent size={13} />
+                                        -{computed.reduction}%
                                     </span>
-                                )}
 
-                                {computed.status ===
-                                    "upcoming" && (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                        <Clock3
-                                            size={13}
-                                        />
-                                        À venir
-                                    </span>
-                                )}
+                                    {computed.status === "active" && (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                                            <CheckCircle2 size={13} />
+                                            Active
+                                        </span>
+                                    )}
 
-                                {computed.status ===
-                                    "expired" && (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
-                                        <XCircle
-                                            size={13}
-                                        />
-                                        Terminée
+                                    {computed.status === "upcoming" && (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                            <Clock3 size={13} />
+                                            À venir
+                                        </span>
+                                    )}
+
+                                    {computed.status === "expired" && (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                                            <XCircle size={13} />
+                                            Terminée
+                                        </span>
+                                    )}
+
+                                </div>
+
+                                {/* Titre */}
+                                <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl lg:text-4xl">
+                                    {promotion.nom}
+                                </h1>
+
+                                {/* Produit + boutique */}
+                                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-gray-500">
+
+                                    <Package
+                                        size={16}
+                                        className="shrink-0 text-[#14a800]"
+                                    />
+
+                                    <span className="font-medium text-gray-700">
+                                        {promotion.produit_nom}
                                     </span>
-                                )}
+
+                                    <span className="hidden text-gray-300 sm:inline">
+                                        •
+                                    </span>
+
+                                    <span>
+                                        {promotion.boutique_nom}
+                                    </span>
+
+                                </div>
+
                             </div>
 
-                            <h1 className="mt-3 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-                                {promotion.nom}
-                            </h1>
-
-                            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500">
-                                <Package size={16} />
-
-                                <span>
-                                    {promotion.produit_nom}
-                                </span>
-
-                                <span className="hidden text-gray-300 sm:inline">
-                                    •
-                                </span>
-
-                                <span>
-                                    {promotion.boutique_nom}
-                                </span>
+                            {/* ICÔNE */}
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#14a800]/10 text-[#14a800]">
+                                <BadgePercent
+                                    size={28}
+                                    strokeWidth={2.1}
+                                />
                             </div>
+
                         </div>
 
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gray-100">
-                            <BadgePercent
-                                size={28}
-                                className="text-gray-700"
-                            />
+                    </div>
+
+                    {/* ========================================================
+            PRIX
+        ======================================================== */}
+
+                    <div className="border-t border-gray-100">
+
+                        <div className="grid grid-cols-1 divide-y divide-gray-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+
+                            {/* Prix normal */}
+                            <div className="p-5 sm:p-6">
+
+                                <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                                    Prix normal
+                                </p>
+
+                                <p className="mt-2 text-lg font-semibold text-gray-500 line-through">
+                                    {formatPrice(computed.prixNormal)}
+                                </p>
+
+                            </div>
+
+                            {/* Prix promotionnel */}
+                            <div className="p-5 sm:p-6">
+
+                                <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                                    Prix promotionnel
+                                </p>
+
+                                <p className="mt-2 text-2xl font-extrabold text-[#14a800]">
+                                    {formatPrice(computed.prixPromotion)}
+                                </p>
+
+                            </div>
+
+                            {/* Économie */}
+                            <div className="p-5 sm:p-6">
+
+                                <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+                                    Économie client
+                                </p>
+
+                                <p className="mt-2 text-lg font-extrabold text-gray-950">
+                                    {formatPrice(computed.economie)}
+                                </p>
+
+                            </div>
+
                         </div>
+
                     </div>
+
                 </div>
 
-                {/* Prix */}
-
-                <div className="grid grid-cols-1 divide-y divide-gray-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                    <div className="p-5">
-                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                            Prix normal
-                        </p>
-
-                        <p className="mt-2 text-lg font-semibold text-gray-500 line-through">
-                            {formatPrice(
-                                computed.prixNormal
-                            )}
-                        </p>
-                    </div>
-
-                    <div className="p-5">
-                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                            Prix promotionnel
-                        </p>
-
-                        <p className="mt-2 text-2xl font-bold text-green-600">
-                            {formatPrice(
-                                computed.prixPromotion
-                            )}
-                        </p>
-                    </div>
-
-                    <div className="p-5">
-                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                            Économie client
-                        </p>
-
-                        <p className="mt-2 text-lg font-bold text-gray-900">
-                            {formatPrice(
-                                computed.economie
-                            )}
-                        </p>
-                    </div>
-                </div>
-            </div>
+            </section>
 
             {/* =========================
                 STATISTIQUES
@@ -760,7 +838,7 @@ export default function PromotionDetailPage() {
                             <p className="mt-2 text-xl font-bold text-gray-900 sm:text-2xl">
                                 {formatPrice(
                                     stats?.chiffre_affaires ??
-                                        0
+                                    0
                                 )}
                             </p>
                         </div>
@@ -809,7 +887,7 @@ export default function PromotionDetailPage() {
                                 <span className="ml-1 text-sm font-medium text-gray-500">
                                     jour
                                     {computed.duree >
-                                    1
+                                        1
                                         ? "s"
                                         : ""}
                                 </span>
@@ -927,7 +1005,7 @@ export default function PromotionDetailPage() {
 
                         <div className="p-5 sm:p-6">
                             {promotion.quantite_limite !==
-                            null ? (
+                                null ? (
                                 <>
                                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                                         <div>
@@ -1115,7 +1193,7 @@ export default function PromotionDetailPage() {
                                 <span className="text-right font-semibold text-gray-900">
                                     {formatPrice(
                                         stats?.chiffre_affaires ??
-                                            0
+                                        0
                                     )}
                                 </span>
                             </div>
@@ -1132,7 +1210,7 @@ export default function PromotionDetailPage() {
                                     {computed.duree}{" "}
                                     jour
                                     {computed.duree >
-                                    1
+                                        1
                                         ? "s"
                                         : ""}
                                 </span>
@@ -1157,7 +1235,7 @@ export default function PromotionDetailPage() {
 
                                 <p className="mt-1 text-sm font-medium text-gray-700">
                                     {promotion.type ===
-                                    "percentage"
+                                        "percentage"
                                         ? "Réduction en pourcentage"
                                         : "Prix spécial"}
                                 </p>

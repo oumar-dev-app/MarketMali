@@ -4,55 +4,27 @@ import { apiHandler } from "@/lib/errors/apiHandler";
 import { ProduitService } from "@/lib/services/produit.service";
 import { vendeurMiddleware } from "@/lib/middleware/vendeur.middleware";
 
-
-
 export async function GET(
   req: NextRequest
 ) {
   return apiHandler(async () => {
-    const mine =
-      req.nextUrl.searchParams.get("mine") === "true";
 
-    // Produits de la boutique du vendeur connecté
-    if (mine) {
-      const user = vendeurMiddleware(req);
+    const user = vendeurMiddleware(req);
 
-      const produits =
-        await ProduitService.findByUser(
-          user.id,
-          user.role
-        );
-
-      return NextResponse.json(
-        {
-          success: true,
-
-          message:
-            produits.length
-              ? "Produits de votre boutique récupérés avec succès."
-              : "Aucun produit dans votre boutique.",
-
-          data: produits,
-        },
-        {
-          status: 200,
-        }
-      );
-    }
-
-    // Recherche publique existante
     const search =
       req.nextUrl.searchParams.get("search")
-      ?? undefined;
+        ?? undefined;
 
     const categorie =
       req.nextUrl.searchParams.get("categorie")
-      ?? undefined;
+        ?? undefined;
 
     const produits =
-      await ProduitService.search(
+      await ProduitService.searchForUser(
         search,
-        categorie
+        categorie,
+        user.id,
+        user.role
       );
 
     return NextResponse.json(
@@ -76,16 +48,11 @@ export async function GET(
 export async function POST(
   req: NextRequest
 ) {
-
   return apiHandler(async () => {
 
-    const user =
-      vendeurMiddleware(req);
+    const user = vendeurMiddleware(req);
 
-
-    const body =
-      await req.json();
-
+    const body = await req.json();
 
     const produit =
       await ProduitService.create(
@@ -101,20 +68,16 @@ export async function POST(
         user.role
       );
 
-
     return NextResponse.json(
       {
         success: true,
-        message:
-          "Produit créé avec succès.",
+        message: "Produit créé avec succès.",
         data: produit,
       },
       {
         status: 201,
       }
     );
-
   });
-
 }
 

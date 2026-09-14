@@ -360,23 +360,86 @@ export default function BoutiqueDetailsPage() {
                 </div>
 
                 {/* ================================= */}
-                {/* HERO */}
+                {/* HERO MARKETMALI */}
                 {/* ================================= */}
 
-                <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <section className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
 
-                    <div className="p-5 sm:p-6 lg:p-8">
+                    {/* Décoration verte */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            -right-32
+            -top-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#14a800]/5
+        "
+                    />
+
+                    {/* Décoration jaune */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            -bottom-40
+            -left-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#fcd116]/5
+        "
+                    />
+
+                    {/* Décoration rouge */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            right-[18%]
+            top-[35%]
+            h-44
+            w-44
+            rounded-full
+            bg-[#ce1126]/[0.025]
+        "
+                    />
+
+                    <div className="relative p-5 sm:p-6 lg:p-8">
+
+                        {/* Bande Mali */}
+                        <div className="mb-6 flex items-center gap-1">
+                            <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                            <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                            <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
+                        </div>
 
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
                             {/* Boutique principale */}
-
                             <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
 
                                 {/* Logo */}
-
-                                <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm sm:h-28 sm:w-28">
-
+                                <div
+                                    className="
+                        flex
+                        h-24
+                        w-24
+                        shrink-0
+                        items-center
+                        justify-center
+                        overflow-hidden
+                        rounded-2xl
+                        border
+                        border-gray-200
+                        bg-gray-50
+                        shadow-sm
+                        sm:h-28
+                        sm:w-28
+                    "
+                                >
                                     {boutique.logo ? (
                                         <img
                                             src={boutique.logo}
@@ -384,18 +447,28 @@ export default function BoutiqueDetailsPage() {
                                             className="h-full w-full object-cover"
                                         />
                                     ) : (
-                                        <FaStore className="text-3xl text-slate-400" />
+                                        <FaStore className="text-3xl text-[#14a800]/50" />
                                     )}
-
                                 </div>
 
-                                {/* Infos */}
-
+                                {/* Informations */}
                                 <div className="min-w-0">
 
+                                    {/* Label */}
+                                    <div className="mb-3 flex items-center gap-2">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                                            <FaStore className="text-base" />
+                                        </div>
+
+                                        <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                                            Boutique MarketMali
+                                        </span>
+                                    </div>
+
+                                    {/* Nom + statut */}
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 
-                                        <h1 className="wrap-break-word text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                                        <h1 className="wrap-break-word text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
                                             {boutique.nom}
                                         </h1>
 
@@ -411,9 +484,10 @@ export default function BoutiqueDetailsPage() {
 
                                     </div>
 
+                                    {/* Slug */}
                                     {boutique.slug && (
-                                        <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
-                                            <FaGlobe className="shrink-0 text-slate-400" />
+                                        <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+                                            <FaGlobe className="shrink-0 text-gray-400" />
 
                                             <span className="truncate">
                                                 /{boutique.slug}
@@ -421,9 +495,10 @@ export default function BoutiqueDetailsPage() {
                                         </div>
                                     )}
 
-                                    <p className="mt-3 break-all text-xs text-slate-400">
+                                    {/* UUID */}
+                                    <p className="mt-3 break-all text-xs text-gray-400">
                                         UUID :{" "}
-                                        <span className="font-mono text-slate-600">
+                                        <span className="font-mono text-gray-600">
                                             {boutique.uuid}
                                         </span>
                                     </p>
@@ -433,15 +508,29 @@ export default function BoutiqueDetailsPage() {
                             </div>
 
                             {/* Bloc statut */}
-
                             <div
-                                className={`rounded-2xl border p-4 ${status.className}`}
+                                className={`
+                    relative
+                    rounded-2xl
+                    border
+                    p-4
+                    shadow-sm
+                    ${status.className}
+                `}
                             >
-
                                 <div className="flex items-start gap-3">
 
                                     <div
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${status.iconBg}`}
+                                        className={`
+                            flex
+                            h-10
+                            w-10
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-xl
+                            ${status.iconBg}
+                        `}
                                     >
                                         <StatusIcon
                                             className={status.iconColor}
@@ -461,7 +550,6 @@ export default function BoutiqueDetailsPage() {
                                     </div>
 
                                 </div>
-
                             </div>
 
                         </div>

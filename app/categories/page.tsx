@@ -101,36 +101,113 @@ export default function CategoriesPage() {
         HERO
     ====================================================== */}
 
-      <section className="border-b border-gray-100 bg-white">
+      <section className="border-b border-gray-100 bg-[#f7f9f7]">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-            {/* BANDE MALI */}
 
-            <div className="p-6 sm:p-8 lg:p-10">
+          <div className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+
+            {/* Décoration verte */}
+            <div
+              className="
+                    pointer-events-none
+                    absolute
+                    -right-32
+                    -top-32
+                    h-80
+                    w-80
+                    rounded-full
+                    bg-[#14a800]/5
+                "
+            />
+
+            {/* Décoration jaune */}
+            <div
+              className="
+                    pointer-events-none
+                    absolute
+                    -bottom-40
+                    -left-32
+                    h-80
+                    w-80
+                    rounded-full
+                    bg-[#fcd116]/5
+                "
+            />
+
+            {/* Décoration rouge */}
+            <div
+              className="
+                    pointer-events-none
+                    absolute
+                    right-[20%]
+                    top-[35%]
+                    h-44
+                    w-44
+                    rounded-full
+                    bg-[#ce1126]/[0.025]
+                "
+            />
+
+            <div className="relative p-6 sm:p-8 lg:p-10">
+
+              {/* Bande Mali */}
+              <div className="mb-6 flex items-center gap-1">
+                <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
+              </div>
+
               <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+
                 {/* TITRE */}
-
                 <div className="max-w-2xl">
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#14a800]/10 px-3 py-1.5 text-xs font-bold text-[#087f00]">
-                    <Tag size={14} />
 
-                    MarketMali
+                  {/* Section */}
+                  <div className="mb-3 flex items-center gap-2">
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                      <Tag
+                        size={18}
+                        strokeWidth={2.2}
+                      />
+                    </div>
+
+                    <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                      Catalogue
+                    </span>
+
                   </div>
 
+                  {/* Titre */}
                   <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl lg:text-5xl">
                     Catégories
                   </h1>
 
-                  <p className="mt-3 text-sm leading-6 text-gray-500 sm:text-base">
+                  {/* Description */}
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
                     Découvrez les différentes catégories
                     disponibles sur MarketMali et trouvez
                     rapidement les produits qui vous intéressent.
                   </p>
+
                 </div>
 
                 {/* STATISTIQUE */}
-
-                <div className="flex shrink-0 items-center gap-4 rounded-2xl border border-gray-100 bg-gray-50 px-5 py-4">
+                <div
+                  className="
+                            flex
+                            shrink-0
+                            items-center
+                            gap-4
+                            rounded-2xl
+                            border
+                            border-gray-100
+                            bg-gray-50/80
+                            px-5
+                            py-4
+                            shadow-sm
+                        "
+                >
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
                     <FolderOpen
                       size={23}
@@ -149,15 +226,17 @@ export default function CategoriesPage() {
 
                     <p className="text-xs text-gray-500">
                       catégorie
-                      {categories.length > 1
-                        ? "s"
-                        : ""}
+                      {categories.length > 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
       </section>
 

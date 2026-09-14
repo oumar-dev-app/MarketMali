@@ -639,48 +639,140 @@ export default function GestionLivraisons() {
     return (
         <div className="min-h-screen bg-gray-50/70">
             <div className="mx-auto w-full max-w-375 space-y-6 p-4 sm:p-6 lg:p-8">
-                {/* HEADER */}
-                <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-                    <div className="relative p-5 sm:p-6 lg:p-7">
-                        <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-orange-50 blur-3xl" />
 
-                        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">
-                                    <Truck className="h-3.5 w-3.5" />
-                                    Gestion logistique
+                {/* ============================================================
+                     HEADER MARKETMALI
+                    ============================================================ */}
+
+                <section className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+                    {/* Décorations discrètes */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            -right-32
+            -top-32
+            h-72
+            w-72
+            rounded-full
+            bg-[#14a800]/5
+        "
+                    />
+
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            -bottom-40
+            -left-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#fcd116]/5
+        "
+                    />
+
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            right-[12%]
+            top-[42%]
+            h-40
+            w-40
+            rounded-full
+            bg-[#ce1126]/[0.025]
+        "
+                    />
+
+                    <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-8">
+
+                        {/* Bande Mali */}
+                        <div className="mb-5 flex items-center gap-1">
+                            <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                            <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                            <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
+                        </div>
+
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+
+                            {/* TITRE */}
+                            <div className="max-w-2xl">
+
+                                <div className="mb-3 flex items-center gap-2">
+
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                                        <Truck
+                                            size={18}
+                                            strokeWidth={2.2}
+                                        />
+                                    </div>
+
+                                    <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                                        Gestion logistique
+                                    </span>
+
                                 </div>
 
-                                <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+                                <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
                                     Livraisons
                                 </h1>
 
-                                <p className="mt-1.5 max-w-2xl text-sm leading-6 text-gray-500">
-                                    Suivez les livraisons,
-                                    consultez leur statut et
-                                    gérez leur progression.
+                                <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
+                                    Suivez les livraisons, consultez leur statut
+                                    et gérez leur progression depuis votre espace vendeur.
                                 </p>
+
                             </div>
 
+                            {/* ACTION */}
                             <button
                                 type="button"
-                                onClick={() =>
-                                    loadLivraisons(true)
-                                }
+                                onClick={() => loadLivraisons(true)}
                                 disabled={refreshing}
-                                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="
+                    inline-flex
+                    h-11
+                    shrink-0
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    border
+                    border-gray-200
+                    bg-white
+                    px-4
+                    text-sm
+                    font-semibold
+                    text-gray-700
+                    shadow-sm
+                    transition
+                    hover:border-[#14a800]/30
+                    hover:bg-[#14a800]/5
+                    hover:text-[#14a800]
+                    focus:outline-none
+                    focus:ring-4
+                    focus:ring-[#14a800]/10
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
+                "
                             >
                                 <RefreshCw
-                                    className={`h-4 w-4 ${refreshing
-                                        ? "animate-spin"
-                                        : ""
+                                    className={`h-4 w-4 ${refreshing ? "animate-spin" : ""
                                         }`}
                                 />
+
                                 Actualiser
                             </button>
+
                         </div>
+
                     </div>
+
                 </section>
+
+
 
                 {/* STATS */}
                 <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -725,16 +817,16 @@ export default function GestionLivraisons() {
                 {!configurationLoading && (
                     <section
                         className={`rounded-2xl border p-5 shadow-sm ${livraisonConfiguree
-                                ? "border-emerald-200 bg-emerald-50/60"
-                                : "border-orange-200 bg-orange-50/60"
+                            ? "border-emerald-200 bg-emerald-50/60"
+                            : "border-orange-200 bg-orange-50/60"
                             }`}
                     >
                         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-start gap-4">
                                 <div
                                     className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${livraisonConfiguree
-                                            ? "bg-emerald-100 text-emerald-600"
-                                            : "bg-orange-100 text-orange-600"
+                                        ? "bg-emerald-100 text-emerald-600"
+                                        : "bg-orange-100 text-orange-600"
                                         }`}
                                 >
                                     {livraisonConfiguree ? (

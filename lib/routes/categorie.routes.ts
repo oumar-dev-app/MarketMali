@@ -2,9 +2,7 @@ import { Router } from "express";
 import { CategorieController } from "../controllers/categorie.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
-
 const router = Router();
-
 
 // ===============================
 // Routes publiques
@@ -16,20 +14,11 @@ router.get(
   CategorieController.findAllActive
 );
 
-
 // Catégorie active par slug
 router.get(
-  "/active/:boutique_id/:slug",
+  "/active/:slug",
   CategorieController.findBySlugActive
 );
-
-
-// Catégories actives d'une boutique
-router.get(
-  "/boutique/:boutique_id/active",
-  CategorieController.findByBoutiqueActive
-);
-
 
 // ===============================
 // Routes protégées
@@ -37,20 +26,17 @@ router.get(
 
 router.use(authMiddleware);
 
-
 // Créer une catégorie
 router.post(
   "/",
   CategorieController.create
 );
 
-
-// Toutes les catégories (admin/vendeur)
+// Toutes les catégories
 router.get(
   "/",
   CategorieController.findAll
 );
-
 
 // Catégories de l'utilisateur connecté
 router.get(
@@ -58,27 +44,11 @@ router.get(
   CategorieController.findByUser
 );
 
-
 // Une catégorie par UUID
 router.get(
   "/:uuid",
   CategorieController.findByUUID
 );
-
-
-// Catégories d'une boutique
-router.get(
-  "/boutique/:boutique_id",
-  CategorieController.findByBoutique
-);
-
-
-// Une catégorie par UUID
-router.get(
-  "/:uuid",
-  CategorieController.findByUUID
-);
-
 
 // Modifier
 router.patch(
@@ -86,13 +56,11 @@ router.patch(
   CategorieController.update
 );
 
-
 // Supprimer définitivement
 router.delete(
   "/:uuid",
   CategorieController.delete
 );
-
 
 // Bloquer
 router.patch(
@@ -100,19 +68,16 @@ router.patch(
   CategorieController.block
 );
 
-
 // Débloquer
 router.patch(
   "/:uuid/unblock",
   CategorieController.unblock
 );
 
-
 // Activer
 router.patch(
   "/:uuid/activate",
   CategorieController.activate
 );
-
 
 export default router;

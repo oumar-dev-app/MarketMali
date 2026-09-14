@@ -209,36 +209,131 @@ export default function TarifsLivraisonPage() {
   return (
     <div className="min-h-full bg-gray-50/50 p-4 sm:p-6 lg:p-8">
 
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
+      {/* ============================================================
+    HEADER MARKETMALI
+============================================================ */}
 
-      <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black text-white shadow-sm">
-            <Truck size={21} />
+      <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+        {/* Décorations discrètes */}
+        <div
+          className="
+            pointer-events-none
+            absolute
+            -right-32
+            -top-32
+            h-72
+            w-72
+            rounded-full
+            bg-[#14a800]/5
+        "
+        />
+
+        <div
+          className="
+            pointer-events-none
+            absolute
+            -bottom-40
+            -left-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#fcd116]/5
+        "
+        />
+
+        <div
+          className="
+            pointer-events-none
+            absolute
+            right-[12%]
+            top-[42%]
+            h-40
+            w-40
+            rounded-full
+            bg-[#ce1126]/[0.025]
+        "
+        />
+
+        <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-8">
+
+          {/* Bande Mali */}
+          <div className="mb-5 flex items-center gap-1">
+            <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+            <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+            <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
           </div>
 
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
-              Tarifs de livraison
-            </h1>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
 
-            <p className="mt-0.5 text-sm text-gray-500">
-              Configurez les frais de livraison par zone.
-            </p>
+            {/* TITRE */}
+            <div className="max-w-2xl">
+
+              <div className="mb-3 flex items-center gap-2">
+
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                  <Truck
+                    size={18}
+                    strokeWidth={2.2}
+                  />
+                </div>
+
+                <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                  Gestion logistique
+                </span>
+
+              </div>
+
+              <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
+                Tarifs de livraison
+              </h1>
+
+              <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
+                Configurez les frais de livraison selon les différentes
+                zones desservies par votre boutique.
+              </p>
+
+            </div>
+
+            {/* ACTION */}
+            <Link
+              href="/dashboard/tarifs-livraison/create"
+              className="
+                    inline-flex
+                    h-11
+                    shrink-0
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    bg-[#14a800]
+                    px-5
+                    text-sm
+                    font-bold
+                    text-white
+                    shadow-sm
+                    transition
+                    hover:bg-[#119000]
+                    hover:shadow-md
+                    focus:outline-none
+                    focus:ring-4
+                    focus:ring-[#14a800]/10
+                    active:scale-[0.98]
+                "
+            >
+              <Plus
+                size={18}
+                strokeWidth={2.4}
+              />
+
+              Ajouter un tarif
+            </Link>
+
           </div>
+
         </div>
 
-        <Link
-          href="/dashboard/tarifs-livraison/create"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 active:scale-[0.98] sm:w-auto"
-        >
-          <Plus size={18} />
-          Ajouter un tarif
-        </Link>
-      </div>
-
+      </section>
       {/* =====================================================
           STATISTIQUES
       ===================================================== */}

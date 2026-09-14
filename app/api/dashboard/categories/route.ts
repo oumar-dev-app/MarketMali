@@ -4,66 +4,71 @@ import { apiHandler } from "@/lib/errors/apiHandler";
 import { CategorieService } from "@/lib/services/categorie.service";
 import { vendeurMiddleware } from "@/lib/middleware/vendeur.middleware";
 
-
-export async function GET(
-  req: NextRequest
-) {
-
+export async function GET(req: NextRequest) {
   return apiHandler(async () => {
-
     const user = vendeurMiddleware(req);
 
+    const scope = req.nextUrl.searchParams.get("scope");
+
+    // Catalogue global des catégories actives.
+    // Utilisé notamment lors de l'ajout d'une catégorie
+    // à la boutique d'un vendeur.
+    if (scope === "global") {
+      const categories =
+        await CategorieService.findAvailableGlobal(user.role);
+
+      return NextResponse.json(
+        {
+          success: true,
+          message: categories.length
+            ? "Catégories disponibles récupérées avec succès."
+            : "Aucune catégorie disponible.",
+          data: categories,
+        },
+        {
+          status: 200,
+        }
+      );
+    }
+
+    // Vue normale du dashboard :
+    // - admin / super_admin : toutes les catégories
+    // - vendeur : uniquement les catégories associées à sa boutique
     const categories =
-      user.role === "super_admin"
-        ? await CategorieService.findAll()
-        : await CategorieService.findAllActive();
+      await CategorieService.findByUser(
+        user.id,
+        user.role
+      );
 
     return NextResponse.json(
       {
         success: true,
-        message:
-          categories.length
-            ? "Catégories récupérées avec succès."
-            : "Aucune catégorie trouvée.",
+        message: categories.length
+          ? "Catégories récupérées avec succès."
+          : "Aucune catégorie trouvée.",
         data: categories,
       },
       {
         status: 200,
       }
     );
-
   });
-
 }
 
-
-
-export async function POST(
-  req: NextRequest
-) {
-
-  console.log("=== POST DASHBOARD CATEGORIES DEBUT ===");
-
+export async function POST(req: NextRequest) {
   return apiHandler(async () => {
+    const user = vendeurMiddleware(req);
 
-
-    const user =
-      vendeurMiddleware(req);
-
-    console.log("USER CONNECTE :", user);
-
-
-    const body =
-      await req.json();
-
-    console.log("BODY CATEGORIE :", body);
-
+    const body = await req.json();
 
     const categorie =
       await CategorieService.create(
         {
-          boutique_id: body.boutique_id,
           nom: body.nom,
+          parent_id:
+            body.parent_id !== undefined
+              ? body.parent_id
+              : null,
           description: body.description,
           image: body.image,
         },
@@ -71,22 +76,60 @@ export async function POST(
         user.role
       );
 
-
-    console.log("CATEGORIE CREE :", categorie);
-
-
     return NextResponse.json(
       {
         success: true,
-        message:
-          "Catégorie créée avec succès.",
+        message: "Catégorie créée avec succès.",
         data: categorie,
       },
       {
         status: 201,
       }
     );
-
   });
+}
 
+export async function DELETE(req: NextRequest) {
+  return apiHandler(async () => {
+    const user = vendeurMiddleware(req);
+
+    const body = await req.json();
+
+    const categorieId = Number(
+      body.categorie_id
+    );
+
+    if (
+      !Number.isInteger(categorieId) ||
+      categorieId <= 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Identifiant de catégorie invalide.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const result =
+      await CategorieService.removeFromBoutique(
+        categorieId,
+        user.id,
+        user.role
+      );
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: result.message,
+      },
+      {
+        status: 200,
+      }
+    );
+  });
 }

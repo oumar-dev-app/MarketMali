@@ -217,37 +217,135 @@ export default function EditBoutiquePage() {
     return (
         <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
             <div className="mx-auto max-w-5xl">
-                {/* Header */}
-                <div className="mb-6">
-                    <Link
-                        href={`/dashboard/boutiques/${boutique.uuid}`}
-                        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
-                    >
-                        <FaArrowLeft />
-                        Retour à la boutique
-                    </Link>
+                {/* ============================================================
+    HEADER MARKETMALI
+============================================================ */}
 
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-600">
-                                <FaStore className="text-xl" />
-                            </div>
+                <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
 
-                            <div>
-                                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-                                    Modifier la boutique
-                                </h1>
+                    {/* Décoration verte */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            -right-32
+            -top-32
+            h-72
+            w-72
+            rounded-full
+            bg-[#14a800]/5
+        "
+                    />
 
-                                <p className="mt-1 text-sm text-slate-500">
-                                    Modifiez les informations de{" "}
-                                    <span className="font-semibold text-slate-700">
-                                        {boutique.nom}
-                                    </span>
-                                </p>
-                            </div>
+                    {/* Décoration jaune */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            -bottom-40
+            -left-32
+            h-80
+            w-80
+            rounded-full
+            bg-[#fcd116]/5
+        "
+                    />
+
+                    {/* Décoration rouge */}
+                    <div
+                        className="
+            pointer-events-none
+            absolute
+            right-[12%]
+            top-[42%]
+            h-40
+            w-40
+            rounded-full
+            bg-[#ce1126]/[0.025]
+        "
+                    />
+
+                    <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-8">
+
+                        {/* Bande Mali */}
+                        <div className="mb-5 flex items-center gap-1">
+                            <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                            <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                            <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
                         </div>
+
+                        <div className="flex flex-col gap-5">
+
+                            <div className="flex items-start gap-4">
+
+                                {/* Retour */}
+                                <Link
+                                    href={`/dashboard/boutiques/${boutique.uuid}`}
+                                    aria-label="Retour à la boutique"
+                                    className="
+                        mt-0.5
+                        flex
+                        h-10
+                        w-10
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        text-gray-600
+                        shadow-sm
+                        transition
+                        hover:border-[#14a800]/30
+                        hover:bg-[#14a800]/5
+                        hover:text-[#14a800]
+                        focus:outline-none
+                        focus:ring-4
+                        focus:ring-[#14a800]/10
+                    "
+                                >
+                                    <FaArrowLeft className="text-sm" />
+                                </Link>
+
+                                <div className="min-w-0">
+
+                                    {/* Section */}
+                                    <div className="mb-3 flex items-center gap-2">
+
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                                            <FaStore className="text-base" />
+                                        </div>
+
+                                        <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                                            Gestion de la boutique
+                                        </span>
+
+                                    </div>
+
+                                    {/* Titre */}
+                                    <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
+                                        Modifier la boutique
+                                    </h1>
+
+                                    {/* Description */}
+                                    <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
+                                        Modifiez les informations de{" "}
+                                        <span className="font-semibold text-gray-700">
+                                            {boutique.nom}
+                                        </span>{" "}
+                                        et personnalisez votre boutique sur MarketMali.
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
                     </div>
-                </div>
+
+                </section>
 
                 {/* Error */}
                 {error && (

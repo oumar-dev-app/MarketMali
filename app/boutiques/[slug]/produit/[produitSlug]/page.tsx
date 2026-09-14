@@ -26,8 +26,6 @@ interface ProduitResponse {
   data: Produit[];
 }
 
-
-
 export default async function ProduitPage(
   {
     params
@@ -39,28 +37,21 @@ export default async function ProduitPage(
   }
 ) {
 
-
   const {
     slug,
     produitSlug
   } = await params;
-
-
 
   const response =
     await apiGet<ProduitResponse>(
       `/boutiques/slug/${slug}/produits`
     );
 
-
-
   const produit =
     response.data.find(
       item =>
         item.slug === produitSlug
     );
-
-
 
   if (!produit) {
 
@@ -78,13 +69,8 @@ export default async function ProduitPage(
 
   }
 
-
-
   return (
-
     <main className="p-8">
-
-
       <Link
         href={`/boutiques/${slug}`}
         className="text-blue-600"
@@ -92,22 +78,15 @@ export default async function ProduitPage(
         ← Retour boutique
       </Link>
 
-
-
       <section className="mt-8 border rounded-xl p-6">
-
 
         <h1 className="text-3xl font-bold">
           {produit.nom}
         </h1>
 
-
-
         <p className="mt-4 text-gray-700">
           {produit.description}
         </p>
-
-
 
         <p className="mt-5 text-2xl font-bold">
           {produit.prix} FCFA

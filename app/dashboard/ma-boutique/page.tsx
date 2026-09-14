@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -96,9 +97,6 @@ export default function MaBoutiquePage() {
    * ------------------------------------------------------------
    * RÉCUPÉRATION DE L'ÉTAT RÉEL DE L'ONBOARDING
    * ------------------------------------------------------------
-   *
-   * La base de données reste la source de vérité.
-   * Aucun état d'avancement n'est enregistré dans localStorage.
    */
   const fetchBoutiqueState = useCallback(
     async (showLoader = true) => {
@@ -267,12 +265,6 @@ export default function MaBoutiquePage() {
   const progress =
     (completedSteps / TOTAL_STEPS) * 100;
 
-  /**
-   * Première étape non terminée.
-   *
-   * Même si plusieurs éléments existent déjà en base,
-   * on ne rend active qu'une seule étape à la fois.
-   */
   const activeStep =
     !boutique
       ? 1
@@ -288,11 +280,6 @@ export default function MaBoutiquePage() {
                 ? 6
                 : null;
 
-  /**
-   * ------------------------------------------------------------
-   * VALIDATION D'UNE ÉTAPE
-   * ------------------------------------------------------------
-   */
   const handleStepCompleted = async () => {
     await fetchBoutiqueState(false);
   };
@@ -305,30 +292,48 @@ export default function MaBoutiquePage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-5xl mx-auto space-y-6">
-          <div className="h-10 w-56 bg-gray-200 rounded-xl animate-pulse" />
+      <div className="relative min-h-full overflow-hidden bg-[#f7f9f7] p-4 sm:p-6 lg:p-8">
 
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row gap-5">
-              <div className="w-24 h-24 rounded-2xl bg-gray-200 animate-pulse" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#14a800]/5" />
+          <div className="absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-[#fcd116]/5" />
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-5xl space-y-6">
+
+          <div className="h-10 w-56 animate-pulse rounded-xl bg-gray-200" />
+
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+
+            <div className="flex flex-col gap-5 sm:flex-row">
+
+              <div className="h-24 w-24 shrink-0 animate-pulse rounded-2xl bg-gray-200" />
 
               <div className="flex-1 space-y-3">
-                <div className="h-7 w-64 bg-gray-200 rounded-lg animate-pulse" />
-                <div className="h-4 w-80 max-w-full bg-gray-100 rounded-lg animate-pulse" />
-                <div className="h-4 w-48 bg-gray-100 rounded-lg animate-pulse" />
+
+                <div className="h-7 w-64 animate-pulse rounded-lg bg-gray-200" />
+
+                <div className="h-4 w-80 max-w-full animate-pulse rounded-lg bg-gray-100" />
+
+                <div className="h-4 w-48 animate-pulse rounded-lg bg-gray-100" />
+
               </div>
+
             </div>
+
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="h-32 bg-white border border-gray-200 rounded-2xl animate-pulse"
+                className="h-32 animate-pulse rounded-2xl border border-gray-200 bg-white"
               />
             ))}
+
           </div>
+
         </div>
       </div>
     );
@@ -342,32 +347,58 @@ export default function MaBoutiquePage() {
 
   if (error) {
     return (
-      <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white border border-red-200 rounded-2xl p-8 text-center shadow-sm">
-            <div className="w-14 h-14 mx-auto rounded-2xl bg-red-50 flex items-center justify-center mb-4">
-              <AlertCircle className="w-7 h-7 text-red-500" />
+      <div className="relative min-h-full overflow-hidden bg-[#f7f9f7] p-4 sm:p-6 lg:p-8">
+
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#14a800]/5" />
+          <div className="absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-[#fcd116]/5" />
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-3xl">
+
+          <div className="rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
+
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
+              <AlertCircle className="h-7 w-7 text-red-500" />
             </div>
 
             <h1 className="text-xl font-bold text-gray-900">
               Impossible de charger votre boutique
             </h1>
 
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="mt-2 text-sm text-gray-500">
               {error}
             </p>
 
             <button
               type="button"
-              onClick={() =>
-                fetchBoutiqueState(true)
-              }
-              className="mt-6 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition"
+              onClick={() => fetchBoutiqueState(true)}
+              className="
+                mt-6
+                inline-flex
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                bg-[#14a800]
+                px-5
+                py-2.5
+                text-sm
+                font-bold
+                text-white
+                transition
+                hover:bg-[#119400]
+                focus:outline-none
+                focus:ring-4
+                focus:ring-[#14a800]/20
+              "
             >
-              <ArrowLeft className="w-4 h-4 rotate-180" />
+              <ArrowLeft className="h-4 w-4 rotate-180" />
               Réessayer
             </button>
+
           </div>
+
         </div>
       </div>
     );
@@ -381,279 +412,410 @@ export default function MaBoutiquePage() {
 
   if (completedSteps < TOTAL_STEPS) {
     return (
-      <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-5xl mx-auto">
+      <div className="relative min-h-full overflow-hidden bg-[#f7f9f7]">
 
-          {/* HEADER */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3">
-              <Link
-                href="/dashboard"
-                className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
-                title="Retour au dashboard"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Link>
+        {/* ========================================================
+            ARRIÈRE-PLAN MARKETMALI
+        ======================================================== */}
 
-              <div>
-                <p className="text-sm text-gray-500">
-                  Espace vendeur
-                </p>
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                  Bienvenue sur MarketMali 👋
-                </h1>
-              </div>
-            </div>
-          </div>
+          <div className="absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#14a800]/5" />
 
-          {/* INTRODUCTION + PROGRESSION */}
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
-            <div className="h-2 bg-gray-900" />
+          <div className="absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-[#fcd116]/5" />
 
-            <div className="p-6 sm:p-8 lg:p-10">
+          <div className="absolute right-[10%] top-[45%] h-40 w-40 rounded-full bg-[#ce1126]/2" />
 
-              <div className="max-w-3xl">
-                <div className="w-14 h-14 rounded-2xl bg-gray-900 flex items-center justify-center mb-5">
-                  <Store className="w-7 h-7 text-white" />
+        </div>
+
+        <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+
+          <div className="mx-auto max-w-7xl">
+
+            {/* ====================================================
+                HEADER MARKETMALI
+            ==================================================== */}
+
+            <section className="relative mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+              <div className="pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#14a800]/5" />
+
+              <div className="pointer-events-none absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-[#fcd116]/5" />
+
+              <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-8">
+
+                <div className="mb-5 flex items-center gap-1">
+                  <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                  <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                  <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
                 </div>
 
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                  Configurez votre boutique
-                </h2>
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
 
-                <p className="text-gray-600 mt-3 leading-relaxed">
-                  Votre espace vendeur est prêt. Nous allons maintenant
-                  vous accompagner étape par étape pour préparer votre
-                  boutique avant son ouverture aux clients.
-                </p>
+                  <div className="max-w-2xl">
 
-                <p className="text-sm text-gray-500 mt-3 leading-relaxed">
-                  Chaque étape est enregistrée directement dans votre
-                  compte. Vous pouvez quitter cette page et revenir
-                  plus tard : MarketMali reprendra automatiquement
-                  là où vous vous êtes arrêté.
-                </p>
-              </div>
+                    <div className="mb-3 flex items-center gap-2">
 
-              {/* PROGRESSION */}
-              <div className="mt-8 p-5 rounded-2xl bg-gray-50 border border-gray-200">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                        <Store
+                          size={18}
+                          strokeWidth={2.2}
+                        />
+                      </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      Configuration de votre boutique
+                      <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                        Espace vendeur
+                      </span>
+
+                    </div>
+
+                    <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
+                      Ma boutique
+                    </h1>
+
+                    <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
+                      Configurez votre boutique MarketMali,
+                      ajoutez vos produits et préparez votre activité
+                      commerciale étape par étape.
                     </p>
 
-                    <p className="text-xs text-gray-500 mt-1">
-                      Étape {activeStep} sur {TOTAL_STEPS}
-                    </p>
                   </div>
 
-                  <span className="text-sm font-bold text-gray-900">
-                    {completedSteps}/{TOTAL_STEPS} étapes
-                  </span>
+                  <Link
+                    href="/dashboard"
+                    className="
+                      inline-flex
+                      h-11
+                      shrink-0
+                      items-center
+                      justify-center
+                      gap-2
+                      rounded-xl
+                      border
+                      border-gray-200
+                      bg-white
+                      px-4
+                      text-sm
+                      font-semibold
+                      text-gray-700
+                      shadow-sm
+                      transition
+                      hover:border-[#14a800]/30
+                      hover:bg-[#14a800]/5
+                      hover:text-[#14a800]
+                      focus:outline-none
+                      focus:ring-4
+                      focus:ring-[#14a800]/10
+                    "
+                  >
+                    <ArrowLeft size={16} />
+                    Retour au dashboard
+                  </Link>
+
                 </div>
 
-                <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gray-900 rounded-full transition-all duration-500"
-                    style={{
-                      width: `${progress}%`,
-                    }}
-                  />
-                </div>
               </div>
-            </div>
-          </div>
 
-          {/* RÉSUMÉ DES ÉTAPES */}
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
+            </section>
 
-            <div className="px-5 sm:px-7 py-5 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">
-                Votre parcours
-              </h2>
+            {/* ====================================================
+                INTRODUCTION + PROGRESSION
+            ==================================================== */}
 
-              <p className="text-sm text-gray-500 mt-1">
-                Les étapes suivantes seront débloquées automatiquement
-                après validation de l'étape actuelle.
-              </p>
-            </div>
+            <section className="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
 
-            <div className="p-5 sm:p-7">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="h-1.5 bg-[#14a800]" />
 
-                {/* 1 */}
-                <StepSummary
-                  number={1}
-                  title="Créer ma boutique"
-                  completed={Boolean(boutique)}
-                  active={activeStep === 1}
-                />
+              <div className="p-6 sm:p-8 lg:p-10">
 
-                {/* 2 */}
-                <StepSummary
-                  number={2}
-                  title="Ajouter mes produits"
-                  completed={hasProducts}
-                  active={activeStep === 2}
-                  locked={!boutique}
-                />
+                <div className="max-w-3xl">
 
-                {/* 3 */}
-                <StepSummary
-                  number={3}
-                  title="Organiser mes livraisons"
-                  completed={Boolean(
-                    boutique?.livraison_configuree
-                  )}
-                  active={activeStep === 3}
-                  locked={!hasProducts}
-                />
+                  <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#14a800]/10 text-[#14a800]">
+                    <Store className="h-7 w-7" />
+                  </div>
 
-                {/* 4 */}
-                <StepSummary
-                  number={4}
-                  title="Ajouter un livreur"
-                  completed={hasLivreur}
-                  active={activeStep === 4}
-                  locked={!boutique?.livraison_configuree}
-                />
+                  <h2 className="text-xl font-bold tracking-tight text-gray-950 sm:text-2xl">
+                    Configurez votre boutique
+                  </h2>
 
-                {/* 5 */}
-                <StepSummary
-                  number={5}
-                  title="Configurer les tarifs"
-                  completed={hasDeliveryRates}
-                  active={activeStep === 5}
-                  locked={!hasLivreur}
-                />
-
-                {/* 6 */}
-                <StepSummary
-                  number={6}
-                  title="Créer une promotion"
-                  completed={hasPromotion}
-                  active={activeStep === 6}
-                  locked={!hasDeliveryRates}
-                />
-
-              </div>
-            </div>
-          </div>
-
-          {/* ====================================================
-              ÉTAPE ACTIVE
-              ==================================================== */}
-
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-
-            <div className="px-5 sm:px-7 py-5 border-b border-gray-100 bg-gray-50/70">
-              <div className="flex items-center justify-between gap-4">
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Étape {activeStep}
+                  <p className="mt-3 leading-relaxed text-gray-600">
+                    Votre espace vendeur est prêt. Nous allons maintenant
+                    vous accompagner étape par étape pour préparer votre
+                    boutique avant son ouverture aux clients.
                   </p>
 
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 mt-1">
-                    {activeStep === 1 &&
-                      "Créer votre boutique"}
+                  <p className="mt-3 text-sm leading-relaxed text-gray-500">
+                    Chaque étape est enregistrée directement dans votre
+                    compte. Vous pouvez quitter cette page et revenir
+                    plus tard : MarketMali reprendra automatiquement
+                    là où vous vous êtes arrêté.
+                  </p>
 
-                    {activeStep === 2 &&
-                      "Ajouter votre premier produit"}
-
-                    {activeStep === 3 &&
-                      "Organiser vos livraisons"}
-
-                    {activeStep === 4 &&
-                      "Ajouter votre premier livreur"}
-
-                    {activeStep === 5 &&
-                      "Configurer vos tarifs de livraison"}
-
-                    {activeStep === 6 &&
-                      "Créer votre première promotion"}
-                  </h2>
                 </div>
 
-                {refreshing && (
-                  <div className="inline-flex items-center gap-2 text-xs text-gray-500">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Actualisation...
+                {/* PROGRESSION */}
+
+                <div className="mt-8 rounded-2xl border border-[#14a800]/10 bg-[#f7f9f7] p-5 sm:p-6">
+
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">
+                        Configuration de votre boutique
+                      </p>
+
+                      <p className="mt-1 text-xs text-gray-500">
+                        Étape {activeStep} sur {TOTAL_STEPS}
+                      </p>
+                    </div>
+
+                    <span className="inline-flex w-fit items-center rounded-full bg-[#14a800]/10 px-3 py-1 text-sm font-bold text-[#14a800]">
+                      {completedSteps}/{TOTAL_STEPS} étapes
+                    </span>
+
                   </div>
+
+                  <div className="h-2 overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full rounded-full bg-[#14a800] transition-all duration-500"
+                      style={{
+                        width: `${progress}%`,
+                      }}
+                    />
+                  </div>
+
+                </div>
+
+              </div>
+
+            </section>
+
+            {/* ====================================================
+                RÉSUMÉ DES ÉTAPES
+            ==================================================== */}
+
+            <section className="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+              <div className="border-b border-gray-100 px-5 py-5 sm:px-7">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                    <Settings2 size={18} />
+                  </div>
+
+                  <div>
+                    <h2 className="font-bold text-gray-950">
+                      Votre parcours
+                    </h2>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      Les étapes suivantes seront débloquées automatiquement
+                      après validation de l'étape actuelle.
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
+              <div className="p-5 sm:p-7">
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+
+                  <StepSummary
+                    number={1}
+                    title="Créer ma boutique"
+                    completed={Boolean(boutique)}
+                    active={activeStep === 1}
+                  />
+
+                  <StepSummary
+                    number={2}
+                    title="Ajouter mes produits"
+                    completed={hasProducts}
+                    active={activeStep === 2}
+                    locked={!boutique}
+                  />
+
+                  <StepSummary
+                    number={3}
+                    title="Organiser mes livraisons"
+                    completed={Boolean(
+                      boutique?.livraison_configuree
+                    )}
+                    active={activeStep === 3}
+                    locked={!hasProducts}
+                  />
+
+                  <StepSummary
+                    number={4}
+                    title="Ajouter un livreur"
+                    completed={hasLivreur}
+                    active={activeStep === 4}
+                    locked={!boutique?.livraison_configuree}
+                  />
+
+                  <StepSummary
+                    number={5}
+                    title="Configurer les tarifs"
+                    completed={hasDeliveryRates}
+                    active={activeStep === 5}
+                    locked={!hasLivreur}
+                  />
+
+                  <StepSummary
+                    number={6}
+                    title="Créer une promotion"
+                    completed={hasPromotion}
+                    active={activeStep === 6}
+                    locked={!hasDeliveryRates}
+                  />
+
+                </div>
+
+              </div>
+
+            </section>
+
+            {/* ====================================================
+                ÉTAPE ACTIVE
+            ==================================================== */}
+
+            <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+              <div className="border-b border-gray-100 bg-white px-5 py-5 sm:px-7">
+
+                <div className="flex items-center justify-between gap-4">
+
+                  <div>
+
+                    <div className="mb-1 flex items-center gap-2">
+
+                      <span className="text-xs font-bold uppercase tracking-wide text-[#14a800]">
+                        Étape {activeStep}
+                      </span>
+
+                      <span className="h-1 w-1 rounded-full bg-gray-300" />
+
+                      <span className="text-xs font-medium text-gray-400">
+                        En cours
+                      </span>
+
+                    </div>
+
+                    <h2 className="text-lg font-extrabold tracking-tight text-gray-950 sm:text-xl">
+
+                      {activeStep === 1 &&
+                        "Créer votre boutique"}
+
+                      {activeStep === 2 &&
+                        "Ajouter votre premier produit"}
+
+                      {activeStep === 3 &&
+                        "Organiser vos livraisons"}
+
+                      {activeStep === 4 &&
+                        "Ajouter votre premier livreur"}
+
+                      {activeStep === 5 &&
+                        "Configurer vos tarifs de livraison"}
+
+                      {activeStep === 6 &&
+                        "Créer votre première promotion"}
+
+                    </h2>
+
+                  </div>
+
+                  {refreshing && (
+                    <div className="inline-flex items-center gap-2 text-xs font-medium text-[#14a800]">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Actualisation...
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
+
+              <div className="p-5 sm:p-7">
+
+                {activeStep === 1 && (
+                  <CreateBoutiqueStep
+                    onCompleted={handleStepCompleted}
+                  />
+                )}
+
+                {activeStep === 2 && (
+                  <AddProductStep
+                    onCompleted={handleStepCompleted}
+                  />
+                )}
+
+                {activeStep === 3 && (
+                  <DeliveryConfigurationStep
+                    onCompleted={handleStepCompleted}
+                  />
+                )}
+
+                {activeStep === 4 && (
+                  <AddLivreurStep
+                    onCompleted={handleStepCompleted}
+                  />
+                )}
+
+                {activeStep === 5 && (
+                  <DeliveryRatesStep
+                    onCompleted={handleStepCompleted}
+                  />
+                )}
+
+                {activeStep === 6 && (
+                  <PromotionStep
+                    onCompleted={handleStepCompleted}
+                  />
                 )}
 
               </div>
-            </div>
 
-            <div className="p-5 sm:p-7">
+            </section>
 
-              {activeStep === 1 && (
-                <CreateBoutiqueStep
-                  onCompleted={handleStepCompleted}
-                />
-              )}
+            {/* ====================================================
+                CONSEIL
+            ==================================================== */}
 
-              {activeStep === 2 && (
-                <AddProductStep
-                  onCompleted={handleStepCompleted}
-                />
-              )}
+            <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
 
-              {activeStep === 3 && (
-                <DeliveryConfigurationStep
-                  onCompleted={handleStepCompleted}
-                />
-              )}
+              <div className="flex items-start gap-4">
 
-              {activeStep === 4 && (
-                <AddLivreurStep
-                  onCompleted={handleStepCompleted}
-                />
-              )}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100">
+                  <CheckCircle className="h-5 w-5 text-blue-600" />
+                </div>
 
-              {activeStep === 5 && (
-                <DeliveryRatesStep
-                  onCompleted={handleStepCompleted}
-                />
-              )}
+                <div>
 
-              {activeStep === 6 && (
-                <PromotionStep
-                  onCompleted={handleStepCompleted}
-                />
-              )}
+                  <h3 className="font-bold text-blue-900">
+                    Votre progression est sauvegardée
+                  </h3>
 
-            </div>
-          </div>
+                  <p className="mt-1 text-sm leading-relaxed text-blue-800">
+                    Vous n'avez pas besoin de terminer les six étapes
+                    immédiatement. Vous pouvez quitter votre espace vendeur
+                    et revenir plus tard. MarketMali vérifiera automatiquement
+                    ce qui a déjà été configuré.
+                  </p>
 
-          {/* CONSEIL */}
-          <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
-            <div className="flex items-start gap-4">
+                </div>
 
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                <CheckCircle className="w-5 h-5 text-blue-600" />
               </div>
 
-              <div>
-                <h3 className="font-semibold text-blue-900">
-                  Votre progression est sauvegardée
-                </h3>
+            </section>
 
-                <p className="text-sm text-blue-800 mt-1 leading-relaxed">
-                  Vous n'avez pas besoin de terminer les six étapes
-                  immédiatement. Vous pouvez quitter votre espace vendeur
-                  et revenir plus tard. MarketMali vérifiera automatiquement
-                  ce qui a déjà été configuré.
-                </p>
-              </div>
-
-            </div>
           </div>
 
         </div>
+
       </div>
     );
   }
@@ -671,12 +833,14 @@ export default function MaBoutiquePage() {
         "bg-emerald-50 text-emerald-700 border-emerald-200",
       icon: CheckCircle,
     },
+
     pending: {
       label: "En attente",
       className:
         "bg-orange-50 text-orange-700 border-orange-200",
       icon: Clock,
     },
+
     blocked: {
       label: "Bloquée",
       className:
@@ -694,263 +858,448 @@ export default function MaBoutiquePage() {
     currentStatus.icon;
 
   return (
-    <div className="min-h-full bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="relative min-h-full overflow-hidden bg-[#f7f9f7]">
 
-        {/* HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* ========================================================
+          ARRIÈRE-PLAN MARKETMALI
+      ======================================================== */}
 
-          <div className="flex items-center gap-3">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
 
-            <Link
-              href="/dashboard"
-              className="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
-              title="Retour au dashboard"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
+        <div className="absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#14a800]/5" />
 
-            <div>
-              <p className="text-sm text-gray-500">
-                Espace vendeur
-              </p>
+        <div className="absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-[#fcd116]/5" />
 
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                Ma boutique
-              </h1>
+        <div className="absolute right-[12%] top-[38%] h-40 w-40 rounded-full bg-[#ce1126]/[0.02]" />
+
+      </div>
+
+      <div className="relative z-10 p-4 sm:p-6 lg:p-8">
+
+        <div className="mx-auto max-w-7xl">
+
+          {/* ====================================================
+              HEADER MARKETMALI
+          ==================================================== */}
+
+          <section className="relative mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+            <div className="pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#14a800]/5" />
+
+            <div className="pointer-events-none absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-[#fcd116]/5" />
+
+            <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-8">
+
+              <div className="mb-5 flex items-center gap-1">
+                <span className="h-1.5 w-8 rounded-full bg-[#14a800]" />
+                <span className="h-1.5 w-8 rounded-full bg-[#fcd116]" />
+                <span className="h-1.5 w-8 rounded-full bg-[#ce1126]" />
+              </div>
+
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+
+                <div className="max-w-2xl">
+
+                  <div className="mb-3 flex items-center gap-2">
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                      <Store
+                        size={18}
+                        strokeWidth={2.2}
+                      />
+                    </div>
+
+                    <span className="text-sm font-bold uppercase tracking-wide text-[#14a800]">
+                      Espace vendeur
+                    </span>
+
+                  </div>
+
+                  <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
+                    Ma boutique
+                  </h1>
+
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
+                    Gérez votre boutique MarketMali, vos produits,
+                    vos livraisons et votre activité commerciale
+                    depuis un seul espace.
+                  </p>
+
+                </div>
+
+                {boutique && (
+                  <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+
+                    <Link
+                      href={`/boutiques/${boutique.slug}`}
+                      className="
+                        inline-flex
+                        h-11
+                        items-center
+                        justify-center
+                        gap-2
+                        rounded-xl
+                        border
+                        border-gray-200
+                        bg-white
+                        px-4
+                        text-sm
+                        font-semibold
+                        text-gray-700
+                        shadow-sm
+                        transition
+                        hover:border-[#14a800]/30
+                        hover:bg-[#14a800]/5
+                        hover:text-[#14a800]
+                        focus:outline-none
+                        focus:ring-4
+                        focus:ring-[#14a800]/10
+                      "
+                    >
+                      <ExternalLink size={16} />
+                      Voir ma boutique
+                    </Link>
+
+                    <Link
+                      href={`/dashboard/boutiques/${boutique.uuid}/edit`}
+                      className="
+                        inline-flex
+                        h-11
+                        items-center
+                        justify-center
+                        gap-2
+                        rounded-xl
+                        bg-[#14a800]
+                        px-4
+                        text-sm
+                        font-bold
+                        text-white
+                        shadow-sm
+                        transition
+                        hover:bg-[#119400]
+                        hover:shadow-md
+                        focus:outline-none
+                        focus:ring-4
+                        focus:ring-[#14a800]/20
+                      "
+                    >
+                      <Pencil size={16} />
+                      Modifier
+                    </Link>
+
+                  </div>
+                )}
+
+              </div>
+
             </div>
 
-          </div>
+          </section>
+
+          {/* ====================================================
+              INFORMATIONS BOUTIQUE
+          ==================================================== */}
 
           {boutique && (
-            <div className="flex flex-wrap gap-2">
+            <>
 
-              <Link
-                href={`/boutiques/${boutique.slug}`}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Voir ma boutique
-              </Link>
+              <section className="mb-6 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
 
-              <Link
-                href={`/dashboard/boutiques/${boutique.uuid}/edit`}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition"
-              >
-                <Pencil className="w-4 h-4" />
-                Modifier
-              </Link>
+                <div className="p-6 sm:p-8">
 
-            </div>
+                  <div className="flex flex-col gap-6 sm:flex-row">
+
+                    <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+
+                      {boutique.logo ? (
+                        <img
+                          src={boutique.logo}
+                          alt={boutique.nom}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Store className="h-10 w-10 text-[#14a800]/40" />
+                      )}
+
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+
+                      <div className="flex flex-wrap items-center gap-3">
+
+                        <h2 className="text-2xl font-extrabold tracking-tight text-gray-950">
+                          {boutique.nom}
+                        </h2>
+
+                        <span
+                          className={`
+                            inline-flex
+                            items-center
+                            gap-1.5
+                            rounded-full
+                            border
+                            px-3
+                            py-1
+                            text-xs
+                            font-bold
+                            ${currentStatus.className}
+                          `}
+                        >
+                          <StatusIcon className="h-3.5 w-3.5" />
+                          {currentStatus.label}
+                        </span>
+
+                      </div>
+
+                      {boutique.description && (
+                        <p className="mt-3 leading-relaxed text-gray-600">
+                          {boutique.description}
+                        </p>
+                      )}
+
+                      <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-500">
+
+                        {boutique.telephone && (
+                          <span className="inline-flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-[#14a800]" />
+                            {boutique.telephone}
+                          </span>
+                        )}
+
+                        {boutique.email && (
+                          <span className="inline-flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-[#14a800]" />
+                            {boutique.email}
+                          </span>
+                        )}
+
+                        {(boutique.adresse ||
+                          boutique.ville) && (
+                          <span className="inline-flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-[#14a800]" />
+
+                            {[
+                              boutique.adresse,
+                              boutique.ville,
+                            ]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </span>
+                        )}
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </section>
+
+              {/* ==================================================
+                  ACTIONS
+              ================================================== */}
+
+              <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+                <Link
+                  href="/dashboard/produits"
+                  className="
+                    group
+                    rounded-2xl
+                    border
+                    border-gray-100
+                    bg-white
+                    p-5
+                    shadow-sm
+                    transition
+                    hover:-translate-y-0.5
+                    hover:border-[#14a800]/20
+                    hover:shadow-md
+                  "
+                >
+
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800] transition group-hover:bg-[#14a800] group-hover:text-white">
+                    <Package className="h-5 w-5" />
+                  </div>
+
+                  <h3 className="font-bold text-gray-950">
+                    Mes produits
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-gray-500">
+                    Gérez votre catalogue de produits.
+                  </p>
+
+                </Link>
+
+                <Link
+                  href="/dashboard/commandes"
+                  className="
+                    group
+                    rounded-2xl
+                    border
+                    border-gray-100
+                    bg-white
+                    p-5
+                    shadow-sm
+                    transition
+                    hover:-translate-y-0.5
+                    hover:border-[#fcd116]/40
+                    hover:shadow-md
+                  "
+                >
+
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#fcd116]/15 text-yellow-700 transition group-hover:bg-[#fcd116] group-hover:text-gray-950">
+                    <ShoppingBag className="h-5 w-5" />
+                  </div>
+
+                  <h3 className="font-bold text-gray-950">
+                    Mes commandes
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-gray-500">
+                    Suivez et gérez les commandes reçues.
+                  </p>
+
+                </Link>
+
+                <Link
+                  href={`/boutiques/${boutique.slug}`}
+                  className="
+                    group
+                    rounded-2xl
+                    border
+                    border-gray-100
+                    bg-white
+                    p-5
+                    shadow-sm
+                    transition
+                    hover:-translate-y-0.5
+                    hover:border-[#ce1126]/20
+                    hover:shadow-md
+                  "
+                >
+
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800] transition group-hover:bg-[#14a800] group-hover:text-white">
+                    <Store className="h-5 w-5" />
+                  </div>
+
+                  <h3 className="font-bold text-gray-950">
+                    Ma boutique publique
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-gray-500">
+                    Consultez la boutique telle que les clients la voient.
+                  </p>
+
+                </Link>
+
+              </section>
+
+              {/* ==================================================
+                  INFORMATIONS
+              ================================================== */}
+
+              <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+
+                <div className="border-b border-gray-100 px-6 py-5 sm:px-8">
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
+                      <Store size={18} />
+                    </div>
+
+                    <div>
+                      <h2 className="font-bold text-gray-950">
+                        Informations de la boutique
+                      </h2>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        Les principales informations de votre espace vendeur.
+                      </p>
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 sm:p-8">
+
+                  <InfoItem
+                    label="Nom"
+                    value={boutique.nom}
+                  />
+
+                  <InfoItem
+                    label="Adresse"
+                    value={
+                      [
+                        boutique.adresse,
+                        boutique.ville,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") ||
+                      "Non renseignée"
+                    }
+                  />
+
+                  <InfoItem
+                    label="Téléphone"
+                    value={
+                      boutique.telephone ||
+                      "Non renseigné"
+                    }
+                  />
+
+                  <InfoItem
+                    label="Email"
+                    value={
+                      boutique.email ||
+                      "Non renseigné"
+                    }
+                  />
+
+                </div>
+
+              </section>
+
+            </>
           )}
 
         </div>
 
-        {/* BOUTIQUE */}
-        {boutique && (
-          <>
-            <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-
-              <div className="p-6 sm:p-8">
-
-                <div className="flex flex-col sm:flex-row gap-6">
-
-                  <div className="w-24 h-24 rounded-2xl bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
-
-                    {boutique.logo ? (
-                      <img
-                        src={boutique.logo}
-                        alt={boutique.nom}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Store className="w-10 h-10 text-gray-400" />
-                    )}
-
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-
-                    <div className="flex flex-wrap items-center gap-3">
-
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        {boutique.nom}
-                      </h2>
-
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium ${currentStatus.className}`}
-                      >
-                        <StatusIcon className="w-3.5 h-3.5" />
-                        {currentStatus.label}
-                      </span>
-
-                    </div>
-
-                    {boutique.description && (
-                      <p className="text-gray-600 mt-3 leading-relaxed">
-                        {boutique.description}
-                      </p>
-                    )}
-
-                    <div className="flex flex-wrap gap-x-5 gap-y-2 mt-5 text-sm text-gray-500">
-
-                      {boutique.telephone && (
-                        <span className="inline-flex items-center gap-2">
-                          <Phone className="w-4 h-4" />
-                          {boutique.telephone}
-                        </span>
-                      )}
-
-                      {boutique.email && (
-                        <span className="inline-flex items-center gap-2">
-                          <Mail className="w-4 h-4" />
-                          {boutique.email}
-                        </span>
-                      )}
-
-                      {(boutique.adresse ||
-                        boutique.ville) && (
-                        <span className="inline-flex items-center gap-2">
-                          <MapPin className="w-4 h-4" />
-
-                          {[
-                            boutique.adresse,
-                            boutique.ville,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </span>
-                      )}
-
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </div>
-
-            </section>
-
-            {/* ACTIONS */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-              <Link
-                href="/dashboard/produits"
-                className="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 hover:shadow-sm transition"
-              >
-                <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                  <Package className="w-5 h-5" />
-                </div>
-
-                <h3 className="font-semibold text-gray-900">
-                  Mes produits
-                </h3>
-
-                <p className="text-sm text-gray-500 mt-1">
-                  Gérez votre catalogue de produits.
-                </p>
-              </Link>
-
-              <Link
-                href="/dashboard/commandes"
-                className="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 hover:shadow-sm transition"
-              >
-                <div className="w-11 h-11 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
-                  <ShoppingBag className="w-5 h-5" />
-                </div>
-
-                <h3 className="font-semibold text-gray-900">
-                  Mes commandes
-                </h3>
-
-                <p className="text-sm text-gray-500 mt-1">
-                  Suivez et gérez les commandes reçues.
-                </p>
-              </Link>
-
-              <Link
-                href={`/boutiques/${boutique.slug}`}
-                className="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 hover:shadow-sm transition"
-              >
-                <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-                  <Store className="w-5 h-5" />
-                </div>
-
-                <h3 className="font-semibold text-gray-900">
-                  Ma boutique publique
-                </h3>
-
-                <p className="text-sm text-gray-500 mt-1">
-                  Consultez la boutique telle que les clients la voient.
-                </p>
-              </Link>
-
-            </section>
-
-            {/* INFORMATIONS */}
-            <section className="bg-white border border-gray-200 rounded-2xl shadow-sm p-6 sm:p-8">
-
-              <h2 className="font-semibold text-gray-900">
-                Informations de la boutique
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
-
-                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                  <p className="text-xs font-medium text-gray-500">
-                    Nom
-                  </p>
-
-                  <p className="text-sm font-semibold text-gray-900 mt-1">
-                    {boutique.nom}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                  <p className="text-xs font-medium text-gray-500">
-                    Adresse
-                  </p>
-
-                  <p className="text-sm font-semibold text-gray-900 mt-1">
-                    {[
-                      boutique.adresse,
-                      boutique.ville,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "Non renseignée"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                  <p className="text-xs font-medium text-gray-500">
-                    Téléphone
-                  </p>
-
-                  <p className="text-sm font-semibold text-gray-900 mt-1">
-                    {boutique.telephone ||
-                      "Non renseigné"}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
-                  <p className="text-xs font-medium text-gray-500">
-                    Email
-                  </p>
-
-                  <p className="text-sm font-semibold text-gray-900 mt-1">
-                    {boutique.email ||
-                      "Non renseigné"}
-                  </p>
-                </div>
-
-              </div>
-
-            </section>
-          </>
-        )}
-
       </div>
+    </div>
+  );
+}
+
+/**
+ * ============================================================
+ * ÉLÉMENT D'INFORMATION
+ * ============================================================
+ */
+
+function InfoItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-[#f7f9f7] p-4 transition hover:border-[#14a800]/20">
+
+      <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+        {label}
+      </p>
+
+      <p className="mt-1 text-sm font-bold text-gray-900">
+        {value}
+      </p>
+
     </div>
   );
 }
@@ -981,39 +1330,43 @@ function StepSummary({
       className={[
         "flex items-center gap-3 rounded-xl border p-3 transition",
         completed
-          ? "border-emerald-200 bg-emerald-50/50"
+          ? "border-[#14a800]/20 bg-[#14a800]/5"
           : active
-            ? "border-gray-300 bg-white shadow-sm"
+            ? "border-[#14a800]/30 bg-white shadow-sm"
             : locked
               ? "border-gray-200 bg-gray-50"
               : "border-gray-200 bg-white",
       ].join(" ")}
     >
+
       <div
         className={[
-          "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
           completed
-            ? "bg-emerald-600 text-white"
+            ? "bg-[#14a800] text-white"
             : active
-              ? "bg-gray-900 text-white"
+              ? "bg-[#14a800]/10 text-[#14a800]"
               : "bg-gray-200 text-gray-400",
         ].join(" ")}
       >
+
         {completed ? (
-          <CheckCircle className="w-4 h-4" />
+          <CheckCircle className="h-4 w-4" />
         ) : locked ? (
-          <Lock className="w-4 h-4" />
+          <Lock className="h-4 w-4" />
         ) : (
           <span className="text-sm font-bold">
             {number}
           </span>
         )}
+
       </div>
 
       <div className="min-w-0">
+
         <p
           className={[
-            "text-sm font-medium truncate",
+            "truncate text-sm font-bold",
             completed || active
               ? "text-gray-900"
               : "text-gray-400",
@@ -1022,14 +1375,16 @@ function StepSummary({
           {title}
         </p>
 
-        <p className="text-xs mt-0.5 text-gray-500">
+        <p className="mt-0.5 text-xs text-gray-500">
           {completed
             ? "Terminée"
             : active
               ? "En cours"
               : "Verrouillée"}
         </p>
+
       </div>
+
     </div>
   );
 }
