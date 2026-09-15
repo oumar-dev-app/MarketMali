@@ -32,6 +32,30 @@ export interface ProduitDetailRow
   promotion_prix_promotionnel: number | null;
 }
 
+export interface RechercheAvanceeParams {
+  q?: string;
+  categorie?: string;
+  boutique?: string;
+  prix_min?: number;
+  prix_max?: number;
+  note_min?: number;
+  en_stock?: boolean;
+  promotion?: boolean;
+  tri?: "pertinence" | "recent" | "prix_asc" | "prix_desc" | "note";
+  page?: number;
+  limit?: number;
+}
+
+export interface RechercheAvanceeResult {
+  produits: any[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
 export class ProduitRepository {
 
 
@@ -288,6 +312,366 @@ export class ProduitRepository {
       );
 
     return rows;
+  }
+
+  static async searchAdvanced(
+    options: RechercheAvanceeParams = {}
+  ): Promise<RechercheAvanceeResult> {
+
+    const {
+      q,
+      categorie,
+      boutique,
+      prix_min,
+      prix_max,
+      note_min,
+      en_stock,
+      promotion,
+      tri = "pertinence",
+      page = 1,
+      limit = 24,
+    } = options;
+
+    const currentPage = Math.max(1, Number(page) || 1);
+    const perPage = Math.min(
+      48,
+      Math.max(1, Number(limit) || 24)
+    );
+
+    const offset = (currentPage - 1) * perPage;
+
+    const where: string[] = [
+      "p.status = 'active'",
+      "b.status = 'active'",
+      "c.status = 'active'",
+    ];
+
+    const params: any[] = [];
+
+    /*
+     * Recherche texte
+     */
+    if (q?.trim()) {
+      const value = `%${q.trim()}%`;
+
+      where.push(`
+        (
+          p.nom LIKE ?
+          OR p.description LIKE ?
+          OR b.nom LIKE ?
+          OR c.nom LIKE ?
+        )
+      `);
+
+      params.push(
+        value,
+        value,
+        value,
+        value
+      );
+    }
+
+    /*
+     * Catégorie
+     */
+    if (categorie?.trim()) {
+      where.push("c.slug = ?");
+      params.push(categorie.trim());
+    }
+
+    /*
+     * Boutique
+     */
+    if (boutique?.trim()) {
+      where.push("b.slug = ?");
+      params.push(boutique.trim());
+    }
+
+    /*
+     * Prix minimum
+     */
+    if (
+      prix_min !== undefined &&
+      Number.isFinite(Number(prix_min))
+    ) {
+      where.push("p.prix >= ?");
+      params.push(Number(prix_min));
+    }
+
+    /*
+     * Prix maximum
+     */
+    if (
+      prix_max !== undefined &&
+      Number.isFinite(Number(prix_max))
+    ) {
+      where.push("p.prix <= ?");
+      params.push(Number(prix_max));
+    }
+
+    /*
+     * Stock disponible
+     */
+    if (en_stock === true) {
+      where.push("p.stock > 0");
+    }
+
+    /*
+     * Promotion active
+     */
+    if (promotion === true) {
+      where.push("promo.id IS NOT NULL");
+    }
+
+    /*
+     * Note minimale
+     *
+     * Les produits sans avis ne sont pas considérés
+     * comme ayant une note minimale.
+     */
+    if (
+      note_min !== undefined &&
+      Number.isFinite(Number(note_min))
+    ) {
+      where.push(`
+        COALESCE(avis_stats.note_moyenne, 0) >= ?
+      `);
+
+      params.push(Number(note_min));
+    }
+
+    const whereClause = where.join("\nAND ");
+
+    /*
+     * Tri
+     */
+    let orderBy = `
+      p.created_at DESC
+    `;
+
+    switch (tri) {
+      case "prix_asc":
+        orderBy = `
+          p.prix ASC,
+          p.created_at DESC
+        `;
+        break;
+
+      case "prix_desc":
+        orderBy = `
+          p.prix DESC,
+          p.created_at DESC
+        `;
+        break;
+
+      case "note":
+        orderBy = `
+          COALESCE(avis_stats.note_moyenne, 0) DESC,
+          COALESCE(avis_stats.total_avis, 0) DESC,
+          p.created_at DESC
+        `;
+        break;
+
+      case "recent":
+        orderBy = `
+          p.created_at DESC
+        `;
+        break;
+
+      case "pertinence":
+      default:
+        if (q?.trim()) {
+          orderBy = `
+            CASE
+              WHEN p.nom LIKE ? THEN 1
+              WHEN b.nom LIKE ? THEN 2
+              WHEN c.nom LIKE ? THEN 3
+              ELSE 4
+            END,
+            p.created_at DESC
+          `;
+        } else {
+          orderBy = `
+            p.created_at DESC
+          `;
+        }
+        break;
+    }
+
+    /*
+     * Paramètres utilisés pour le CASE de pertinence.
+     *
+     * Ils doivent être placés avant les paramètres LIMIT/OFFSET
+     * mais après les paramètres WHERE dans la requête finale.
+     */
+    const orderParams: any[] = [];
+
+    if (tri === "pertinence" && q?.trim()) {
+      const value = `%${q.trim()}%`;
+
+      orderParams.push(
+        value,
+        value,
+        value
+      );
+    }
+
+    /*
+     * Requête principale
+     */
+    const sql = `
+      SELECT
+        p.id,
+        p.uuid,
+        p.boutique_id,
+        p.categorie_id,
+        p.nom,
+        p.slug,
+        p.description,
+        p.prix,
+        p.stock,
+        p.image,
+        p.status,
+        p.created_at,
+        p.updated_at,
+
+        b.uuid AS boutique_uuid,
+        b.nom AS boutique_nom,
+        b.slug AS boutique_slug,
+
+        c.uuid AS categorie_uuid,
+        c.nom AS categorie_nom,
+        c.slug AS categorie_slug,
+
+        promo.uuid AS promotion_uuid,
+        promo.nom AS promotion_nom,
+        promo.type AS promotion_type,
+        promo.reduction_pourcentage AS promotion_reduction_pourcentage,
+        promo.prix_promotionnel AS promotion_prix_promotionnel,
+        promo.date_debut AS promotion_date_debut,
+        promo.date_fin AS promotion_date_fin,
+        promo.quantite_limite AS promotion_quantite_limite,
+
+        COALESCE(
+          (
+            SELECT SUM(cp.quantite)
+            FROM commande_produits cp
+            INNER JOIN commandes co
+              ON co.id = cp.commande_id
+            WHERE cp.promotion_id = promo.id
+              AND co.status <> 'cancelled'
+          ),
+          0
+        ) AS promotion_quantite_vendue,
+
+        COALESCE(
+          avis_stats.note_moyenne,
+          0
+        ) AS note_moyenne,
+
+        COALESCE(
+          avis_stats.total_avis,
+          0
+        ) AS total_avis
+
+      FROM produits p
+
+      INNER JOIN boutiques b
+        ON b.id = p.boutique_id
+
+      INNER JOIN categories c
+        ON c.id = p.categorie_id
+
+      LEFT JOIN promotions promo
+        ON promo.produit_id = p.id
+        AND promo.boutique_id = p.boutique_id
+        AND promo.date_debut <= NOW()
+        AND promo.date_fin >= NOW()
+
+      LEFT JOIN (
+        SELECT
+          produit_id,
+          AVG(note) AS note_moyenne,
+          COUNT(*) AS total_avis
+        FROM avis
+        WHERE status = 'published'
+        GROUP BY produit_id
+      ) avis_stats
+        ON avis_stats.produit_id = p.id
+
+      WHERE ${whereClause}
+
+      ORDER BY ${orderBy}
+
+      LIMIT ? OFFSET ?
+    `;
+
+    const queryParams = [
+      ...params,
+      ...orderParams,
+      perPage,
+      offset,
+    ];
+
+    const [rows] = await db.query<any[]>(
+      sql,
+      queryParams
+    );
+
+    /*
+     * Total
+     */
+    const countSql = `
+      SELECT COUNT(*) AS total
+
+      FROM produits p
+
+      INNER JOIN boutiques b
+        ON b.id = p.boutique_id
+
+      INNER JOIN categories c
+        ON c.id = p.categorie_id
+
+      LEFT JOIN promotions promo
+        ON promo.produit_id = p.id
+        AND promo.boutique_id = p.boutique_id
+        AND promo.date_debut <= NOW()
+        AND promo.date_fin >= NOW()
+
+      LEFT JOIN (
+        SELECT
+          produit_id,
+          AVG(note) AS note_moyenne,
+          COUNT(*) AS total_avis
+        FROM avis
+        WHERE status = 'published'
+        GROUP BY produit_id
+      ) avis_stats
+        ON avis_stats.produit_id = p.id
+
+      WHERE ${whereClause}
+    `;
+
+    const [countRows] = await db.query<
+      (RowDataPacket & { total: number })[]
+    >(
+      countSql,
+      params
+    );
+
+    const total = Number(
+      countRows[0]?.total ?? 0
+    );
+
+    return {
+      produits: rows,
+      pagination: {
+        page: currentPage,
+        limit: perPage,
+        total,
+        total_pages: Math.ceil(total / perPage),
+      },
+    };
   }
 
   static async searchForUser(

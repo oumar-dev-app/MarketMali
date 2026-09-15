@@ -648,6 +648,21 @@ export class ProduitService {
 
     }
 
+    static async searchAdvanced(
+        options: Parameters<
+            typeof ProduitRepository.searchAdvanced
+        >[0]
+    ) {
+
+        const result =
+            await ProduitRepository.searchAdvanced(
+                options
+            );
+
+        return result;
+
+    }
+
     static async searchForUser(
         search: string | undefined,
         categorieSlug: string | undefined,

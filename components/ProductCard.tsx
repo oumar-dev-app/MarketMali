@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import {
   ArrowRight,
@@ -14,6 +15,9 @@ interface ProductCardProps {
     image?: string | null;
     description?: string;
 
+    note_moyenne?: string | number | null;
+    total_avis?: string | number | null;
+
     promotion_uuid?: string | null;
     promotion_nom?: string | null;
     promotion_type?: "percentage" | "special_price" | null;
@@ -25,7 +29,6 @@ interface ProductCardProps {
 export default function ProductCard({
   produit,
 }: ProductCardProps) {
-
   /* =====================================================
       PRIX NORMAL
   ====================================================== */
@@ -36,7 +39,6 @@ export default function ProductCard({
     ? prix.toLocaleString("fr-FR")
     : String(produit.prix);
 
-
   /* =====================================================
       PROMOTION
   ====================================================== */
@@ -44,20 +46,17 @@ export default function ProductCard({
   const promotionActive =
     Boolean(produit.promotion_uuid);
 
-
   const reductionPourcentage =
     produit.promotion_reduction_pourcentage !== null &&
     produit.promotion_reduction_pourcentage !== undefined
       ? Number(produit.promotion_reduction_pourcentage)
       : null;
 
-
   const prixPromotionnel =
     produit.promotion_prix_promotionnel !== null &&
     produit.promotion_prix_promotionnel !== undefined
       ? Number(produit.promotion_prix_promotionnel)
       : null;
-
 
   /*
    * Pour une promotion spéciale, le prix promotionnel
@@ -79,13 +78,37 @@ export default function ProductCard({
       prix - (prix * reductionPourcentage) / 100;
   }
 
-
   const prixPromotionFormate =
     prixFinalPromotion !== null &&
     Number.isFinite(prixFinalPromotion)
-      ? Math.round(prixFinalPromotion).toLocaleString("fr-FR")
+      ? Math.round(prixFinalPromotion).toLocaleString(
+          "fr-FR"
+        )
       : null;
 
+  /* =====================================================
+      NOTES / AVIS
+  ====================================================== */
+
+  const noteMoyenne =
+    produit.note_moyenne !== null &&
+    produit.note_moyenne !== undefined
+      ? Number(produit.note_moyenne)
+      : null;
+
+  const totalAvis =
+    produit.total_avis !== null &&
+    produit.total_avis !== undefined
+      ? Number(produit.total_avis)
+      : 0;
+
+  const noteValide =
+    noteMoyenne !== null &&
+    Number.isFinite(noteMoyenne) &&
+    noteMoyenne >= 0 &&
+    noteMoyenne <= 5 &&
+    Number.isFinite(totalAvis) &&
+    totalAvis > 0;
 
   return (
     <Link
@@ -114,7 +137,6 @@ export default function ProductCard({
         focus:ring-offset-2
       "
     >
-
       {/* =====================================================
           IMAGE
       ====================================================== */}
@@ -128,7 +150,6 @@ export default function ProductCard({
           bg-gray-50
         "
       >
-
         {produit.image ? (
           <img
             src={produit.image}
@@ -191,7 +212,6 @@ export default function ProductCard({
           </div>
         )}
 
-
         {/* =================================================
             BADGES
         ================================================== */}
@@ -207,7 +227,6 @@ export default function ProductCard({
             gap-2
           "
         >
-
           {/* DISPONIBLE */}
 
           <span
@@ -241,7 +260,6 @@ export default function ProductCard({
             Disponible
           </span>
 
-
           {/* PROMOTION */}
 
           {promotionActive && (
@@ -273,9 +291,7 @@ export default function ProductCard({
                 : "PROMOTION"}
             </span>
           )}
-
         </div>
-
 
         {/* =================================================
             ICÔNE PRODUIT
@@ -311,7 +327,6 @@ export default function ProductCard({
           />
         </div>
 
-
         {/* =================================================
             BANDE MALI AU SURVOL
         ================================================== */}
@@ -334,16 +349,13 @@ export default function ProductCard({
           <div className="flex-1 bg-[#fcd116]" />
           <div className="flex-1 bg-[#ce1126]" />
         </div>
-
       </div>
-
 
       {/* =====================================================
           CONTENU
       ====================================================== */}
 
       <div className="flex flex-1 flex-col p-4">
-
         {/* NOM */}
 
         <h3
@@ -362,11 +374,9 @@ export default function ProductCard({
           {produit.nom}
         </h3>
 
-
         {/* DESCRIPTION */}
 
         <div className="mt-2 min-h-10">
-
           {produit.description ? (
             <p
               className="
@@ -383,16 +393,54 @@ export default function ProductCard({
               -
             </p>
           )}
-
         </div>
 
+        {/* =================================================
+            NOTE / AVIS
+        ================================================== */}
+
+        {noteValide && (
+          <div className="mt-3 flex min-w-0 items-center gap-2">
+            <div
+              className="flex shrink-0 items-center gap-0.5"
+              aria-label={`Note moyenne : ${noteMoyenne.toFixed(
+                1
+              )} sur 5`}
+            >
+              {[1, 2, 3, 4, 5].map((etoile) => (
+                <span
+                  key={etoile}
+                  className={`
+                    text-sm
+                    leading-none
+                    ${
+                      etoile <= Math.round(noteMoyenne)
+                        ? "text-[#fcd116]"
+                        : "text-gray-200"
+                    }
+                  `}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+
+            <span className="shrink-0 text-xs font-bold text-gray-700">
+              {noteMoyenne.toFixed(1)}
+            </span>
+
+            <span className="truncate text-[11px] text-gray-400">
+              ({totalAvis}{" "}
+              {totalAvis === 1 ? "avis" : "avis"})
+            </span>
+          </div>
+        )}
 
         {/* =================================================
             PRIX + ACTION
         ================================================== */}
 
         <div className="mt-auto pt-4">
-
           <div
             className="
               flex
@@ -404,11 +452,9 @@ export default function ProductCard({
               pt-3
             "
           >
-
             {/* PRIX */}
 
             <div className="min-w-0">
-
               <p
                 className="
                   text-[10px]
@@ -423,12 +469,9 @@ export default function ProductCard({
                   : "Prix"}
               </p>
 
-
               {promotionActive &&
               prixPromotionFormate ? (
-
                 <div className="mt-0.5">
-
                   {/* ANCIEN PRIX */}
 
                   <p
@@ -457,7 +500,6 @@ export default function ProductCard({
                     </span>
                   </p>
 
-
                   {/* NOUVEAU PRIX */}
 
                   <p
@@ -485,11 +527,8 @@ export default function ProductCard({
                       FCFA
                     </span>
                   </p>
-
                 </div>
-
               ) : (
-
                 <p
                   className="
                     mt-0.5
@@ -516,11 +555,8 @@ export default function ProductCard({
                     FCFA
                   </span>
                 </p>
-
               )}
-
             </div>
-
 
             {/* ACTION */}
 
@@ -552,14 +588,13 @@ export default function ProductCard({
                 "
               />
             </div>
-
           </div>
-
         </div>
-
       </div>
-
     </Link>
   );
 }
+
+
+
 
