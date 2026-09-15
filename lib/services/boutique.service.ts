@@ -677,7 +677,6 @@ export class BoutiqueService {
     role: string
   ) {
 
-
     const boutique =
       await this.verifyOwnership(
         uuid,
@@ -685,41 +684,39 @@ export class BoutiqueService {
         role
       );
 
+    const hasCommandes =
+      await BoutiqueRepository.hasCommandes(
+        boutique.id
+      );
+
+    if (hasCommandes) {
+
+      throw new ConflictError(
+        "Cette boutique ne peut pas être supprimée car elle possède un historique de commandes. Vous pouvez la bloquer à la place."
+      );
+    }
 
     await BoutiqueRepository.delete(
       boutique.id
     );
 
-
     return {
-
       message:
         "Boutique supprimée définitivement."
-
     };
 
-
   }
-
-
-
-
 
   static async blockExpired() {
-
     const count =
       await BoutiqueRepository.blockExpired();
-
-
     return {
-
       message:
         `${count} boutique(s) expirée(s) bloquée(s).`
-
     };
 
   }
-
+  
   static async markLivraisonConfiguree(
     user_id: number
   ) {

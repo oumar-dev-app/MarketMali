@@ -9,10 +9,7 @@ import {
 
 export interface BoutiqueRow extends Boutique, RowDataPacket { }
 
-
-
 export class BoutiqueRepository {
-
 
   static async findById(
     id: number
@@ -31,8 +28,6 @@ export class BoutiqueRepository {
     return rows.length ? rows[0] : null;
   }
 
-
-
   static async findAll(): Promise<BoutiqueRow[]> {
 
     const [rows] = await db.query<BoutiqueRow[]>(
@@ -45,7 +40,6 @@ export class BoutiqueRepository {
 
     return rows;
   }
-
 
 
   static async findByUUID(
@@ -66,7 +60,6 @@ export class BoutiqueRepository {
   }
 
 
-
   static async findBySlug(
     slug: string
   ): Promise<BoutiqueRow | null> {
@@ -83,7 +76,6 @@ export class BoutiqueRepository {
 
     return rows.length ? rows[0] : null;
   }
-
 
 
   static async findByUserId(
@@ -124,7 +116,6 @@ export class BoutiqueRepository {
   }
 
 
-
   static async findByUserIdActive(
     user_id: number
   ): Promise<BoutiqueRow | null> {
@@ -144,7 +135,6 @@ export class BoutiqueRepository {
   }
 
 
-
   static async findAllActive(): Promise<BoutiqueRow[]> {
 
     const [rows] = await db.query<BoutiqueRow[]>(
@@ -158,8 +148,6 @@ export class BoutiqueRepository {
 
     return rows;
   }
-
-
 
   static async findBySlugActive(
     slug: string
@@ -179,8 +167,6 @@ export class BoutiqueRepository {
     return rows.length ? rows[0] : null;
   }
 
-
-
   static async create(
     data: {
       uuid: string;
@@ -196,7 +182,6 @@ export class BoutiqueRepository {
       activation_expires_at?: Date | null;
     }
   ): Promise<number> {
-
 
     const [result] =
       await db.execute<ResultSetHeader>(
@@ -231,8 +216,6 @@ export class BoutiqueRepository {
           data.activation_expires_at ?? null
         ]
       );
-
-
     return result.insertId;
 
   }
@@ -260,7 +243,6 @@ export class BoutiqueRepository {
     data: BoutiqueUpdate
   ) {
 
-
     const allowedFields:
       (keyof BoutiqueUpdate)[] = [
 
@@ -275,27 +257,19 @@ export class BoutiqueRepository {
 
       ];
 
-
-
     const fields =
       allowedFields.filter(
         field => data[field] !== undefined
       );
 
-
-
     if (!fields.length) {
       return;
     }
-
-
 
     const values =
       fields.map(
         field => data[field] ?? null
       );
-
-
 
     const sql = `
     UPDATE boutiques
@@ -305,8 +279,6 @@ export class BoutiqueRepository {
     ).join(", ")}
     WHERE id = ?
   `;
-
-
 
     await db.execute(
       sql,
@@ -348,8 +320,6 @@ export class BoutiqueRepository {
 
   }
 
-
-
   static async block(
     id: number
   ) {
@@ -364,8 +334,6 @@ export class BoutiqueRepository {
     );
 
   }
-
-
 
   static async blockExpired() {
 
@@ -385,7 +353,23 @@ export class BoutiqueRepository {
 
   }
 
+  static async hasCommandes(
+    boutique_id: number
+  ): Promise<boolean> {
 
+    const [rows] =
+      await db.query<RowDataPacket[]>(
+        `
+      SELECT 1
+      FROM commandes
+      WHERE boutique_id = ?
+      LIMIT 1
+      `,
+        [boutique_id]
+      );
+
+    return rows.length > 0;
+  }
 
   static async delete(
     id: number

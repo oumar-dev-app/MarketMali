@@ -10,6 +10,7 @@ import {
 import { getProduit } from "@/lib/api/produits";
 import Navbar from "@/components/Navbar";
 import AddToCartButton from "@/components/AddToCartButton";
+import ProductReviews from "./components/ProductReviews";
 
 interface PageProps {
   params: Promise<{
@@ -502,7 +503,7 @@ export default async function ProduitPage({
 
           </div>
         </div>
-
+        <ProductReviews produitUuid={uuid} />
       </section>
     </main>
   );
