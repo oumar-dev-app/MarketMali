@@ -16,14 +16,17 @@ export interface Boutique {
   ville: string | null;
 
   status: "active" | "pending" | "blocked";
+
+  verified: boolean;
+  verified_at: Date | null;
+  verified_by: number | null;
+
   livraison_configuree: boolean;
   activation_expires_at: Date | null;
 
   created_at: Date;
   updated_at: Date;
 }
-
-
 
 export type BoutiqueUpdate = {
   nom?: string;

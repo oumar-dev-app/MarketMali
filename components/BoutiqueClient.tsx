@@ -45,6 +45,7 @@ interface Boutique {
   email: string | null;
   adresse: string | null;
   ville: string | null;
+  verified: boolean;
 }
 
 interface BoutiqueClientProps {
@@ -193,20 +194,50 @@ export default function BoutiqueClient({
                     </div>
 
                     {/* NOM */}
+                    <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+                      <h1
+                        className="
+      min-w-0
+      truncate
+      text-2xl
+      font-extrabold
+      tracking-tight
+      text-gray-950
+      sm:text-3xl
+      lg:text-4xl
+    "
+                      >
+                        {boutique.nom}
+                      </h1>
 
-                    <h1
-                      className="
-                  truncate
-                  text-2xl
-                  font-extrabold
-                  tracking-tight
-                  text-gray-950
-                  sm:text-3xl
-                  lg:text-4xl
-                "
-                    >
-                      {boutique.nom}
-                    </h1>
+                      {boutique.verified && (
+                        <span
+                          title="Boutique vérifiée par MarketMali"
+                          className="
+        inline-flex
+        shrink-0
+        items-center
+        gap-1.5
+        rounded-full
+        border
+        border-[#14a800]/20
+        bg-[#14a800]/10
+        px-2.5
+        py-1
+        text-xs
+        font-bold
+        text-[#14a800]
+        sm:text-sm
+      "
+                        >
+                          <CheckCircle2
+                            size={15}
+                            strokeWidth={2.5}
+                          />
+                          Vérifiée
+                        </span>
+                      )}
+                    </div>
 
                     {/* DESCRIPTION */}
 

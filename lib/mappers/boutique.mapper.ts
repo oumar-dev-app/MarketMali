@@ -1,11 +1,9 @@
 import { Boutique } from "../types/boutique";
 
-
 export function boutiqueResponse(
   boutique: Boutique
 ) {
   return {
-
     id: boutique.id,
 
     uuid: boutique.uuid,
@@ -25,9 +23,14 @@ export function boutiqueResponse(
 
     status: boutique.status,
 
+    // Vérification MarketMali
+    verified: Boolean(boutique.verified),
+    verified_at: boutique.verified_at,
+    verified_by: boutique.verified_by,
+
     livraison_configuree:
       boutique.livraison_configuree,
-      
+
     activation_expires_at:
       boutique.activation_expires_at,
 
@@ -36,18 +39,13 @@ export function boutiqueResponse(
 
     updated_at:
       boutique.updated_at,
-
   };
 }
-
-
 
 export function boutiqueListResponse(
   boutiques: Boutique[]
 ) {
-
   return boutiques.map(
     boutique => boutiqueResponse(boutique)
   );
-
 }

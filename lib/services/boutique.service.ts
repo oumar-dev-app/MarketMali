@@ -483,6 +483,135 @@ export class BoutiqueService {
 
   }
 
+  static async verify(
+    uuid: string,
+    user_id: number,
+    role: string
+  ) {
+
+    // Seul le super administrateur peut vérifier une boutique
+    if (role !== "super_admin") {
+
+      throw new ForbiddenError(
+        "Seul le super administrateur peut vérifier une boutique."
+      );
+
+    }
+
+    const boutique =
+      await BoutiqueRepository.findByUUID(
+        uuid
+      );
+
+    if (!boutique) {
+
+      throw new NotFoundError(
+        "Boutique introuvable."
+      );
+
+    }
+
+    // Une boutique doit être active avant d'être vérifiée
+    if (boutique.status !== "active") {
+
+      throw new ConflictError(
+        "Seule une boutique active peut être vérifiée."
+      );
+
+    }
+
+    // Éviter une double vérification
+    if (boutique.verified) {
+
+      throw new ConflictError(
+        "Cette boutique est déjà vérifiée."
+      );
+
+    }
+
+    await BoutiqueRepository.verify(
+      boutique.id,
+      user_id
+    );
+
+    const updated =
+      await BoutiqueRepository.findById(
+        boutique.id
+      );
+
+    if (!updated) {
+
+      throw new NotFoundError(
+        "Impossible de récupérer la boutique après vérification."
+      );
+
+    }
+
+    return boutiqueResponse(
+      updated
+    );
+
+  }
+
+    static async unverify(
+    uuid: string,
+    role: string
+  ) {
+
+    // Seul le super administrateur peut retirer la vérification
+    if (role !== "super_admin") {
+
+      throw new ForbiddenError(
+        "Seul le super administrateur peut retirer la vérification d'une boutique."
+      );
+
+    }
+
+    const boutique =
+      await BoutiqueRepository.findByUUID(
+        uuid
+      );
+
+    if (!boutique) {
+
+      throw new NotFoundError(
+        "Boutique introuvable."
+      );
+
+    }
+
+    // Éviter une opération inutile
+    if (!boutique.verified) {
+
+      throw new ConflictError(
+        "Cette boutique n'est pas vérifiée."
+      );
+
+    }
+
+    await BoutiqueRepository.unverify(
+      boutique.id
+    );
+
+    const updated =
+      await BoutiqueRepository.findById(
+        boutique.id
+      );
+
+    if (!updated) {
+
+      throw new NotFoundError(
+        "Impossible de récupérer la boutique après retrait de la vérification."
+      );
+
+    }
+
+    return boutiqueResponse(
+      updated
+    );
+
+  }
+
   static async unblock(
     uuid: string,
     role: string
@@ -716,7 +845,7 @@ export class BoutiqueService {
     };
 
   }
-  
+
   static async markLivraisonConfiguree(
     user_id: number
   ) {

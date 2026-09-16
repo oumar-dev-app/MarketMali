@@ -3,7 +3,6 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import Link from "next/link";
@@ -23,6 +22,7 @@ import {
   FaArrowUp,
   FaFilter,
   FaEllipsisV,
+  FaTimesCircle,
 } from "react-icons/fa";
 
 interface Boutique {
@@ -36,6 +36,11 @@ interface Boutique {
   adresse?: string | null;
   ville?: string | null;
   status: string;
+
+  verified: boolean;
+  verified_at?: string | null;
+  verified_by?: number | null;
+
   activation_expires_at?: string | null;
   created_at: string;
 }
@@ -113,29 +118,38 @@ export default function BoutiquesPage() {
   const [deletingUuid, setDeletingUuid] =
     useState<string | null>(null);
 
-  const router = useRouter();
-
   const [actionUuid, setActionUuid] =
     useState<string | null>(null);
 
-  /*
-   * UUID de la boutique dont le menu
-   * d'actions est actuellement ouvert.
-   */
+  const [verificationUuid, setVerificationUuid] =
+    useState<string | null>(null);
+
   const [openActionMenu, setOpenActionMenu] =
     useState<string | null>(null);
 
+  const router = useRouter();
 
+  const { user } = useAuth();
+
+  const isSuperAdmin =
+    user?.role === "super_admin";
 
   /*
    * Fermeture du menu lors d'un clic
    * à l'extérieur.
    */
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
+    const handleClickOutside = (
+      event: MouseEvent
+    ) => {
+      const target =
+        event.target as HTMLElement;
 
-      if (!target.closest("[data-action-menu]")) {
+      if (
+        !target.closest(
+          "[data-action-menu]"
+        )
+      ) {
         setOpenActionMenu(null);
       }
     };
@@ -171,7 +185,9 @@ export default function BoutiquesPage() {
     }
 
     try {
-      setActionUuid(boutique.uuid);
+      setActionUuid(
+        boutique.uuid
+      );
 
       const token =
         localStorage.getItem("token");
@@ -209,13 +225,14 @@ export default function BoutiquesPage() {
 
       setBoutiques((current) =>
         current.map((item) =>
-          item.uuid === boutique.uuid
+          item.uuid ===
+          boutique.uuid
             ? {
-              ...item,
-              status: "active",
-              activation_expires_at:
-                null,
-            }
+                ...item,
+                status: "active",
+                activation_expires_at:
+                  null,
+              }
             : item
         )
       );
@@ -232,6 +249,178 @@ export default function BoutiquesPage() {
       );
     } finally {
       setActionUuid(null);
+    }
+  };
+
+  /*
+   * Vérification d'une boutique.
+   */
+  const verifyBoutique = async (
+    boutique: Boutique
+  ) => {
+    const confirmation =
+      window.confirm(
+        `Voulez-vous vérifier la boutique "${boutique.nom}" ?\n\nLa boutique sera affichée comme boutique vérifiée sur MarketMali.`
+      );
+
+    if (!confirmation) {
+      return;
+    }
+
+    try {
+      setVerificationUuid(
+        boutique.uuid
+      );
+
+      const token =
+        localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error(
+          "Vous devez être connecté."
+        );
+      }
+
+      const response =
+        await fetch(
+          `/api/dashboard/boutiques/${boutique.uuid}/verify`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !result.success
+      ) {
+        throw new Error(
+          result.message ||
+          "Impossible de vérifier la boutique."
+        );
+      }
+
+      setBoutiques((current) =>
+        current.map((item) =>
+          item.uuid ===
+          boutique.uuid
+            ? {
+                ...item,
+                verified: true,
+                verified_at:
+                  result.data
+                    ?.verified_at ??
+                  new Date().toISOString(),
+                verified_by:
+                  result.data
+                    ?.verified_by ??
+                  null,
+              }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Erreur vérification boutique:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue."
+      );
+    } finally {
+      setVerificationUuid(null);
+    }
+  };
+
+  /*
+   * Retrait de la vérification.
+   */
+  const unverifyBoutique = async (
+    boutique: Boutique
+  ) => {
+    const confirmation =
+      window.confirm(
+        `Voulez-vous retirer la vérification de la boutique "${boutique.nom}" ?`
+      );
+
+    if (!confirmation) {
+      return;
+    }
+
+    try {
+      setVerificationUuid(
+        boutique.uuid
+      );
+
+      const token =
+        localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error(
+          "Vous devez être connecté."
+        );
+      }
+
+      const response =
+        await fetch(
+          `/api/dashboard/boutiques/${boutique.uuid}/unverify`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !result.success
+      ) {
+        throw new Error(
+          result.message ||
+          "Impossible de retirer la vérification."
+        );
+      }
+
+      setBoutiques((current) =>
+        current.map((item) =>
+          item.uuid ===
+          boutique.uuid
+            ? {
+                ...item,
+                verified: false,
+                verified_at: null,
+                verified_by: null,
+              }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Erreur retrait vérification boutique:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue."
+      );
+    } finally {
+      setVerificationUuid(null);
     }
   };
 
@@ -333,7 +522,7 @@ export default function BoutiquesPage() {
           const matchesStatus =
             statusFilter === "all" ||
             boutique.status ===
-            statusFilter;
+              statusFilter;
 
           return (
             matchesSearch &&
@@ -688,10 +877,11 @@ export default function BoutiquesPage() {
                 onClick={() =>
                   setStatusFilter("all")
                 }
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter === "all"
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
+                  statusFilter === "all"
+                    ? "bg-gray-900 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
                 Toutes
               </button>
@@ -702,11 +892,12 @@ export default function BoutiquesPage() {
                     "active"
                   )
                 }
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
+                  statusFilter ===
                   "active"
-                  ? "bg-emerald-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
+                    ? "bg-emerald-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
                 Actives
               </button>
@@ -717,11 +908,12 @@ export default function BoutiquesPage() {
                     "pending"
                   )
                 }
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
+                  statusFilter ===
                   "pending"
-                  ? "bg-amber-500 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
+                    ? "bg-amber-500 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
                 En attente
               </button>
@@ -732,11 +924,12 @@ export default function BoutiquesPage() {
                     "blocked"
                   )
                 }
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${statusFilter ===
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
+                  statusFilter ===
                   "blocked"
-                  ? "bg-red-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
+                    ? "bg-red-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
               >
                 Bloquées
               </button>
@@ -770,7 +963,7 @@ export default function BoutiquesPage() {
         {/* EMPTY */}
 
         {filteredBoutiques.length ===
-          0 ? (
+        0 ? (
           <div className="py-20 px-6 text-center">
 
             <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
@@ -789,19 +982,19 @@ export default function BoutiquesPage() {
 
             {(search ||
               statusFilter !==
-              "all") && (
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setStatusFilter(
-                      "all"
-                    );
-                  }}
-                  className="mt-5 text-sm font-medium text-gray-900 underline underline-offset-4"
-                >
-                  Réinitialiser les filtres
-                </button>
-              )}
+                "all") && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter(
+                    "all"
+                  );
+                }}
+                className="mt-5 text-sm font-medium text-gray-900 underline underline-offset-4"
+              >
+                Réinitialiser les filtres
+              </button>
+            )}
 
           </div>
         ) : (
@@ -885,13 +1078,27 @@ export default function BoutiquesPage() {
 
                               <div className="min-w-0">
 
-                                <p className="font-semibold text-gray-900 truncate max-w-[220px]">
-                                  {
-                                    boutique.nom
-                                  }
-                                </p>
+                                <div className="flex items-center gap-2 min-w-0">
 
-                                <p className="text-xs text-gray-400 mt-1 truncate max-w-[220px]">
+                                  <p className="font-semibold text-gray-900 truncate max-w-55">
+                                    {
+                                      boutique.nom
+                                    }
+                                  </p>
+
+                                  {boutique.verified && (
+                                    <span
+                                      title="Boutique vérifiée"
+                                      className="inline-flex items-center gap-1 shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+                                    >
+                                      <FaCheckCircle className="text-[10px]" />
+                                      Vérifiée
+                                    </span>
+                                  )}
+
+                                </div>
+
+                                <p className="text-xs text-gray-400 mt-1 truncate max-w-55">
                                   /
                                   {
                                     boutique.slug
@@ -910,7 +1117,7 @@ export default function BoutiquesPage() {
 
                             <div className="space-y-1">
 
-                              <p className="text-sm text-gray-700 max-w-[220px] truncate">
+                              <p className="text-sm text-gray-700 max-w-55 truncate">
                                 {
                                   boutique.email ||
                                   "-"
@@ -940,7 +1147,7 @@ export default function BoutiquesPage() {
                             </p>
 
                             {boutique.adresse && (
-                              <p className="text-xs text-gray-400 mt-1 max-w-[180px] truncate">
+                              <p className="text-xs text-gray-400 mt-1 max-w-45 truncate">
                                 {
                                   boutique.adresse
                                 }
@@ -996,8 +1203,6 @@ export default function BoutiquesPage() {
                               className="relative flex justify-end"
                             >
 
-                              {/* BOUTON ⋮ */}
-
                               <button
                                 type="button"
                                 title="Actions"
@@ -1018,99 +1223,70 @@ export default function BoutiquesPage() {
                                       : boutique.uuid
                                   );
                                 }}
-                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition ${openActionMenu ===
+                                className={`w-9 h-9 rounded-lg flex items-center justify-center transition ${
+                                  openActionMenu ===
                                   boutique.uuid
-                                  ? "bg-gray-900 text-white"
-                                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-                                  }`}
+                                    ? "bg-gray-900 text-white"
+                                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                                }`}
                               >
                                 <FaEllipsisV className="text-sm" />
                               </button>
 
-                              {/* MENU */}
-
                               {openActionMenu ===
                                 boutique.uuid && (
-                                  <div className="absolute right-0 top-11 z-[100] w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 overflow-hidden">
+                                <div className="absolute right-0 top-11 z-100 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 overflow-hidden">
 
-                                    {/* VOIR */}
+                                  {/* VOIR */}
 
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenActionMenu(null);
-                                        router.push(
-                                          `/dashboard/boutiques/${boutique.uuid}`
-                                        );
-                                      }}
-                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
-                                    >
-                                      <FaEye className="w-4 text-gray-400" />
-                                      <span>
-                                        Voir la boutique
-                                      </span>
-                                    </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenu(
+                                        null
+                                      );
 
-                                    {/* MODIFIER */}
+                                      router.push(
+                                        `/dashboard/boutiques/${boutique.uuid}`
+                                      );
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                                  >
+                                    <FaEye className="w-4 text-gray-400" />
+                                    <span>
+                                      Voir la boutique
+                                    </span>
+                                  </button>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenActionMenu(null);
-                                        router.push(
-                                          `/dashboard/boutiques/${boutique.uuid}/edit`
-                                        );
-                                      }}
-                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition text-left"
-                                    >
-                                      <FaEdit className="w-4 text-blue-500" />
-                                      <span>
-                                        Modifier
-                                      </span>
-                                    </button>
+                                  {/* MODIFIER */}
 
-                                    {/* ACTIVER */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenActionMenu(
+                                        null
+                                      );
 
-                                    {boutique.status ===
-                                      "pending" && (
-                                        <button
-                                          type="button"
-                                          disabled={
-                                            actionUuid ===
-                                            boutique.uuid
-                                          }
-                                          onClick={() => {
-                                            setOpenActionMenu(
-                                              null
-                                            );
+                                      router.push(
+                                        `/dashboard/boutiques/${boutique.uuid}/edit`
+                                      );
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition text-left"
+                                  >
+                                    <FaEdit className="w-4 text-blue-500" />
+                                    <span>
+                                      Modifier
+                                    </span>
+                                  </button>
 
-                                            activateBoutique(
-                                              boutique
-                                            );
-                                          }}
-                                          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
-                                        >
-                                          {actionUuid ===
-                                            boutique.uuid ? (
-                                            <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                                          ) : (
-                                            <FaCheckCircle className="w-4 text-emerald-600" />
-                                          )}
+                                  {/* ACTIVER */}
 
-                                          <span>
-                                            Activer
-                                          </span>
-                                        </button>
-                                      )}
-
-                                    <div className="my-1 border-t border-gray-100" />
-
-                                    {/* SUPPRIMER */}
-
+                                  {boutique.status ===
+                                    "pending" && (
                                     <button
                                       type="button"
                                       disabled={
-                                        deletingUuid ===
+                                        actionUuid ===
                                         boutique.uuid
                                       }
                                       onClick={() => {
@@ -1118,29 +1294,130 @@ export default function BoutiquesPage() {
                                           null
                                         );
 
-                                        deleteBoutique(
+                                        activateBoutique(
                                           boutique
                                         );
                                       }}
-                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
                                     >
-                                      {deletingUuid ===
-                                        boutique.uuid ? (
-                                        <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                      {actionUuid ===
+                                      boutique.uuid ? (
+                                        <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                                       ) : (
-                                        <FaTrash className="w-4" />
+                                        <FaCheckCircle className="w-4 text-emerald-600" />
                                       )}
 
                                       <span>
-                                        Supprimer
+                                        Activer
                                       </span>
                                     </button>
+                                  )}
 
-                                  </div>
-                                )}
+                                  {/* VERIFICATION */}
+
+                                  {isSuperAdmin &&
+                                    boutique.status ===
+                                      "active" &&
+                                    !boutique.verified && (
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          verificationUuid ===
+                                          boutique.uuid
+                                        }
+                                        onClick={() => {
+                                          setOpenActionMenu(
+                                            null
+                                          );
+
+                                          verifyBoutique(
+                                            boutique
+                                          );
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
+                                      >
+                                        {verificationUuid ===
+                                        boutique.uuid ? (
+                                          <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                          <FaCheckCircle className="w-4 text-emerald-600" />
+                                        )}
+
+                                        <span>
+                                          Vérifier la boutique
+                                        </span>
+                                      </button>
+                                    )}
+
+                                  {isSuperAdmin &&
+                                    boutique.verified && (
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          verificationUuid ===
+                                          boutique.uuid
+                                        }
+                                        onClick={() => {
+                                          setOpenActionMenu(
+                                            null
+                                          );
+
+                                          unverifyBoutique(
+                                            boutique
+                                          );
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition disabled:opacity-40"
+                                      >
+                                        {verificationUuid ===
+                                        boutique.uuid ? (
+                                          <span className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                          <FaTimesCircle className="w-4 text-amber-600" />
+                                        )}
+
+                                        <span>
+                                          Retirer la vérification
+                                        </span>
+                                      </button>
+                                    )}
+
+                                  <div className="my-1 border-t border-gray-100" />
+
+                                  {/* SUPPRIMER */}
+
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      deletingUuid ===
+                                      boutique.uuid
+                                    }
+                                    onClick={() => {
+                                      setOpenActionMenu(
+                                        null
+                                      );
+
+                                      deleteBoutique(
+                                        boutique
+                                      );
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                                  >
+                                    {deletingUuid ===
+                                    boutique.uuid ? (
+                                      <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <FaTrash className="w-4" />
+                                    )}
+
+                                    <span>
+                                      Supprimer
+                                    </span>
+                                  </button>
+
+                                </div>
+                              )}
 
                             </div>
-
                           </td>
 
                         </tr>
@@ -1199,11 +1476,24 @@ export default function BoutiquesPage() {
 
                           <div className="min-w-0">
 
-                            <h3 className="font-semibold text-gray-900 truncate">
-                              {
-                                boutique.nom
-                              }
-                            </h3>
+                            <div className="flex items-center gap-2 min-w-0">
+
+                              <h3 className="font-semibold text-gray-900 truncate">
+                                {
+                                  boutique.nom
+                                }
+                              </h3>
+
+                              {boutique.verified && (
+                                <span
+                                  title="Boutique vérifiée"
+                                  className="inline-flex items-center justify-center shrink-0 rounded-full border border-emerald-200 bg-emerald-50 p-1 text-emerald-700"
+                                >
+                                  <FaCheckCircle className="text-[11px]" />
+                                </span>
+                              )}
+
+                            </div>
 
                             <p className="text-xs text-gray-400 mt-1 truncate">
                               /
@@ -1243,96 +1533,70 @@ export default function BoutiquesPage() {
                                   : boutique.uuid
                               );
                             }}
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${openActionMenu ===
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${
+                              openActionMenu ===
                               boutique.uuid
-                              ? "bg-gray-900 text-white"
-                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                              }`}
+                                ? "bg-gray-900 text-white"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
                           >
                             <FaEllipsisV className="text-sm" />
                           </button>
 
                           {openActionMenu ===
                             boutique.uuid && (
-                              <div className="absolute right-0 top-12 z-100 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 overflow-hidden">
+                            <div className="absolute right-0 top-12 z-100 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1 overflow-hidden">
 
-                                {/* VOIR */}
+                              {/* VOIR */}
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenActionMenu(null);
-                                    router.push(
-                                      `/dashboard/boutiques/${boutique.uuid}`
-                                    );
-                                  }}
-                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
-                                >
-                                  <FaEye className="w-4 text-gray-400" />
-                                  <span>
-                                    Voir la boutique
-                                  </span>
-                                </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionMenu(
+                                    null
+                                  );
 
-                                {/* MODIFIER */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenActionMenu(null);
-                                    router.push(
-                                      `/dashboard/boutiques/${boutique.uuid}/edit`
-                                    );
-                                  }}
-                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition text-left"
-                                >
-                                  <FaEdit className="w-4 text-blue-500" />
-                                  <span>
-                                    Modifier
-                                  </span>
-                                </button>
+                                  router.push(
+                                    `/dashboard/boutiques/${boutique.uuid}`
+                                  );
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
+                              >
+                                <FaEye className="w-4 text-gray-400" />
+                                <span>
+                                  Voir la boutique
+                                </span>
+                              </button>
 
-                                {/* ACTIVER */}
+                              {/* MODIFIER */}
 
-                                {boutique.status ===
-                                  "pending" && (
-                                    <button
-                                      type="button"
-                                      disabled={
-                                        actionUuid ===
-                                        boutique.uuid
-                                      }
-                                      onClick={() => {
-                                        setOpenActionMenu(
-                                          null
-                                        );
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionMenu(
+                                    null
+                                  );
 
-                                        activateBoutique(
-                                          boutique
-                                        );
-                                      }}
-                                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
-                                    >
-                                      {actionUuid ===
-                                        boutique.uuid ? (
-                                        <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                                      ) : (
-                                        <FaCheckCircle className="w-4 text-emerald-600" />
-                                      )}
+                                  router.push(
+                                    `/dashboard/boutiques/${boutique.uuid}/edit`
+                                  );
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition text-left"
+                              >
+                                <FaEdit className="w-4 text-blue-500" />
+                                <span>
+                                  Modifier
+                                </span>
+                              </button>
 
-                                      <span>
-                                        Activer
-                                      </span>
-                                    </button>
-                                  )}
+                              {/* ACTIVER */}
 
-                                <div className="my-1 border-t border-gray-100" />
-
-                                {/* SUPPRIMER */}
-
+                              {boutique.status ===
+                                "pending" && (
                                 <button
                                   type="button"
                                   disabled={
-                                    deletingUuid ===
+                                    actionUuid ===
                                     boutique.uuid
                                   }
                                   onClick={() => {
@@ -1340,26 +1604,128 @@ export default function BoutiquesPage() {
                                       null
                                     );
 
-                                    deleteBoutique(
+                                    activateBoutique(
                                       boutique
                                     );
                                   }}
-                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
                                 >
-                                  {deletingUuid ===
-                                    boutique.uuid ? (
-                                    <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                  {actionUuid ===
+                                  boutique.uuid ? (
+                                    <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                                   ) : (
-                                    <FaTrash className="w-4" />
+                                    <FaCheckCircle className="w-4 text-emerald-600" />
                                   )}
 
                                   <span>
-                                    Supprimer
+                                    Activer
                                   </span>
                                 </button>
+                              )}
 
-                              </div>
-                            )}
+                              {/* VERIFICATION */}
+
+                              {isSuperAdmin &&
+                                boutique.status ===
+                                  "active" &&
+                                !boutique.verified && (
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      verificationUuid ===
+                                      boutique.uuid
+                                    }
+                                    onClick={() => {
+                                      setOpenActionMenu(
+                                        null
+                                      );
+
+                                      verifyBoutique(
+                                        boutique
+                                      );
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition disabled:opacity-40"
+                                  >
+                                    {verificationUuid ===
+                                    boutique.uuid ? (
+                                      <span className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <FaCheckCircle className="w-4 text-emerald-600" />
+                                    )}
+
+                                    <span>
+                                      Vérifier la boutique
+                                    </span>
+                                  </button>
+                                )}
+
+                              {isSuperAdmin &&
+                                boutique.verified && (
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      verificationUuid ===
+                                      boutique.uuid
+                                    }
+                                    onClick={() => {
+                                      setOpenActionMenu(
+                                        null
+                                      );
+
+                                      unverifyBoutique(
+                                        boutique
+                                      );
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition disabled:opacity-40"
+                                  >
+                                    {verificationUuid ===
+                                    boutique.uuid ? (
+                                      <span className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <FaTimesCircle className="w-4 text-amber-600" />
+                                    )}
+
+                                    <span>
+                                      Retirer la vérification
+                                    </span>
+                                  </button>
+                                )}
+
+                              <div className="my-1 border-t border-gray-100" />
+
+                              {/* SUPPRIMER */}
+
+                              <button
+                                type="button"
+                                disabled={
+                                  deletingUuid ===
+                                  boutique.uuid
+                                }
+                                onClick={() => {
+                                  setOpenActionMenu(
+                                    null
+                                  );
+
+                                  deleteBoutique(
+                                    boutique
+                                  );
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                              >
+                                {deletingUuid ===
+                                boutique.uuid ? (
+                                  <span className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <FaTrash className="w-4" />
+                                )}
+
+                                <span>
+                                  Supprimer
+                                </span>
+                              </button>
+
+                            </div>
+                          )}
 
                         </div>
 
@@ -1467,4 +1833,3 @@ export default function BoutiquesPage() {
     </div>
   );
 }
-

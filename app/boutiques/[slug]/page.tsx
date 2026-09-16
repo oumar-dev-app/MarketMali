@@ -43,6 +43,7 @@ interface Boutique {
   ville: string;
   logo: string | null;
   status: string;
+  verified: boolean;
 }
 
 interface BoutiqueResponse {
@@ -107,6 +108,7 @@ export default async function BoutiquePage({
           email: null,
           adresse: boutiqueData.adresse,
           ville: boutiqueData.ville,
+          verified: Boolean(boutiqueData.verified),
         }}
         categories={categoriesData}
         produits={produitsData}

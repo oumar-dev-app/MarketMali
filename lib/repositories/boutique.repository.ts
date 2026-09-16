@@ -320,6 +320,46 @@ export class BoutiqueRepository {
 
   }
 
+  static async verify(
+    id: number,
+    verified_by: number
+  ) {
+
+    await db.execute(
+      `
+    UPDATE boutiques
+    SET
+      verified = 1,
+      verified_at = CURRENT_TIMESTAMP,
+      verified_by = ?
+    WHERE id = ?
+    `,
+      [
+        verified_by,
+        id
+      ]
+    );
+
+  }
+
+  static async unverify(
+    id: number
+  ) {
+
+    await db.execute(
+      `
+    UPDATE boutiques
+    SET
+      verified = 0,
+      verified_at = NULL,
+      verified_by = NULL
+    WHERE id = ?
+    `,
+      [id]
+    );
+
+  }
+
   static async block(
     id: number
   ) {

@@ -11,22 +11,45 @@ export const db = mysql.createPool({
     rejectUnauthorized: false,
   },
 
+  /*
+   * Gestion du pool
+   */
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
+  maxIdle: 10,
+  idleTimeout: 60_000,
+  queueLimit: 50,
+
+  /*
+   * Connexions réseau
+   */
+  connectTimeout: 10_000,
+
+  /*
+   * Maintient les connexions TCP actives.
+   * Utile avec TiDB Cloud / connexion distante.
+   */
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
 });
 
 export async function testDatabaseConnection() {
+  let connection;
+
   try {
-    const connection = await db.getConnection();
+    connection = await db.getConnection();
+
+    await connection.ping();
 
     console.log("✅ Connecté à TiDB");
 
-    connection.release();
   } catch (error) {
     console.error(
       "❌ Erreur de connexion TiDB",
       error
     );
+
+  } finally {
+    connection?.release();
   }
 }
