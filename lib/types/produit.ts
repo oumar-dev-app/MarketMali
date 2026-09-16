@@ -35,3 +35,24 @@ export type ProduitUpdate = {
     stock?: number;
     image?: string;
 };
+export interface ProduitVarianteImage {
+  id: number;
+  uuid: string;
+  variante_id: number;
+  image_url: string;
+  ordre: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ProduitVariante {
+  id: number;
+  uuid: string;
+  produit_id: number;
+  nom: string;
+  stock: number;
+  ordre: number;
+  created_at: Date;
+  updated_at: Date;
+  images: ProduitVarianteImage[];
+}

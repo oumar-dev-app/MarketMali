@@ -66,10 +66,11 @@ export default function CreateProduitPage() {
                 toast.error(message);
                 return;
             }
-
             toast.success("Produit créé avec succès.");
 
-            router.push("/dashboard/produits");
+            router.push(
+                `/dashboard/produits/edit/${result.data.uuid}`
+            );
         } catch (error) {
             console.error(
                 "Erreur création produit :",
@@ -186,7 +187,7 @@ export default function CreateProduitPage() {
 
                                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14a800]/10 text-[#14a800]">
                                             <PackagePlus
-                                                className="h-[18px] w-[18px]"
+                                                className="h-4.5 w-4.5"
                                                 strokeWidth={2.2}
                                             />
                                         </div>

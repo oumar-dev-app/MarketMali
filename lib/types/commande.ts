@@ -32,6 +32,7 @@ export interface Commande {
 
 export interface CommandeProduitInput {
   produit_id: number;
+  variante_id?: number | null;
   quantite: number;
 }
 

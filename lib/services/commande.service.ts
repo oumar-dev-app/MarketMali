@@ -12,448 +12,558 @@ import { LivraisonSecuriteService } from "./livraison-securite.service";
 import { NotFoundError } from "../errors/NotFoundError";
 import { ForbiddenError } from "../errors/ForbiddenError";
 import { PromotionRepository } from "../repositories/promotion.repository";
-
+import { ProduitVarianteRepository } from "../repositories/produitVariante.repository";
+import { ValidationError } from "../errors/ValidationError";
 
 import {
     CreateCommandeDTO,
     UpdateCommandeDTO,
     CommandeStatus
 } from "../types/commande";
+
 import { db } from "../db";
-
-
 
 export class CommandeService {
 
-    static async create(
-        data: CreateCommandeDTO,
-        client_id: number
-    ) {
 
-        const connection =
-            await db.getConnection();
+static async create(
+    data: CreateCommandeDTO,
+    client_id: number
+) {
 
-        try {
+    const connection =
+        await db.getConnection();
 
-            await connection.beginTransaction();
+    try {
 
-            // =========================================================
-            // 1 - Vérifier la boutique
-            // =========================================================
+        await connection.beginTransaction();
 
-            const boutique =
-                await BoutiqueRepository.findById(
-                    data.boutique_id
-                );
+        // =========================================================
+        // 1 - Vérifier la boutique
+        // =========================================================
 
-            if (!boutique) {
-                throw new NotFoundError(
-                    "Boutique introuvable."
-                );
-            }
+        const boutique =
+            await BoutiqueRepository.findById(
+                data.boutique_id
+            );
 
-            // =========================================================
-            // 2 - Préparer les produits
-            // =========================================================
+        if (!boutique) {
+            throw new NotFoundError(
+                "Boutique introuvable."
+            );
+        }
 
-            let total = 0;
+        // =========================================================
+        // 2 - Préparer les produits
+        // =========================================================
 
-            const produitsCommande: {
+        let total = 0;
+
+        const produitsCommande: {
+            produit_id: number;
+            variante_id: number | null;
+            variante_nom: string | null;
+            quantite: number;
+            prix: number;
+            promotion_id: number | null;
+        }[] = [];
+
+        // Regrouper les lignes ayant le même produit
+        // ET la même variante.
+        const quantitesProduits = new Map<
+            string,
+            {
                 produit_id: number;
+                variante_id: number | null;
                 quantite: number;
-                prix: number;
-                promotion_id: number | null;
-            }[] = [];
+            }
+        >();
 
-            // Éviter qu'un même produit soit envoyé plusieurs fois
-            // dans la même commande.
-            const quantitesProduits = new Map<number, number>();
+        for (const item of data.produits) {
 
-            for (const item of data.produits) {
+            const variante_id =
+                item.variante_id ?? null;
 
-                const quantiteExistante =
-                    quantitesProduits.get(
-                        item.produit_id
-                    ) ?? 0;
+            const cle =
+                `${item.produit_id}:${variante_id ?? "null"}`;
+
+            const ligneExistante =
+                quantitesProduits.get(cle);
+
+            if (ligneExistante) {
+
+                ligneExistante.quantite +=
+                    item.quantite;
+
+            } else {
 
                 quantitesProduits.set(
-                    item.produit_id,
-                    quantiteExistante + item.quantite
+                    cle,
+                    {
+                        produit_id:
+                            item.produit_id,
+
+                        variante_id,
+
+                        quantite:
+                            item.quantite
+                    }
+                );
+            }
+        }
+
+        // =========================================================
+        // 3 - Vérifier chaque produit et sa promotion
+        // =========================================================
+
+        for (const ligne of quantitesProduits.values()) {
+
+            const produit_id =
+                ligne.produit_id;
+
+            const variante_id =
+                ligne.variante_id;
+
+            const quantite =
+                ligne.quantite;
+
+            const produit =
+                await ProduitRepository.findById(
+                    produit_id
+                );
+
+            if (!produit) {
+                throw new NotFoundError(
+                    "Produit introuvable."
                 );
             }
 
-            // =========================================================
-            // 3 - Vérifier chaque produit et sa promotion
-            // =========================================================
-
-            for (
-                const [
-                    produit_id,
-                    quantite
-                ] of quantitesProduits
+            // Le produit doit appartenir à la boutique
+            if (
+                produit.boutique_id !==
+                data.boutique_id
             ) {
+                throw new ForbiddenError(
+                    "Ce produit n'appartient pas à cette boutique."
+                );
+            }
 
-                const produit =
-                    await ProduitRepository.findById(
-                        produit_id
+            // Le produit doit être actif
+            if (
+                produit.status !== "active"
+            ) {
+                throw new ForbiddenError(
+                    `Le produit "${produit.nom}" n'est pas disponible.`
+                );
+            }
+
+            // =====================================================
+            // Vérification de la variante
+            // =====================================================
+
+            let variante_nom: string | null = null;
+            let variante_stock: number | null = null;
+
+            if (variante_id !== null) {
+
+                const variante =
+                    await ProduitVarianteRepository.findById(
+                        variante_id
                     );
 
-                if (!produit) {
+                if (!variante) {
                     throw new NotFoundError(
-                        "Produit introuvable."
+                        "Variante du produit introuvable."
                     );
                 }
 
-                // Le produit doit appartenir à la boutique
+                // La variante doit appartenir au produit
                 if (
-                    produit.boutique_id !==
-                    data.boutique_id
+                    variante.produit_id !==
+                    produit.id
                 ) {
                     throw new ForbiddenError(
-                        "Ce produit n'appartient pas à cette boutique."
+                        "Cette variante n'appartient pas à ce produit."
                     );
                 }
 
-                // Le produit doit être actif
+                variante_nom =
+                    variante.nom;
+
+                variante_stock =
+                    variante.stock;
+            }
+
+            // =====================================================
+            // Vérification du stock
+            // =====================================================
+
+            if (variante_id !== null) {
+
+                // Avec variante :
+                // le stock de la variante est prioritaire.
                 if (
-                    produit.status !== "active"
+                    variante_stock === null ||
+                    variante_stock < quantite
                 ) {
-                    throw new ForbiddenError(
-                        `Le produit "${produit.nom}" n'est pas disponible.`
+                    throw new ValidationError(
+                        `Stock insuffisant pour la variante "${variante_nom}".`
                     );
                 }
 
-                // Vérification du stock
+            } else {
+
+                // Sans variante :
+                // le stock du produit est utilisé.
                 if (
                     produit.stock < quantite
                 ) {
-                    throw new ForbiddenError(
-                        `Stock insuffisant pour ${produit.nom}.`
+                    throw new ValidationError(
+                        `Stock insuffisant pour le produit "${produit.nom}".`
                     );
                 }
-
-                const prixNormal =
-                    Number(produit.prix);
-
-                let prixFinal =
-                    prixNormal;
-
-                let promotionId:
-                    number | null = null;
-
-                // =====================================================
-                // Vérifier la promotion active
-                // =====================================================
-
-                const promotion =
-                    await PromotionRepository.findActiveByProduit(
-                        produit.id,
-                        connection
-                    );
-
-                if (promotion) {
-
-                    // La promotion doit également appartenir
-                    // à la même boutique que le produit.
-                    if (
-                        promotion.boutique_id !==
-                        data.boutique_id
-                    ) {
-                        throw new ForbiddenError(
-                            "Promotion invalide pour ce produit."
-                        );
-                    }
-
-                    // -------------------------------------------------
-                    // Calcul du prix promotionnel
-                    // -------------------------------------------------
-
-                    if (
-                        promotion.type === "percentage"
-                    ) {
-
-                        const reduction =
-                            Number(
-                                promotion.reduction_pourcentage
-                            );
-
-                        if (
-                            !Number.isFinite(reduction) ||
-                            reduction <= 0 ||
-                            reduction >= 100
-                        ) {
-                            throw new ForbiddenError(
-                                `La promotion "${promotion.nom}" est invalide.`
-                            );
-                        }
-
-                        prixFinal =
-                            prixNormal -
-                            (
-                                prixNormal *
-                                reduction /
-                                100
-                            );
-
-                    } else if (
-                        promotion.type === "special_price"
-                    ) {
-
-                        const prixPromotionnel =
-                            Number(
-                                promotion.prix_promotionnel
-                            );
-
-                        if (
-                            !Number.isFinite(
-                                prixPromotionnel
-                            ) ||
-                            prixPromotionnel < 0 ||
-                            prixPromotionnel >= prixNormal
-                        ) {
-                            throw new ForbiddenError(
-                                `Le prix promotionnel de "${promotion.nom}" est invalide.`
-                            );
-                        }
-
-                        prixFinal =
-                            prixPromotionnel;
-                    }
-
-                    // -------------------------------------------------
-                    // Vérifier la quantité maximale de la promotion
-                    // -------------------------------------------------
-
-                    if (
-                        promotion.quantite_limite !== null
-                    ) {
-
-                        const quantiteVendue =
-                            await PromotionRepository.getQuantiteVendue(
-                                promotion.id,
-                                connection
-                            );
-
-                        const quantiteRestante =
-                            Number(
-                                promotion.quantite_limite
-                            ) -
-                            quantiteVendue;
-
-                        if (
-                            quantite > quantiteRestante
-                        ) {
-                            throw new ForbiddenError(
-                                `La promotion "${promotion.nom}" ne dispose plus que de ${Math.max(
-                                    0,
-                                    quantiteRestante
-                                )} unité(s) disponible(s).`
-                            );
-                        }
-                    }
-
-                    promotionId =
-                        promotion.id;
-                }
-
-                // =====================================================
-                // Calcul serveur du prix
-                // =====================================================
-
-                total +=
-                    prixFinal *
-                    quantite;
-
-                produitsCommande.push({
-                    produit_id:
-                        produit.id,
-
-                    quantite,
-
-                    prix:
-                        Number(
-                            prixFinal.toFixed(2)
-                        ),
-
-                    promotion_id:
-                        promotionId
-                });
             }
 
-            // =========================================================
-            // 4 - Vérifier la zone de livraison
-            // =========================================================
+            const prixNormal =
+                Number(produit.prix);
 
-            const zoneLivraison =
-                data.zone_livraison?.trim();
+            let prixFinal =
+                prixNormal;
 
-            if (!zoneLivraison) {
-                throw new ForbiddenError(
-                    "La zone de livraison est obligatoire."
-                );
-            }
+            let promotionId:
+                number | null = null;
 
-            // =========================================================
-            // 5 - Calcul serveur des frais de livraison
-            // =========================================================
+            // =====================================================
+            // Vérifier la promotion active
+            // =====================================================
 
-            const tarifLivraison =
-                await TarifLivraisonRepository.findByBoutiqueAndZone(
-                    data.boutique_id,
-                    zoneLivraison
-                );
-
-            if (!tarifLivraison) {
-                throw new NotFoundError(
-                    "Aucun tarif de livraison n'est défini pour cette zone."
-                );
-            }
-
-            const fraisLivraison =
-                Number(
-                    tarifLivraison.frais
-                );
-
-            // =========================================================
-            // 6 - Total final serveur
-            // =========================================================
-
-            const totalCommande =
-                Number(
-                    (
-                        total +
-                        fraisLivraison
-                    ).toFixed(2)
-                );
-
-            // =========================================================
-            // 7 - Créer la commande
-            // =========================================================
-
-            const uuid =
-                generateUUID();
-
-            const commandeId =
-                await CommandeRepository.create(
-                    {
-                        uuid,
-
-                        boutique_id:
-                            data.boutique_id,
-
-                        client_id,
-
-                        zone_livraison:
-                            zoneLivraison,
-
-                        total:
-                            totalCommande,
-
-                        frais_livraison:
-                            fraisLivraison,
-
-                        adresse_livraison:
-                            data.adresse_livraison,
-
-                        latitude:
-                            data.latitude,
-
-                        longitude:
-                            data.longitude,
-
-                        gps_precision:
-                            data.gps_precision
-                    },
+            const promotion =
+                await PromotionRepository.findActiveByProduit(
+                    produit.id,
                     connection
                 );
 
-            // =========================================================
-            // 8 - Créer les lignes de commande
-            // =========================================================
+            if (promotion) {
 
-            await CommandeProduitRepository.createMany(
-                commandeId,
-                produitsCommande,
+                // La promotion doit appartenir
+                // à la même boutique que le produit.
+                if (
+                    promotion.boutique_id !==
+                    data.boutique_id
+                ) {
+                    throw new ForbiddenError(
+                        "Promotion invalide pour ce produit."
+                    );
+                }
+
+                // -------------------------------------------------
+                // Calcul du prix promotionnel
+                // -------------------------------------------------
+
+                if (
+                    promotion.type === "percentage"
+                ) {
+
+                    const reduction =
+                        Number(
+                            promotion.reduction_pourcentage
+                        );
+
+                    if (
+                        !Number.isFinite(reduction) ||
+                        reduction <= 0 ||
+                        reduction >= 100
+                    ) {
+                        throw new ForbiddenError(
+                            `La promotion "${promotion.nom}" est invalide.`
+                        );
+                    }
+
+                    prixFinal =
+                        prixNormal -
+                        (
+                            prixNormal *
+                            reduction /
+                            100
+                        );
+
+                } else if (
+                    promotion.type === "special_price"
+                ) {
+
+                    const prixPromotionnel =
+                        Number(
+                            promotion.prix_promotionnel
+                        );
+
+                    if (
+                        !Number.isFinite(
+                            prixPromotionnel
+                        ) ||
+                        prixPromotionnel < 0 ||
+                        prixPromotionnel >= prixNormal
+                    ) {
+                        throw new ForbiddenError(
+                            `Le prix promotionnel de "${promotion.nom}" est invalide.`
+                        );
+                    }
+
+                    prixFinal =
+                        prixPromotionnel;
+                }
+
+                // -------------------------------------------------
+                // Vérifier la quantité maximale de la promotion
+                // -------------------------------------------------
+
+                if (
+                    promotion.quantite_limite !== null
+                ) {
+
+                    const quantiteVendue =
+                        await PromotionRepository.getQuantiteVendue(
+                            promotion.id,
+                            connection
+                        );
+
+                    const quantiteRestante =
+                        Number(
+                            promotion.quantite_limite
+                        ) -
+                        quantiteVendue;
+
+                    if (
+                        quantite > quantiteRestante
+                    ) {
+                        throw new ForbiddenError(
+                            `La promotion "${promotion.nom}" ne dispose plus que de ${Math.max(
+                                0,
+                                quantiteRestante
+                            )} unité(s) disponible(s).`
+                        );
+                    }
+                }
+
+                promotionId =
+                    promotion.id;
+            }
+
+            // =====================================================
+            // Calcul serveur du prix
+            // =====================================================
+
+            total +=
+                prixFinal *
+                quantite;
+
+            produitsCommande.push({
+                produit_id:
+                    produit.id,
+
+                variante_id,
+
+                variante_nom,
+
+                quantite,
+
+                prix:
+                    Number(
+                        prixFinal.toFixed(2)
+                    ),
+
+                promotion_id:
+                    promotionId
+            });
+        }
+
+        // =========================================================
+        // 4 - Vérifier la zone de livraison
+        // =========================================================
+
+        const zoneLivraison =
+            data.zone_livraison?.trim();
+
+        if (!zoneLivraison) {
+            throw new ForbiddenError(
+                "La zone de livraison est obligatoire."
+            );
+        }
+
+        // =========================================================
+        // 5 - Calcul serveur des frais de livraison
+        // =========================================================
+
+        const tarifLivraison =
+            await TarifLivraisonRepository.findByBoutiqueAndZone(
+                data.boutique_id,
+                zoneLivraison
+            );
+
+        if (!tarifLivraison) {
+            throw new NotFoundError(
+                "Aucun tarif de livraison n'est défini pour cette zone."
+            );
+        }
+
+        const fraisLivraison =
+            Number(
+                tarifLivraison.frais
+            );
+
+        // =========================================================
+        // 6 - Total final serveur
+        // =========================================================
+
+        const totalCommande =
+            Number(
+                (
+                    total +
+                    fraisLivraison
+                ).toFixed(2)
+            );
+
+        // =========================================================
+        // 7 - Créer la commande
+        // =========================================================
+
+        const uuid =
+            generateUUID();
+
+        const commandeId =
+            await CommandeRepository.create(
+                {
+                    uuid,
+
+                    boutique_id:
+                        data.boutique_id,
+
+                    client_id,
+
+                    zone_livraison:
+                        zoneLivraison,
+
+                    total:
+                        totalCommande,
+
+                    frais_livraison:
+                        fraisLivraison,
+
+                    adresse_livraison:
+                        data.adresse_livraison,
+
+                    latitude:
+                        data.latitude,
+
+                    longitude:
+                        data.longitude,
+
+                    gps_precision:
+                        data.gps_precision
+                },
                 connection
             );
 
-            // =========================================================
-            // 9 - Historique du statut
-            // =========================================================
+        // =========================================================
+        // 8 - Créer les lignes de commande
+        // =========================================================
 
-            await CommandeStatutRepository.create(
-                commandeId,
-                "pending",
-                "Commande créée.",
-                connection
-            );
+        await CommandeProduitRepository.createMany(
+            commandeId,
+            produitsCommande,
+            connection
+        );
 
-            // =========================================================
-            // 10 - Diminuer les stocks
-            // =========================================================
+        // =========================================================
+        // 9 - Historique du statut
+        // =========================================================
 
-            for (
-                const item of produitsCommande
-            ) {
+        await CommandeStatutRepository.create(
+            commandeId,
+            "pending",
+            "Commande créée.",
+            connection
+        );
 
+        // =========================================================
+        // 10 - Diminuer les stocks
+        // =========================================================
+
+        for (const item of produitsCommande) {
+
+            if (item.variante_id !== null) {
+
+                // Avec variante :
+                // diminuer uniquement le stock de la variante.
+                await ProduitVarianteRepository.decreaseStock(
+                    item.variante_id,
+                    item.quantite,
+                    connection
+                );
+
+            } else {
+
+                // Sans variante :
+                // diminuer le stock du produit.
                 await ProduitRepository.decreaseStock(
                     item.produit_id,
                     item.quantite,
                     connection
                 );
             }
-
-            // =========================================================
-            // 11 - Valider la transaction
-            // =========================================================
-
-            await connection.commit();
-
-            // =========================================================
-            // 12 - Notification vendeur
-            // =========================================================
-
-            await NotificationService.create({
-                user_id:
-                    boutique.user_id,
-
-                commande_id:
-                    commandeId,
-
-                type:
-                    "new_order",
-
-                titre:
-                    "Nouvelle commande",
-
-                message:
-                    `Une nouvelle commande vient d'être passée dans votre boutique. ` +
-                    `Montant total : ${totalCommande} FCFA.`
-            });
-
-            // =========================================================
-            // 13 - Retourner la commande
-            // =========================================================
-
-            return CommandeRepository.findById(
-                commandeId
-            );
-
-        } catch (error) {
-
-            await connection.rollback();
-
-            throw error;
-
-        } finally {
-
-            connection.release();
         }
+
+        // =========================================================
+        // 11 - Valider la transaction
+        // =========================================================
+
+        await connection.commit();
+
+        // =========================================================
+        // 12 - Notification vendeur
+        // =========================================================
+
+        await NotificationService.create({
+            user_id:
+                boutique.user_id,
+
+            commande_id:
+                commandeId,
+
+            type:
+                "new_order",
+
+            titre:
+                "Nouvelle commande",
+
+            message:
+                `Une nouvelle commande vient d'être passée dans votre boutique. ` +
+                `Montant total : ${totalCommande} FCFA.`
+        });
+
+        // =========================================================
+        // 13 - Retourner la commande
+        // =========================================================
+
+        return CommandeRepository.findById(
+            commandeId
+        );
+
+    } catch (error) {
+
+        await connection.rollback();
+
+        throw error;
+
+    } finally {
+
+        connection.release();
     }
+}
 
     static async findByUUID(
         uuid: string
     ) {
+
         const commande =
             await CommandeRepository.findByUUID(
                 uuid
@@ -465,6 +575,7 @@ export class CommandeService {
                 "Commande introuvable."
             );
         }
+
         const produits =
             await CommandeProduitRepository.findByCommandeId(
                 commande.id
@@ -488,8 +599,11 @@ export class CommandeService {
             zone_livraison:
                 commande.zone_livraison,
 
-            created_at: commande.created_at,
-            updated_at: commande.updated_at,
+            created_at:
+                commande.created_at,
+
+            updated_at:
+                commande.updated_at,
 
             adresse_livraison:
                 commande.adresse_livraison,
@@ -504,37 +618,68 @@ export class CommandeService {
                 commande.gps_precision,
 
             boutique: {
-                uuid: commande.boutique_uuid,
-                nom: commande.boutique_nom,
-                slug: commande.boutique_slug
+                uuid:
+                    commande.boutique_uuid,
+
+                nom:
+                    commande.boutique_nom,
+
+                slug:
+                    commande.boutique_slug
             },
 
             client: {
-                uuid: commande.client_uuid,
-                nom: commande.client_nom ?? "Client supprimé",
-                prenom: commande.client_prenom ?? "",
-                telephone: commande.client_telephone ?? "-",
-                email: commande.client_email ?? "-"
+                uuid:
+                    commande.client_uuid,
+
+                nom:
+                    commande.client_nom ??
+                    "Client supprimé",
+
+                prenom:
+                    commande.client_prenom ??
+                    "",
+
+                telephone:
+                    commande.client_telephone ??
+                    "-",
+
+                email:
+                    commande.client_email ??
+                    "-"
             },
 
-            livreur: commande.livreur_uuid
-                ? {
-                    uuid: commande.livreur_uuid,
-                    nom: commande.livreur_nom,
-                    prenom: commande.livreur_prenom,
-                    telephone: commande.livreur_telephone,
-                    vehicule: commande.livreur_vehicule,
-                    status: commande.livreur_status,
-                    disponibilite:
-                        commande.livreur_disponibilite
-                }
-                : null,
+            livreur:
+                commande.livreur_uuid
+                    ? {
+                        uuid:
+                            commande.livreur_uuid,
+
+                        nom:
+                            commande.livreur_nom,
+
+                        prenom:
+                            commande.livreur_prenom,
+
+                        telephone:
+                            commande.livreur_telephone,
+
+                        vehicule:
+                            commande.livreur_vehicule,
+
+                        status:
+                            commande.livreur_status,
+
+                        disponibilite:
+                            commande.livreur_disponibilite
+                    }
+                    : null,
 
             produits,
+
             historique
         };
     }
-
 
     static async findByUser(
         user_id: number,
@@ -544,11 +689,16 @@ export class CommandeService {
         search: string = "",
         status?: string
     ) {
-        const offset = (page - 1) * limit;
+
+        const offset =
+            (page - 1) *
+            limit;
+
         if (
             role === "admin" ||
             role === "super_admin"
         ) {
+
             const commandes =
                 await CommandeRepository.findAll();
 
@@ -556,15 +706,21 @@ export class CommandeService {
                 await CommandeRepository.countStatuses();
 
             return {
-                data: commandes,
+                data:
+                    commandes,
 
                 pagination: {
                     page,
                     limit,
-                    total: statistics.total,
-                    totalPages: Math.ceil(
-                        statistics.total / limit
-                    )
+
+                    total:
+                        statistics.total,
+
+                    totalPages:
+                        Math.ceil(
+                            statistics.total /
+                            limit
+                        )
                 },
 
                 statistics
@@ -587,17 +743,22 @@ export class CommandeService {
                     user_id
                 );
 
-
             return {
-                data: commandes,
+                data:
+                    commandes,
 
                 pagination: {
                     page,
                     limit,
-                    total: statistics.total,
-                    totalPages: Math.ceil(
-                        statistics.total / limit
-                    )
+
+                    total:
+                        statistics.total,
+
+                    totalPages:
+                        Math.ceil(
+                            statistics.total /
+                            limit
+                        )
                 },
 
                 statistics
@@ -621,7 +782,8 @@ export class CommandeService {
                 );
 
             return {
-                data: commandes,
+                data:
+                    commandes,
 
                 pagination: {
                     page,
@@ -632,13 +794,15 @@ export class CommandeService {
 
                     totalPages:
                         Math.ceil(
-                            statistics.total / limit
+                            statistics.total /
+                            limit
                         )
                 },
 
                 statistics
             };
         }
+
         throw new ForbiddenError(
             "Accès refusé."
         );
@@ -651,10 +815,10 @@ export class CommandeService {
         role: string
     ) {
 
-
-
         const commande =
-            await CommandeRepository.findByUUID(uuid);
+            await CommandeRepository.findByUUID(
+                uuid
+            );
 
         console.log(
             "Commande trouvée :",
@@ -662,87 +826,92 @@ export class CommandeService {
         );
 
         if (!commande) {
+
             throw new NotFoundError(
                 "Commande introuvable."
             );
         }
 
-        // Les commandes terminées ou annulées
-        // ne peuvent plus recevoir de livreur
-        if (commande.status !== "preparing") {
+        if (
+            commande.status !==
+            "preparing"
+        ) {
+
             throw new ForbiddenError(
                 "Un livreur ne peut être affecté qu'à une commande en préparation."
             );
         }
 
-        // Vérifier la boutique
         const boutique =
             await BoutiqueRepository.findById(
                 commande.boutique_id
             );
 
         if (!boutique) {
+
             throw new NotFoundError(
                 "Boutique introuvable."
             );
         }
 
-        // Vérifier les droits
         if (
             role !== "admin" &&
             role !== "super_admin" &&
             boutique.user_id !== user_id
         ) {
+
             throw new ForbiddenError(
                 "Vous n'avez pas accès à cette commande."
             );
         }
 
-        // Chercher le nouveau livreur
         const livreur =
             await LivreurRepository.findByUUID(
                 livreur_uuid
             );
 
         if (!livreur) {
+
             throw new NotFoundError(
                 "Livreur introuvable."
             );
         }
 
-        // Le livreur doit appartenir à la même boutique
         if (
             livreur.boutique_id !==
             commande.boutique_id
         ) {
+
             throw new ForbiddenError(
                 "Ce livreur n'appartient pas à cette boutique."
             );
         }
 
-        // Le livreur doit être actif
         if (
-            livreur.status !== "active"
+            livreur.status !==
+            "active"
         ) {
+
             throw new ForbiddenError(
                 "Ce livreur n'est pas actif."
             );
         }
 
-        // Si on essaie de réaffecter
-        // le même livreur
         if (
-            commande.livreur_id === livreur.id
+            commande.livreur_id ===
+            livreur.id
         ) {
+
             throw new ForbiddenError(
                 "Ce livreur est déjà affecté à cette commande."
             );
         }
 
-        // Le nouveau livreur doit être disponible
         if (
-            livreur.disponibilite !== "available"
+            livreur.disponibilite !==
+            "available"
         ) {
+
             throw new ForbiddenError(
                 "Ce livreur n'est pas disponible."
             );
@@ -757,8 +926,10 @@ export class CommandeService {
 
             await connection.beginTransaction();
 
-            // Si un ancien livreur existe,
-            // il redevient disponible
+            // ---------------------------------------------------------
+            // Libérer l'ancien livreur
+            // ---------------------------------------------------------
+
             if (commande.livreur_id) {
 
                 const ancienLivreur =
@@ -768,7 +939,8 @@ export class CommandeService {
 
                 if (
                     ancienLivreur &&
-                    ancienLivreur.status === "active"
+                    ancienLivreur.status ===
+                    "active"
                 ) {
 
                     await LivreurRepository.updateDisponibilite(
@@ -779,34 +951,27 @@ export class CommandeService {
                 }
             }
 
-            // Affecter le nouveau livreur à la commande
+            // ---------------------------------------------------------
+            // Affecter le nouveau livreur
+            // ---------------------------------------------------------
+
             await CommandeRepository.assignLivreur(
                 commande.id,
                 livreur.id,
                 connection
             );
 
+            // ---------------------------------------------------------
+            // Vérifier la livraison existante
+            // ---------------------------------------------------------
 
-            // Vérifier s'il existe déjà une livraison
             let livraison =
                 await LivraisonRepository.findByCommandeId(
                     commande.id,
                     connection
                 );
 
-            // Créer ou réaffecter la livraison
-            // Créer ou réaffecter la livraison
             if (livraison) {
-
-                /*
-                 * Une livraison existe déjà pour cette commande.
-                 *
-                 * Même si elle est "cancelled", on la réutilise
-                 * au lieu d'en créer une nouvelle.
-                 *
-                 * Cela respecte la contrainte unique :
-                 * uk_livraisons_commande
-                 */
 
                 await LivraisonRepository.updateLivreur(
                     livraison.id,
@@ -829,17 +994,17 @@ export class CommandeService {
 
             } else {
 
-                /*
-                 * Première affectation :
-                 * aucune livraison n'existe encore.
-                 */
-
                 const livraisonId =
                     await LivraisonRepository.create(
                         {
-                            uuid: generateUUID(),
-                            commande_id: commande.id,
-                            livreur_id: livreur.id
+                            uuid:
+                                generateUUID(),
+
+                            commande_id:
+                                commande.id,
+
+                            livreur_id:
+                                livreur.id
                         },
                         connection
                     );
@@ -852,23 +1017,29 @@ export class CommandeService {
             }
 
             if (!livraison) {
+
                 throw new NotFoundError(
                     "Impossible de récupérer la livraison créée."
                 );
             }
 
-            // Générer le QR et l'OTP de sécurité.
-            // Les valeurs en clair sont retournées uniquement
-            // par le service et les hash sont enregistrés en base.
+            // ---------------------------------------------------------
+            // Générer le QR de récupération
+            // ---------------------------------------------------------
+
             const securite =
                 await LivraisonSecuriteService.generatePickupQr(
                     livraison.id,
                     connection
                 );
 
-            qrToken = securite.qrToken;
+            qrToken =
+                securite.qrToken;
 
-            // Le nouveau livreur devient indisponible
+            // ---------------------------------------------------------
+            // Rendre le livreur indisponible
+            // ---------------------------------------------------------
+
             await LivreurRepository.updateDisponibilite(
                 livreur.id,
                 "unavailable",
@@ -877,38 +1048,65 @@ export class CommandeService {
 
             await connection.commit();
 
-            /*
-             * Notification au client.
-             */
+            // ---------------------------------------------------------
+            // Notification client
+            // ---------------------------------------------------------
+
             await NotificationService.create({
-                user_id: commande.client_id,
-                commande_id: commande.id,
-                type: "order_status",
-                titre: "Livreur affecté",
+                user_id:
+                    commande.client_id,
+
+                commande_id:
+                    commande.id,
+
+                type:
+                    "order_status",
+
+                titre:
+                    "Livreur affecté",
+
                 message:
                     `Un livreur a été affecté à votre commande #${commande.id}.`
             });
 
-            /*
-             * Notification au livreur.
-             */
-            /*
-             * Notification au livreur.
-             */
-            console.log("=== NOTIFICATION LIVREUR ===");
+            // ---------------------------------------------------------
+            // Notification livreur
+            // ---------------------------------------------------------
+
+            console.log(
+                "=== NOTIFICATION LIVREUR ==="
+            );
+
             console.log({
-                livreur_id: livreur.id,
-                livreur_user_id: livreur.user_id,
-                commande_id: commande.id,
+                livreur_id:
+                    livreur.id,
+
+                livreur_user_id:
+                    livreur.user_id,
+
+                commande_id:
+                    commande.id
             });
 
-            if (livreur.user_id !== null) {
+            if (
+                livreur.user_id !==
+                null
+            ) {
+
                 const notificationId =
                     await NotificationService.create({
-                        user_id: livreur.user_id,
-                        commande_id: commande.id,
-                        type: "delivery_assigned",
-                        titre: "Nouvelle livraison",
+                        user_id:
+                            livreur.user_id,
+
+                        commande_id:
+                            commande.id,
+
+                        type:
+                            "delivery_assigned",
+
+                        titre:
+                            "Nouvelle livraison",
+
                         message:
                             `Une nouvelle livraison vous a été assignée pour la commande #${commande.id}.`
                     });
@@ -928,7 +1126,6 @@ export class CommandeService {
         } finally {
 
             connection.release();
-
         }
 
         return {
@@ -936,11 +1133,20 @@ export class CommandeService {
                 "Livreur affecté à la commande avec succès.",
 
             livreur: {
-                uuid: livreur.uuid,
-                nom: livreur.nom,
-                prenom: livreur.prenom,
-                telephone: livreur.telephone,
-                vehicule: livreur.vehicule
+                uuid:
+                    livreur.uuid,
+
+                nom:
+                    livreur.nom,
+
+                prenom:
+                    livreur.prenom,
+
+                telephone:
+                    livreur.telephone,
+
+                vehicule:
+                    livreur.vehicule
             },
 
             qrToken
@@ -954,15 +1160,22 @@ export class CommandeService {
     ) {
 
         const commande =
-            await CommandeRepository.findByUUID(uuid);
+            await CommandeRepository.findByUUID(
+                uuid
+            );
 
         if (!commande) {
+
             throw new NotFoundError(
                 "Commande introuvable."
             );
         }
 
-        if (commande.status !== "preparing") {
+        if (
+            commande.status !==
+            "preparing"
+        ) {
+
             throw new ForbiddenError(
                 "Un livreur ne peut être affecté qu'à une commande en préparation."
             );
@@ -974,23 +1187,25 @@ export class CommandeService {
             );
 
         if (!boutique) {
+
             throw new NotFoundError(
                 "Boutique introuvable."
             );
         }
 
-        // Vérifier les droits
         if (
             role !== "admin" &&
             role !== "super_admin" &&
             boutique.user_id !== user_id
         ) {
+
             throw new ForbiddenError(
                 "Vous n'avez pas accès à cette commande."
             );
         }
 
         if (!commande.livreur_id) {
+
             throw new ForbiddenError(
                 "Aucun livreur n'est affecté à cette commande."
             );
@@ -1004,11 +1219,15 @@ export class CommandeService {
         if (
             livraison &&
             (
-                livraison.status === "picked_up" ||
-                livraison.status === "in_transit" ||
-                livraison.status === "delivered"
+                livraison.status ===
+                "picked_up" ||
+                livraison.status ===
+                "in_transit" ||
+                livraison.status ===
+                "delivered"
             )
         ) {
+
             throw new ForbiddenError(
                 "Le livreur ne peut plus être retiré après le début de la livraison."
             );
@@ -1026,13 +1245,19 @@ export class CommandeService {
 
             await connection.beginTransaction();
 
+            // ---------------------------------------------------------
             // Retirer le livreur de la commande
+            // ---------------------------------------------------------
+
             await CommandeRepository.unassignLivreur(
                 commande.id,
                 connection
             );
 
-            // Annuler la livraison associée
+            // ---------------------------------------------------------
+            // Annuler la livraison
+            // ---------------------------------------------------------
+
             if (livraison) {
 
                 await LivraisonRepository.updateStatus(
@@ -1043,10 +1268,14 @@ export class CommandeService {
                 );
             }
 
+            // ---------------------------------------------------------
             // Rendre le livreur disponible
+            // ---------------------------------------------------------
+
             if (
                 livreur &&
-                livreur.status === "active"
+                livreur.status ===
+                "active"
             ) {
 
                 await LivreurRepository.updateDisponibilite(
@@ -1067,7 +1296,6 @@ export class CommandeService {
         } finally {
 
             connection.release();
-
         }
 
         return {
@@ -1085,9 +1313,12 @@ export class CommandeService {
     ) {
 
         const commande =
-            await CommandeRepository.findByUUID(uuid);
+            await CommandeRepository.findByUUID(
+                uuid
+            );
 
         if (!commande) {
+
             throw new NotFoundError(
                 "Commande introuvable."
             );
@@ -1099,44 +1330,50 @@ export class CommandeService {
             );
 
         if (!boutique) {
+
             throw new NotFoundError(
                 "Boutique introuvable."
             );
         }
 
-        // Vérifier les droits
         if (
             role !== "admin" &&
             role !== "super_admin" &&
             boutique.user_id !== user_id
         ) {
+
             throw new ForbiddenError(
                 "Vous n'avez pas accès à cette commande."
             );
         }
-        // Les statuts liés à la livraison ne sont pas modifiables
-        // par le vendeur depuis cet endpoint.
+
+        // Les statuts liés à la livraison
+        // ne sont pas modifiables ici.
         if (
             status === "shipped" ||
             status === "delivered"
         ) {
+
             throw new ForbiddenError(
                 "Ce statut est géré par le processus de livraison."
             );
         }
 
-        // Empêcher une transition vers le même statut
-        if (commande.status === status) {
+        if (
+            commande.status ===
+            status
+        ) {
+
             throw new ForbiddenError(
                 "La commande possède déjà ce statut."
             );
         }
 
-        // Transitions autorisées
         const transitions: Record<
             CommandeStatus,
             CommandeStatus[]
         > = {
+
             pending: [
                 "confirmed",
                 "cancelled"
@@ -1160,10 +1397,13 @@ export class CommandeService {
         };
 
         if (
-            !transitions[commande.status].includes(
+            !transitions[
+                commande.status
+            ].includes(
                 status
             )
         ) {
+
             throw new ForbiddenError(
                 `Transition impossible : ${commande.status} → ${status}.`
             );
@@ -1176,37 +1416,46 @@ export class CommandeService {
 
             await connection.beginTransaction();
 
-            /*
-             * 1. Mettre à jour le statut
-             */
+            // ---------------------------------------------------------
+            // 1. Mettre à jour le statut
+            // ---------------------------------------------------------
+
             await CommandeRepository.updateStatus(
                 commande.id,
                 status,
                 connection
             );
 
-            /*
-             * 2. Ajouter l'historique
-             */
+            // ---------------------------------------------------------
+            // 2. Ajouter l'historique
+            // ---------------------------------------------------------
+
             await CommandeStatutRepository.create(
                 commande.id,
                 status,
-                commentaire?.trim() || undefined,
+                commentaire?.trim() ||
+                undefined,
                 connection
             );
 
-            /*
-             * 3. Si la commande est annulée,
-             * restaurer le stock.
-             */
-            if (status === "cancelled") {
+            // ---------------------------------------------------------
+            // 3. Si la commande est annulée,
+            // restaurer le stock.
+            // ---------------------------------------------------------
+
+            if (
+                status ===
+                "cancelled"
+            ) {
 
                 const produits =
                     await CommandeProduitRepository.findByCommandeId(
                         commande.id
                     );
 
-                for (const produit of produits) {
+                for (
+                    const produit of produits
+                ) {
 
                     await ProduitRepository.increaseStock(
                         produit.produit_id,
@@ -1215,9 +1464,10 @@ export class CommandeService {
                     );
                 }
 
-                /*
-                 * Libérer le livreur s'il existe.
-                 */
+                // -----------------------------------------------------
+                // Libérer le livreur
+                // -----------------------------------------------------
+
                 if (commande.livreur_id) {
 
                     const livreur =
@@ -1227,7 +1477,8 @@ export class CommandeService {
 
                     if (
                         livreur &&
-                        livreur.status === "active"
+                        livreur.status ===
+                        "active"
                     ) {
 
                         await LivreurRepository.updateDisponibilite(
@@ -1237,18 +1488,15 @@ export class CommandeService {
                         );
                     }
 
-                    /*
-                     * Retirer le livreur de la commande.
-                     */
                     await CommandeRepository.unassignLivreur(
                         commande.id,
                         connection
                     );
 
-                    /*
-                     * Annuler également la livraison
-                     * associée si elle existe.
-                     */
+                    // -------------------------------------------------
+                    // Annuler la livraison
+                    // -------------------------------------------------
+
                     const livraison =
                         await LivraisonRepository.findByCommandeId(
                             commande.id,
@@ -1257,8 +1505,10 @@ export class CommandeService {
 
                     if (
                         livraison &&
-                        livraison.status !== "delivered" &&
-                        livraison.status !== "cancelled"
+                        livraison.status !==
+                        "delivered" &&
+                        livraison.status !==
+                        "cancelled"
                     ) {
 
                         await LivraisonRepository.updateStatus(
@@ -1282,12 +1532,12 @@ export class CommandeService {
         } finally {
 
             connection.release();
-
         }
 
-        /*
-         * Notification au client.
-         */
+        // =========================================================
+        // Notification au client
+        // =========================================================
+
         const statusMessages: Record<
             CommandeStatus,
             {
@@ -1297,37 +1547,49 @@ export class CommandeService {
         > = {
 
             pending: {
-                titre: "Commande en attente",
+                titre:
+                    "Commande en attente",
+
                 message:
                     `Votre commande #${commande.id} est en attente.`
             },
 
             confirmed: {
-                titre: "Commande confirmée",
+                titre:
+                    "Commande confirmée",
+
                 message:
                     `Votre commande #${commande.id} a été confirmée.`
             },
 
             preparing: {
-                titre: "Commande en préparation",
+                titre:
+                    "Commande en préparation",
+
                 message:
                     `Votre commande #${commande.id} est en préparation.`
             },
 
             shipped: {
-                titre: "Commande expédiée",
+                titre:
+                    "Commande expédiée",
+
                 message:
                     `Votre commande #${commande.id} a été expédiée.`
             },
 
             delivered: {
-                titre: "Commande livrée",
+                titre:
+                    "Commande livrée",
+
                 message:
                     `Votre commande #${commande.id} a été livrée.`
             },
 
             cancelled: {
-                titre: "Commande annulée",
+                titre:
+                    "Commande annulée",
+
                 message:
                     `Votre commande #${commande.id} a été annulée.`
             }
@@ -1337,9 +1599,11 @@ export class CommandeService {
             statusMessages[status];
 
         await NotificationService.create({
-            user_id: commande.client_id,
+            user_id:
+                commande.client_id,
 
-            commande_id: commande.id,
+            commande_id:
+                commande.id,
 
             type:
                 status === "cancelled"
@@ -1373,38 +1637,47 @@ export class CommandeService {
             );
 
         if (!commande) {
+
             throw new NotFoundError(
                 "Commande introuvable."
             );
         }
 
         // Vérifier que la commande appartient au client
-        if (commande.client_id !== client_id) {
+        if (
+            commande.client_id !==
+            client_id
+        ) {
+
             throw new ForbiddenError(
                 "Vous n'avez pas accès à cette commande."
             );
         }
 
-        // Le client peut uniquement annuler une commande pending
-        if (commande.status !== "pending") {
+        // Le client peut uniquement annuler
+        // une commande pending.
+        if (
+            commande.status !==
+            "pending"
+        ) {
+
             throw new ForbiddenError(
                 "Cette commande ne peut plus être annulée."
             );
         }
 
-        // Vérifier la boutique
         const boutique =
             await BoutiqueRepository.findById(
                 commande.boutique_id
             );
 
         if (!boutique) {
+
             throw new NotFoundError(
                 "Boutique introuvable."
             );
         }
 
-        // Récupérer les produits avant la transaction
         const produits =
             await CommandeProduitRepository.findByCommandeId(
                 commande.id
@@ -1417,8 +1690,13 @@ export class CommandeService {
 
             await connection.beginTransaction();
 
+            // ---------------------------------------------------------
             // 1 - Restaurer les stocks
-            for (const produit of produits) {
+            // ---------------------------------------------------------
+
+            for (
+                const produit of produits
+            ) {
 
                 await ProduitRepository.increaseStock(
                     produit.produit_id,
@@ -1427,14 +1705,20 @@ export class CommandeService {
                 );
             }
 
+            // ---------------------------------------------------------
             // 2 - Mettre la commande en cancelled
+            // ---------------------------------------------------------
+
             await CommandeRepository.updateStatus(
                 commande.id,
                 "cancelled",
                 connection
             );
 
+            // ---------------------------------------------------------
             // 3 - Ajouter l'historique
+            // ---------------------------------------------------------
+
             await CommandeStatutRepository.create(
                 commande.id,
                 "cancelled",
@@ -1443,7 +1727,10 @@ export class CommandeService {
                 connection
             );
 
-            // Libérer le livreur s'il y en a un
+            // ---------------------------------------------------------
+            // Libérer le livreur
+            // ---------------------------------------------------------
+
             if (commande.livreur_id) {
 
                 const livreur =
@@ -1453,7 +1740,8 @@ export class CommandeService {
 
                 if (
                     livreur &&
-                    livreur.status === "active"
+                    livreur.status ===
+                    "active"
                 ) {
 
                     await LivreurRepository.updateDisponibilite(
@@ -1469,7 +1757,6 @@ export class CommandeService {
                 );
             }
 
-            // 4 - Valider la transaction
             await connection.commit();
 
         } catch (error) {
@@ -1481,15 +1768,25 @@ export class CommandeService {
         } finally {
 
             connection.release();
-
         }
 
-        // 5 - Notification vendeur
+        // =========================================================
+        // Notification vendeur
+        // =========================================================
+
         await NotificationService.create({
-            user_id: boutique.user_id,
-            commande_id: commande.id,
-            type: "order_cancelled",
-            titre: "Commande annulée",
+            user_id:
+                boutique.user_id,
+
+            commande_id:
+                commande.id,
+
+            type:
+                "order_cancelled",
+
+            titre:
+                "Commande annulée",
+
             message:
                 commentaire?.trim()
                     ? `Le client a annulé sa commande. Motif : ${commentaire.trim()}`
@@ -1507,6 +1804,7 @@ export class CommandeService {
         user_id: number,
         role: string
     ) {
+
         const commande =
             await CommandeRepository.findByUUID(
                 uuid
@@ -1529,10 +1827,12 @@ export class CommandeService {
             role !== "super_admin" &&
             boutique?.user_id !== user_id
         ) {
+
             throw new ForbiddenError(
                 "Vous n'avez pas accès."
             );
         }
+
         await CommandeRepository.delete(
             commande.id
         );
@@ -1548,38 +1848,60 @@ export class CommandeService {
         user_id: number,
         role: string
     ) {
+
         const commande =
-            await CommandeRepository.findByUUID(uuid);
+            await CommandeRepository.findByUUID(
+                uuid
+            );
 
         if (!commande) {
+
             throw new NotFoundError(
                 "Commande introuvable."
             );
         }
 
-        // Admin peut tout voir
+        // =========================================================
+        // Admin
+        // =========================================================
+
         if (
             role === "admin" ||
             role === "super_admin"
         ) {
-            return await this.findByUUID(uuid);
+
+            return await this.findByUUID(
+                uuid
+            );
         }
 
-        // Client : uniquement ses commandes
+        // =========================================================
+        // Client
+        // =========================================================
+
         if (role === "client") {
+
             if (
-                commande.client_id !== user_id
+                commande.client_id !==
+                user_id
             ) {
+
                 throw new ForbiddenError(
                     "Vous n'avez pas accès à cette commande."
                 );
             }
 
-            return await this.findByUUID(uuid);
+            return await this.findByUUID(
+                uuid
+            );
         }
 
-        // Vendeur : uniquement les commandes de sa boutique
+        // =========================================================
+        // Vendeur
+        // =========================================================
+
         if (role === "vendeur") {
+
             const boutique =
                 await BoutiqueRepository.findById(
                     commande.boutique_id
@@ -1587,18 +1909,26 @@ export class CommandeService {
 
             if (
                 !boutique ||
-                boutique.user_id !== user_id
+                boutique.user_id !==
+                user_id
             ) {
+
                 throw new ForbiddenError(
                     "Vous n'avez pas accès à cette commande."
                 );
             }
 
-            return await this.findByUUID(uuid);
+            return await this.findByUUID(
+                uuid
+            );
         }
 
-        // Livreur : uniquement les commandes qui lui sont affectées
+        // =========================================================
+        // Livreur
+        // =========================================================
+
         if (role === "livreur") {
+
             const livreur =
                 await LivreurRepository.findByUserId(
                     user_id
@@ -1606,27 +1936,36 @@ export class CommandeService {
 
             if (
                 !livreur ||
-                commande.livreur_id !== livreur.id
+                commande.livreur_id !==
+                livreur.id
             ) {
+
                 throw new ForbiddenError(
                     "Vous n'avez pas accès à cette commande."
                 );
             }
 
-            return await this.findByUUID(uuid);
+            return await this.findByUUID(
+                uuid
+            );
         }
 
         throw new ForbiddenError(
             "Accès refusé."
         );
     }
+
     static async getHistorique(
         uuid: string
     ) {
+
         const commande =
-            await CommandeRepository.findByUUID(uuid);
+            await CommandeRepository.findByUUID(
+                uuid
+            );
 
         if (!commande) {
+
             throw new NotFoundError(
                 "Commande introuvable."
             );
@@ -1636,6 +1975,7 @@ export class CommandeService {
             await CommandeStatutRepository.findByCommandeId(
                 commande.id
             );
+
         return historique;
     }
 }

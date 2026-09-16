@@ -1,6 +1,7 @@
 import { ProduitRepository } from "../repositories/produit.repository";
 import { BoutiqueRepository } from "../repositories/boutique.repository";
 import { CategorieRepository } from "../repositories/categorie.repository";
+import { ProduitVarianteService } from "./produitVariante.service";
 
 import { generateUUID } from "../utils/uuid";
 import { generateSlug } from "../utils/slug";
@@ -394,7 +395,6 @@ export class ProduitService {
     static async findByUUIDActive(
         uuid: string
     ) {
-
         const produit =
             await ProduitRepository.findByUUID(uuid);
 
@@ -404,8 +404,18 @@ export class ProduitService {
             );
         }
 
-        return produitResponse(produit);
+        const response =
+            produitResponse(produit);
 
+        const variantes =
+            await ProduitVarianteService.findByProduitPublic(
+                uuid
+            );
+
+        return {
+            ...response,
+            variantes,
+        };
     }
 
     static async findAll() {

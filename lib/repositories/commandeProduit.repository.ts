@@ -10,6 +10,8 @@ export interface CommandeProduitRow extends RowDataPacket {
   id: number;
   commande_id: number;
   produit_id: number;
+  variante_id: number | null;
+  variante_nom: string | null;
   quantite: number;
   prix: number;
   promotion_id: number | null;
@@ -36,6 +38,10 @@ export class CommandeProduitRepository {
           cp.commande_id,
 
           cp.produit_id,
+
+          cp.variante_id,
+
+          cp.variante_nom,
 
           cp.quantite,
 
@@ -72,6 +78,8 @@ export class CommandeProduitRepository {
     data: {
       commande_id: number;
       produit_id: number;
+      variante_id?: number | null;
+      variante_nom?: string | null;
       quantite: number;
       prix: number;
       promotion_id?: number | null;
@@ -86,17 +94,27 @@ export class CommandeProduitRepository {
         (
           commande_id,
           produit_id,
+          variante_id,
+          variante_nom,
           quantite,
           prix,
           promotion_id
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [
           data.commande_id,
+
           data.produit_id,
+
+          data.variante_id ?? null,
+
+          data.variante_nom ?? null,
+
           data.quantite,
+
           data.prix,
+
           data.promotion_id ?? null
         ]
       );
@@ -108,6 +126,8 @@ export class CommandeProduitRepository {
     commande_id: number,
     produits: {
       produit_id: number;
+      variante_id?: number | null;
+      variante_nom?: string | null;
       quantite: number;
       prix: number;
       promotion_id?: number | null;
@@ -123,6 +143,12 @@ export class CommandeProduitRepository {
 
           produit_id:
             produit.produit_id,
+
+          variante_id:
+            produit.variante_id ?? null,
+
+          variante_nom:
+            produit.variante_nom ?? null,
 
           quantite:
             produit.quantite,

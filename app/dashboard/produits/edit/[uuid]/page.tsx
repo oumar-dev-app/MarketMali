@@ -15,6 +15,7 @@ import ProductForm, {
 } from "../../../composants/ProductForm";
 
 import { useAuth } from "@/contexts/AuthContext";
+import ProductVariantsManager from "@/app/dashboard/composants/ProductVariantsManager";
 
 export default function EditProduitPage() {
     const params = useParams();
@@ -168,7 +169,7 @@ export default function EditProduitPage() {
                     <div className="mt-2 h-4 w-80 animate-pulse rounded bg-gray-100" />
                 </div>
 
-                <div className="h-[600px] animate-pulse rounded-2xl bg-gray-100" />
+                <div className="h-150 animate-pulse rounded-2xl bg-gray-100" />
             </div>
         );
     }
@@ -217,8 +218,8 @@ export default function EditProduitPage() {
     return (
         <div className="space-y-6">
             {/* ============================================================
-    HEADER MARKETMALI
-============================================================ */}
+                HEADER MARKETMALI
+                ============================================================ */}
 
             <section className="relative mb-8 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
 
@@ -260,7 +261,7 @@ export default function EditProduitPage() {
             h-40
             w-40
             rounded-full
-            bg-[#ce1126]/[0.025]
+            bg-[#ce1126]/2.5
         "
                 />
 
@@ -352,6 +353,12 @@ export default function EditProduitPage() {
                 loading={loading}
                 onSubmit={modifierProduit}
             />
+
+            {produit && (
+                <ProductVariantsManager
+                    productUuid={uuid}
+                />
+            )}
         </div>
     );
 }

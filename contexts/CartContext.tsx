@@ -18,6 +18,11 @@ export type CartItem = {
   quantity: number;
   stock: number;
 
+  // Variante
+  variante_id?: number | null;
+  variante_uuid?: string | null;
+  variante_nom?: string | null;
+
   // Promotion
   promotion_uuid?: string | null;
   promotion_type?: "percentage" | "special_price" | null;
@@ -35,11 +40,11 @@ type CartContextType = {
     quantity?: number
   ) => boolean;
 
-  removeFromCart: (uuid: string) => void;
+  removeFromCart: (cartKey: string) => void;
 
-  increaseQuantity: (uuid: string) => void;
+  increaseQuantity: (cartKey: string) => void;
 
-  decreaseQuantity: (uuid: string) => void;
+  decreaseQuantity: (cartKey: string) => void;
 
   clearCart: () => void;
 };
@@ -48,6 +53,26 @@ const CartContext =
   createContext<CartContextType | undefined>(
     undefined
   );
+
+/**
+ * Identifie une ligne du panier.
+ *
+ * Un même produit peut avoir plusieurs variantes :
+ *
+ * produit + Rouge
+ * produit + Bleu
+ * produit sans variante
+ *
+ * doivent donc être trois lignes différentes.
+ */
+export function getCartItemKey(
+  item: Pick<
+    CartItem,
+    "uuid" | "variante_id"
+  >
+): string {
+  return `${item.uuid}::${item.variante_id ?? "none"}`;
+}
 
 export function CartProvider({
   children,
@@ -77,16 +102,37 @@ export function CartProvider({
         parsed.map((item) => ({
           ...item,
 
+          variante_id:
+            item.variante_id !==
+              null &&
+            item.variante_id !==
+              undefined
+              ? Number(
+                  item.variante_id
+                )
+              : null,
+
+          variante_uuid:
+            item.variante_uuid ??
+            null,
+
+          variante_nom:
+            item.variante_nom ??
+            null,
+
           stock:
-            typeof item.stock === "number"
+            typeof item.stock ===
+            "number"
               ? item.stock
               : 999999,
 
           promotion_uuid:
-            item.promotion_uuid ?? null,
+            item.promotion_uuid ??
+            null,
 
           promotion_type:
-            item.promotion_type ?? null,
+            item.promotion_type ??
+            null,
 
           promotion_reduction_pourcentage:
             item.promotion_reduction_pourcentage !==
@@ -146,9 +192,14 @@ export function CartProvider({
       Math.floor(quantity)
     );
 
+    const itemKey =
+      getCartItemKey(item);
+
     setItems((old) => {
       const existing = old.find(
-        (p) => p.uuid === item.uuid
+        (p) =>
+          getCartItemKey(p) ===
+          itemKey
       );
 
       if (existing) {
@@ -160,11 +211,29 @@ export function CartProvider({
           );
 
         return old.map((p) =>
-          p.uuid === item.uuid
+          getCartItemKey(p) ===
+          itemKey
             ? {
                 ...p,
-                quantity: newQuantity,
-                stock: item.stock,
+                quantity:
+                  newQuantity,
+                stock:
+                  item.stock,
+
+                image:
+                  item.image,
+
+                variante_id:
+                  item.variante_id ??
+                  null,
+
+                variante_uuid:
+                  item.variante_uuid ??
+                  null,
+
+                variante_nom:
+                  item.variante_nom ??
+                  null,
 
                 promotion_uuid:
                   item.promotion_uuid ??
@@ -190,10 +259,24 @@ export function CartProvider({
         ...old,
         {
           ...item,
-          quantity: Math.min(
-            quantityToAdd,
-            item.stock
-          ),
+
+          variante_id:
+            item.variante_id ??
+            null,
+
+          variante_uuid:
+            item.variante_uuid ??
+            null,
+
+          variante_nom:
+            item.variante_nom ??
+            null,
+
+          quantity:
+            Math.min(
+              quantityToAdd,
+              item.stock
+            ),
         },
       ];
     });
@@ -202,22 +285,26 @@ export function CartProvider({
   }
 
   function removeFromCart(
-    uuid: string
+    cartKey: string
   ) {
     setItems((old) =>
       old.filter(
         (item) =>
-          item.uuid !== uuid
+          getCartItemKey(item) !==
+          cartKey
       )
     );
   }
 
   function increaseQuantity(
-    uuid: string
+    cartKey: string
   ) {
     setItems((old) =>
       old.map((item) => {
-        if (item.uuid !== uuid) {
+        if (
+          getCartItemKey(item) !==
+          cartKey
+        ) {
           return item;
         }
 
@@ -238,12 +325,13 @@ export function CartProvider({
   }
 
   function decreaseQuantity(
-    uuid: string
+    cartKey: string
   ) {
     setItems((old) =>
       old
         .map((item) =>
-          item.uuid === uuid
+          getCartItemKey(item) ===
+          cartKey
             ? {
                 ...item,
                 quantity:
@@ -331,14 +419,13 @@ export function CartProvider({
     return prix;
   }
 
-  const total =
-    items.reduce(
-      (sum, item) =>
-        sum +
-        getPrixFinal(item) *
-          item.quantity,
-      0
-    );
+  const total = items.reduce(
+    (sum, item) =>
+      sum +
+      getPrixFinal(item) *
+        item.quantity,
+    0
+  );
 
   return (
     <CartContext.Provider
@@ -359,13 +446,11 @@ export function CartProvider({
 
 export function useCart() {
   const context =
-    useContext(
-      CartContext
-    );
+    useContext(CartContext);
 
   if (!context) {
     throw new Error(
-      "useCart doit être utilisé dans CartProvider"
+      "useCart doit être utilisé dans un CartProvider"
     );
   }
 

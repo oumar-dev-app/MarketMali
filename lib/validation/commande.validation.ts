@@ -14,6 +14,13 @@ export const createCommandeSchema = z.object({
           .int()
           .positive(),
 
+        variante_id: z
+          .number()
+          .int()
+          .positive()
+          .nullable()
+          .optional(),
+
         quantite: z
           .number()
           .int()

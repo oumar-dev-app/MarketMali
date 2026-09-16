@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Minus,
   Plus,
@@ -8,6 +8,14 @@ import {
 } from "lucide-react";
 
 import { useCart } from "@/contexts/CartContext";
+
+interface ProduitVariante {
+  id: number;
+  uuid: string;
+  nom: string;
+  stock: number;
+  image?: string | null;
+}
 
 interface Props {
   produit: {
@@ -18,6 +26,9 @@ interface Props {
     prix: string | number;
     image?: string | null;
     stock: number;
+
+    // Variante sélectionnée
+    variante?: ProduitVariante | null;
 
     // Promotion
     promotion_uuid?: string | null;
@@ -47,6 +58,54 @@ export default function AddToCartButton({
   const [message, setMessage] =
     useState("");
 
+  /**
+   * Stock réellement disponible.
+   *
+   * Si une variante est sélectionnée,
+   * son stock devient prioritaire.
+   */
+  const stockDisponible =
+    produit.variante
+      ? produit.variante.stock
+      : produit.stock;
+
+  /**
+   * Image réellement utilisée.
+   *
+   * La photo de la variante est prioritaire
+   * lorsqu'elle existe.
+   *
+   * Sinon on conserve la photo principale
+   * du produit.
+   */
+  const imageProduit =
+    produit.variante?.image ||
+    produit.image ||
+    null;
+
+  /**
+   * Si l'utilisateur change de variante
+   * avec une quantité trop élevée pour
+   * le nouveau stock, on la ramène à 1.
+   */
+  useEffect(() => {
+    setQuantity((value) => {
+      if (stockDisponible <= 0) {
+        return 1;
+      }
+
+      return Math.min(
+        value,
+        stockDisponible
+      );
+    });
+
+    setMessage("");
+  }, [
+    produit.variante?.id,
+    stockDisponible,
+  ]);
+
   function decrease() {
     setQuantity((value) =>
       Math.max(1, value - 1)
@@ -58,7 +117,7 @@ export default function AddToCartButton({
   function increase() {
     setQuantity((value) =>
       Math.min(
-        produit.stock,
+        stockDisponible,
         value + 1
       )
     );
@@ -67,6 +126,16 @@ export default function AddToCartButton({
   }
 
   function handleClick() {
+    if (stockDisponible <= 0) {
+      setMessage(
+        produit.variante
+          ? `La variante « ${produit.variante.nom} » est en rupture de stock.`
+          : "Ce produit est en rupture de stock."
+      );
+
+      return;
+    }
+
     const added = addToCart(
       {
         uuid: produit.uuid,
@@ -83,10 +152,23 @@ export default function AddToCartButton({
           Number(produit.prix),
 
         image:
-          produit.image,
+          imageProduit,
 
         stock:
-          produit.stock,
+          stockDisponible,
+
+        // Variante
+        variante_id:
+          produit.variante?.id ??
+          null,
+
+        variante_uuid:
+          produit.variante?.uuid ??
+          null,
+
+        variante_nom:
+          produit.variante?.nom ??
+          null,
 
         // Promotion
         promotion_uuid:
@@ -131,11 +213,18 @@ export default function AddToCartButton({
     setMessage(
       `${quantity} produit${
         quantity > 1 ? "s" : ""
+      }${
+        produit.variante
+          ? ` (${produit.variante.nom})`
+          : ""
       } ajouté${
         quantity > 1 ? "s" : ""
       } au panier.`
     );
   }
+
+  const rupture =
+    stockDisponible <= 0;
 
   return (
     <div className="w-full">
@@ -160,7 +249,10 @@ export default function AddToCartButton({
           <button
             type="button"
             onClick={decrease}
-            disabled={quantity <= 1}
+            disabled={
+              quantity <= 1 ||
+              rupture
+            }
             className="
               flex
               h-10
@@ -197,7 +289,9 @@ export default function AddToCartButton({
             type="button"
             onClick={increase}
             disabled={
-              quantity >= produit.stock
+              rupture ||
+              quantity >=
+                stockDisponible
             }
             className="
               flex
@@ -224,6 +318,7 @@ export default function AddToCartButton({
         <button
           type="button"
           onClick={handleClick}
+          disabled={rupture}
           className="
             flex
             h-14
@@ -244,6 +339,8 @@ export default function AddToCartButton({
             hover:bg-green-800
             hover:shadow-md
             active:scale-[0.99]
+            disabled:cursor-not-allowed
+            disabled:opacity-50
           "
         >
           <ShoppingCart
@@ -252,7 +349,9 @@ export default function AddToCartButton({
           />
 
           <span className="whitespace-nowrap">
-            Ajouter au panier
+            {rupture
+              ? "Rupture de stock"
+              : "Ajouter au panier"}
           </span>
         </button>
       </div>
@@ -260,14 +359,23 @@ export default function AddToCartButton({
       {/* STOCK */}
 
       <p className="mt-2 text-xs text-gray-500">
-        {produit.stock} unité
-        {produit.stock > 1
+        {stockDisponible} unité
+        {stockDisponible > 1
           ? "s"
           : ""}{" "}
         disponible
-        {produit.stock > 1
+        {stockDisponible > 1
           ? "s"
           : ""}
+        {produit.variante && (
+          <>
+            {" · "}
+            Variante :{" "}
+            <span className="font-semibold text-gray-700">
+              {produit.variante.nom}
+            </span>
+          </>
+        )}
       </p>
 
       {/* MESSAGE */}
