@@ -3,6 +3,9 @@ import { BoutiqueRepository } from "../repositories/boutique.repository";
 import { CategorieRepository } from "../repositories/categorie.repository";
 import { ProduitVarianteService } from "./produitVariante.service";
 
+import { BoutiqueAbonnementRepository } from "../repositories/boutiqueAbonnement.repository";
+import { NotificationService } from "./notification.service";
+
 import { generateUUID } from "../utils/uuid";
 import { generateSlug } from "../utils/slug";
 
@@ -30,21 +33,16 @@ export class ProduitService {
         user_id: number,
         role: string
     ) {
-
         const boutique =
             await BoutiqueRepository.findByUserId(
                 user_id
             );
-
-
         if (!boutique) {
 
             throw new NotFoundError(
                 "Boutique introuvable."
             );
-
         }
-
 
         if (
             role !== "admin" &&
@@ -55,31 +53,25 @@ export class ProduitService {
             throw new ForbiddenError(
                 "Vous n'avez pas accès à cette boutique."
             );
-
         }
-
 
         const categorie =
             await CategorieRepository.findById(
                 data.categorie_id
             );
 
-
         if (!categorie) {
 
             throw new NotFoundError(
                 "Catégorie introuvable."
             );
-
         }
-
 
         if (categorie.status !== "active") {
             throw new ForbiddenError(
                 "Cette catégorie n'est pas disponible."
             );
         }
-
 
         let slug =
             generateSlug(data.nom);
@@ -151,6 +143,31 @@ export class ProduitService {
         }
 
 
+        // Notifier les clients qui suivent cette boutique
+        const subscriberIds =
+            await BoutiqueAbonnementRepository.findUserIdsByBoutique(
+                boutique.id
+            );
+
+
+        if (subscriberIds.length > 0) {
+
+            await Promise.all(
+                subscriberIds.map(
+                    (subscriberId) =>
+                        NotificationService.create({
+                            user_id: subscriberId,
+                            commande_id: null,
+                            produit_id: produit.id,
+                            type: "new_product",
+                            titre: "🛍️ Nouveau produit",
+                            message:
+                                `${boutique.nom} vient d'ajouter « ${produit.nom} ».`,
+                        })
+                )
+            );
+
+        }
         return produitResponse(produit);
 
     }
@@ -454,20 +471,14 @@ export class ProduitService {
         user_id: number,
         role: string
     ) {
-
-
         const produit =
             await ProduitRepository.findByUUID(
                 uuid
             );
-
-
         if (!produit)
             throw new NotFoundError(
                 "Produit introuvable."
             );
-
-
 
         const boutique =
             await BoutiqueRepository.findById(
@@ -480,7 +491,6 @@ export class ProduitService {
             );
         }
 
-
         if (
             role !== "admin" &&
             role !== "super_admin" &&
@@ -490,14 +500,11 @@ export class ProduitService {
             throw new ForbiddenError(
                 "Vous n'avez pas accès."
             );
-
         }
-
 
         await ProduitRepository.block(
             produit.id
         );
-
 
         return {
             message:
@@ -511,7 +518,6 @@ export class ProduitService {
         user_id: number,
         role: string
     ) {
-
         const produit =
             await ProduitRepository.findByUUID(uuid);
 

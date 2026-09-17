@@ -51,6 +51,10 @@ interface Notification {
   lu: number;
   read_at: string | null;
   created_at: string;
+  produit_id: number | null;
+  produit_uuid: string | null;
+  produit_slug: string | null;
+  boutique_slug: string | null;
 }
 
 interface CommandeProduit {
@@ -239,48 +243,78 @@ export default function Navbar() {
      NORMALISER LES NOTIFICATIONS
   ============================================================ */
 
-  function normalizeNotifications(
-    data: any
-  ): Notification[] {
-    const list =
-      data?.notifications ??
-      data?.data?.notifications ??
-      data?.data ??
-      data;
+function normalizeNotifications(
+  data: any
+): Notification[] {
+  const list =
+    data?.notifications ??
+    data?.data?.notifications ??
+    data?.data ??
+    data;
 
-    if (!Array.isArray(list)) {
-      return [];
-    }
-
-    return list.map(
-      (notification: any) => ({
-        ...notification,
-
-        id: Number(
-          notification.id ?? 0
-        ),
-
-        user_id: Number(
-          notification.user_id ?? 0
-        ),
-
-        commande_id:
-          notification.commande_id !==
-            null &&
-            notification.commande_id !==
-            undefined
-            ? Number(
-              notification.commande_id
-            )
-            : null,
-
-        lu:
-          Number(notification.lu) === 1
-            ? 1
-            : 0,
-      })
-    );
+  if (!Array.isArray(list)) {
+    return [];
   }
+
+  return list.map(
+    (notification: any): Notification => ({
+      id: Number(
+        notification.id ?? 0
+      ),
+
+      uuid:
+        notification.uuid ?? "",
+
+      user_id: Number(
+        notification.user_id ?? 0
+      ),
+
+      commande_id:
+        notification.commande_id !== null &&
+        notification.commande_id !== undefined
+          ? Number(notification.commande_id)
+          : null,
+
+      commande_uuid:
+        notification.commande_uuid ?? null,
+
+      type:
+        notification.type ?? "",
+
+      titre:
+        notification.titre ?? "",
+
+      message:
+        notification.message ?? "",
+
+      lu:
+        Number(notification.lu) === 1
+          ? 1
+          : 0,
+
+      read_at:
+        notification.read_at ?? null,
+
+      created_at:
+        notification.created_at ?? "",
+
+      produit_id:
+        notification.produit_id !== null &&
+        notification.produit_id !== undefined
+          ? Number(notification.produit_id)
+          : null,
+
+      produit_uuid:
+        notification.produit_uuid ?? null,
+
+      produit_slug:
+        notification.produit_slug ?? null,
+
+      boutique_slug:
+        notification.boutique_slug ?? null,
+    })
+  );
+}
 
   /* ============================================================
      COMPTER LES NON LUES
@@ -738,42 +772,37 @@ export default function Navbar() {
      ACTION NOTIFICATION
   ============================================================ */
 
-  function getNotificationAction(
-    notification: Notification
-  ): NotificationAction | null {
-    if (
-      notification.commande_uuid
-    ) {
-      return {
-        label:
-          "Voir les détails de la commande",
-
-        href:
-          `/commandes/${notification.commande_uuid}`,
-
-        icon:
-          <Package size={16} />,
-      };
-    }
-
-    if (
-      notification.type ===
-      "role_request"
-    ) {
-      return {
-        label:
-          "Voir ma demande",
-
-        href:
-          "/demande-role",
-
-        icon:
-          <ChevronRight size={16} />,
-      };
-    }
-
-    return null;
+function getNotificationAction(
+  notification: Notification
+): NotificationAction | null {
+  if (notification.commande_uuid) {
+    return {
+      label: "Voir les détails de la commande",
+      href: `/commandes/${notification.commande_uuid}`,
+      icon: <Package size={16} />,
+    };
   }
+
+  if (notification.type === "new_product") {
+    if (notification.produit_uuid) {
+      return {
+        label: "Voir le produit",
+        href: `/produits/${notification.produit_uuid}`,
+        icon: <ShoppingBag size={16} />,
+      };
+    }
+  }
+
+  if (notification.type === "role_request") {
+    return {
+      label: "Voir ma demande",
+      href: "/demande-role",
+      icon: <ChevronRight size={16} />,
+    };
+  }
+
+  return null;
+}
 
   /* ============================================================
      MARQUER COMME LU

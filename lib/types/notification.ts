@@ -8,14 +8,22 @@ export type NotificationType =
   | "boutique_pending"
   | "boutique_activated"
   | "boutique_blocked"
-  | "delivery_assigned";
+  | "delivery_assigned"
+  | "new_product";
 
 export interface Notification {
   id: number;
   uuid: string;
   user_id: number;
+
   commande_id: number | null;
   commande_uuid: string | null;
+
+  produit_id: number | null;
+  produit_uuid: string | null;
+  produit_slug: string | null;
+  boutique_slug: string | null;
+
   type: string;
   titre: string;
   message: string;
@@ -27,7 +35,10 @@ export interface Notification {
 export interface NotificationCreate {
   uuid: string;
   user_id: number;
+
   commande_id?: number | null;
+  produit_id?: number | null;
+
   type: NotificationType;
   titre: string;
   message: string;
@@ -35,4 +46,4 @@ export interface NotificationCreate {
 
 export interface NotificationRow
   extends Notification,
-  RowDataPacket { }
+  RowDataPacket {}

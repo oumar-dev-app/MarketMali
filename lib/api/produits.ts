@@ -10,7 +10,7 @@ interface ProduitResponse<T> {
 export interface ProduitDetail
   extends Produit {
   boutique?: {
-    id: number;
+    uuid: string;
     nom: string;
     slug: string;
   } | null;
@@ -23,17 +23,17 @@ export interface ProduitDetail
 
   promotion_uuid?: string | null;
   promotion_type?:
-    | "percentage"
-    | "special_price"
-    | null;
+  | "percentage"
+  | "special_price"
+  | null;
   promotion_reduction_pourcentage?:
-    | string
-    | number
-    | null;
+  | string
+  | number
+  | null;
   promotion_prix_promotionnel?:
-    | string
-    | number
-    | null;
+  | string
+  | number
+  | null;
 
   variantes: ProduitVariante[];
 }

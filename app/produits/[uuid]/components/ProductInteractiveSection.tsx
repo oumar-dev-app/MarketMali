@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
+  Heart,
+  Loader2,
   MapPin,
   Package,
   Store,
@@ -12,6 +15,7 @@ import {
 import AddToCartButton from "@/components/AddToCartButton";
 import type { ProduitDetail } from "@/lib/api/produits";
 import type { ProduitVariante } from "@/lib/types/produit";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   produit: ProduitDetail;
@@ -26,6 +30,29 @@ export default function ProductInteractiveSection({
         ? produit.variantes[0].id
         : null
     );
+
+  const router = useRouter();
+
+  const {
+    user,
+    token,
+    loading: authLoading,
+  } = useAuth();
+
+  const [isFavorite, setIsFavorite] =
+    useState(false);
+
+  const [isFollowing, setIsFollowing] =
+    useState(false);
+
+  const [favoriteLoading, setFavoriteLoading] =
+    useState(false);
+
+  const [followLoading, setFollowLoading] =
+    useState(false);
+
+  const [socialStatusLoading, setSocialStatusLoading] =
+    useState(false);
 
   const selectedVariante = useMemo<ProduitVariante | null>(
     () => {
@@ -45,6 +72,209 @@ export default function ProductInteractiveSection({
       selectedVarianteId,
     ]
   );
+
+  useEffect(() => {
+    if (
+      authLoading ||
+      !token ||
+      !user ||
+      user.role !== "client"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadSocialStatuses() {
+      setSocialStatusLoading(true);
+
+      try {
+        const favoriteResponse =
+          await fetch(
+            `/api/favoris/${encodeURIComponent(produit.uuid)}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+        if (favoriteResponse.ok) {
+          const favoriteData =
+            await favoriteResponse.json();
+
+          if (!cancelled) {
+            setIsFavorite(
+              Boolean(
+                favoriteData?.data?.favorite
+              )
+            );
+          }
+        }
+
+        if (produit.boutique?.uuid) {
+          const followResponse =
+            await fetch(
+              `/api/boutiques/${encodeURIComponent(
+                produit.boutique.uuid
+              )}/abonnement`,
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+
+          if (followResponse.ok) {
+            const followData =
+              await followResponse.json();
+
+            if (!cancelled) {
+              setIsFollowing(
+                Boolean(
+                  followData?.data?.following
+                )
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement des statuts sociaux :",
+          error
+        );
+      } finally {
+        if (!cancelled) {
+          setSocialStatusLoading(false);
+        }
+      }
+    }
+
+    loadSocialStatuses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authLoading,
+    token,
+    user,
+    produit.uuid,
+    produit.boutique?.uuid,
+  ]);
+
+  async function handleFavorite() {
+    if (!user || user.role !== "client" || !token) {
+      router.push("/login");
+      return;
+    }
+
+    setFavoriteLoading(true);
+
+    try {
+      if (isFavorite) {
+        const response = await fetch(
+          `/api/favoris/${encodeURIComponent(produit.uuid)}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Impossible de retirer le produit des favoris."
+          );
+        }
+
+        setIsFavorite(false);
+      } else {
+        const response = await fetch(
+          "/api/favoris",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              produit_uuid: produit.uuid,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            "Impossible d'ajouter le produit aux favoris."
+          );
+        }
+
+        setIsFavorite(true);
+      }
+    } catch (error) {
+      console.error(
+        "Erreur favori :",
+        error
+      );
+    } finally {
+      setFavoriteLoading(false);
+    }
+  }
+
+  async function handleFollowBoutique() {
+    if (!produit.boutique?.uuid) {
+      return;
+    }
+
+    if (
+      !user ||
+      user.role !== "client" ||
+      !token
+    ) {
+      router.push("/login");
+      return;
+    }
+
+    setFollowLoading(true);
+
+    try {
+      const method =
+        isFollowing ? "DELETE" : "POST";
+
+      const response = await fetch(
+        `/api/boutiques/${encodeURIComponent(
+          produit.boutique.uuid
+        )}/abonnement`,
+        {
+          method,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          isFollowing
+            ? "Impossible de ne plus suivre cette boutique."
+            : "Impossible de suivre cette boutique."
+        );
+      }
+
+      setIsFollowing(!isFollowing);
+    } catch (error) {
+      console.error(
+        "Erreur abonnement boutique :",
+        error
+      );
+    } finally {
+      setFollowLoading(false);
+    }
+  }
 
   /*
    * Photos de la variante sélectionnée uniquement.
@@ -254,6 +484,62 @@ export default function ProductInteractiveSection({
 
       {/* INFORMATIONS INTERACTIVES */}
       <div className="flex flex-col">
+
+        {/* FAVORI */}
+        <div className="mb-6 flex justify-end">
+          <button
+            type="button"
+            onClick={handleFavorite}
+            disabled={
+              favoriteLoading ||
+              socialStatusLoading
+            }
+            aria-label={
+              isFavorite
+                ? "Retirer des favoris"
+                : "Ajouter aux favoris"
+            }
+            className={`
+              inline-flex
+              items-center
+              gap-2
+              rounded-xl
+              border
+              px-4
+              py-2.5
+              text-sm
+              font-semibold
+              transition
+              disabled:cursor-not-allowed
+              disabled:opacity-60
+              ${isFavorite
+                ? "border-red-200 bg-red-50 text-red-600"
+                : "border-gray-200 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              }
+            `}
+          >
+            {favoriteLoading ||
+              socialStatusLoading ? (
+              <Loader2
+                size={18}
+                className="animate-spin"
+              />
+            ) : (
+              <Heart
+                size={18}
+                fill={
+                  isFavorite
+                    ? "currentColor"
+                    : "none"
+                }
+              />
+            )}
+
+            {isFavorite
+              ? "Retirer des favoris"
+              : "Ajouter aux favoris"}
+          </button>
+        </div>
 
         {/* VARIANTES */}
         {produit.variantes.length > 0 && (
@@ -508,31 +794,86 @@ export default function ProductInteractiveSection({
                 p-4
               "
             >
-              <div className="flex items-center gap-3">
-                <div
-                  className="
-                    flex
-                    h-10
-                    w-10
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-yellow-50
-                    text-yellow-700
-                  "
-                >
-                  <Package size={19} />
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div
+                    className="
+                      flex
+                      h-10
+                      w-10
+                      shrink-0
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-yellow-50
+                      text-yellow-700
+                    "
+                  >
+                    <Store size={19} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500">
+                      Boutique
+                    </p>
+
+                    <p className="mt-0.5 truncate text-sm font-bold text-gray-900">
+                      {produit.boutique.nom}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-500">
-                    Boutique
-                  </p>
+                {user?.role === "client" ||
+                  !user ? (
+                  <button
+                    type="button"
+                    onClick={handleFollowBoutique}
+                    disabled={
+                      followLoading ||
+                      socialStatusLoading
+                    }
+                    className={`
+                      inline-flex
+                      shrink-0
+                      items-center
+                      gap-1.5
+                      rounded-xl
+                      border
+                      px-3
+                      py-2
+                      text-xs
+                      font-bold
+                      transition
+                      disabled:cursor-not-allowed
+                      disabled:opacity-60
+                      ${isFollowing
+                        ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-green-200 hover:bg-green-50 hover:text-green-700"
+                      }
+                    `}
+                  >
+                    {followLoading ||
+                      socialStatusLoading ? (
+                      <Loader2
+                        size={15}
+                        className="animate-spin"
+                      />
+                    ) : (
+                      <Heart
+                        size={15}
+                        fill={
+                          isFollowing
+                            ? "currentColor"
+                            : "none"
+                        }
+                      />
+                    )}
 
-                  <p className="mt-0.5 truncate text-sm font-bold text-gray-900">
-                    {produit.boutique.nom}
-                  </p>
-                </div>
+                    {isFollowing
+                      ? "Suivie"
+                      : "Suivre"}
+                  </button>
+                ) : null}
               </div>
             </div>
           )}

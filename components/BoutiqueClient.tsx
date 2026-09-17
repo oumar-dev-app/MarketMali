@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MapPin,
   Search,
@@ -11,9 +11,13 @@ import {
   CheckCircle2,
   ShoppingBag,
   ArrowRight,
+  Heart,
+  Loader2,
 } from "lucide-react";
 
 import ProductCard from "@/components/ProductCard";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Categorie {
   id: number;
@@ -63,6 +67,85 @@ export default function BoutiqueClient({
     useState<number | null>(null);
 
   const [recherche, setRecherche] = useState("");
+  const router = useRouter();
+
+  const {
+    user,
+    token,
+    loading: authLoading,
+  } = useAuth();
+
+  const [isFollowing, setIsFollowing] =
+    useState(false);
+
+  const [followLoading, setFollowLoading] =
+    useState(false);
+
+  const [followStatusLoading, setFollowStatusLoading] =
+    useState(false);
+
+  useEffect(() => {
+    if (
+      authLoading ||
+      !token ||
+      !user ||
+      user.role !== "client"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadFollowStatus() {
+      setFollowStatusLoading(true);
+
+      try {
+        const response = await fetch(
+          `/api/boutiques/${encodeURIComponent(
+            boutique.uuid
+          )}/abonnement`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          setIsFollowing(
+            Boolean(data?.data?.following)
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors du chargement du statut de suivi :",
+          error
+        );
+      } finally {
+        if (!cancelled) {
+          setFollowStatusLoading(false);
+        }
+      }
+    }
+
+    loadFollowStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authLoading,
+    token,
+    user,
+    boutique.uuid,
+  ]);
 
   const produitsFiltres = useMemo(() => {
     const terme = recherche.trim().toLowerCase();
@@ -87,6 +170,49 @@ export default function BoutiqueClient({
     categorieActive,
     recherche,
   ]);
+
+  async function handleFollowBoutique() {
+    if (!user || user.role !== "client" || !token) {
+      router.push("/login");
+      return;
+    }
+
+    setFollowLoading(true);
+
+    try {
+      const method =
+        isFollowing ? "DELETE" : "POST";
+
+      const response = await fetch(
+        `/api/boutiques/${encodeURIComponent(
+          boutique.uuid
+        )}/abonnement`,
+        {
+          method,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          isFollowing
+            ? "Impossible de ne plus suivre cette boutique."
+            : "Impossible de suivre cette boutique."
+        );
+      }
+
+      setIsFollowing(!isFollowing);
+    } catch (error) {
+      console.error(
+        "Erreur abonnement boutique :",
+        error
+      );
+    } finally {
+      setFollowLoading(false);
+    }
+  }
 
   function reinitialiserFiltres() {
     setCategorieActive(null);
@@ -236,6 +362,61 @@ export default function BoutiqueClient({
                           />
                           Vérifiée
                         </span>
+                      )}
+
+                      {/* SUIVRE LA BOUTIQUE */}
+                      {(!user || user.role === "client") && (
+                        <button
+                          type="button"
+                          onClick={handleFollowBoutique}
+                          disabled={followLoading || followStatusLoading}
+                          aria-label={
+                            isFollowing
+                              ? "Ne plus suivre cette boutique"
+                              : "Suivre la boutique"
+                          }
+                          className={`
+  inline-flex
+  shrink-0
+  items-center
+  gap-2
+  rounded-xl
+  border
+  px-3.5
+  py-2
+  text-xs
+  font-bold
+  transition-all
+  active:scale-95
+  disabled:cursor-not-allowed
+  disabled:opacity-60
+  ${isFollowing
+                              ? "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                              : "border-gray-200 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50"
+                            }
+`}
+                        >
+                          {followLoading || followStatusLoading ? (
+                            <Loader2
+                              size={15}
+                              className="animate-spin"
+                            />
+                          ) : (
+                            <Heart
+                              size={15}
+                              className={
+                                isFollowing
+                                  ? "text-red-500"
+                                  : "text-gray-500"
+                              }
+                              fill={isFollowing ? "currentColor" : "none"}
+                            />
+                          )}
+
+                          {isFollowing
+                            ? "Boutique suivie"
+                            : "Suivre la boutique"}
+                        </button>
                       )}
                     </div>
 

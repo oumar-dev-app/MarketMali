@@ -12,65 +12,84 @@ import {
 
 export class NotificationRepository {
 
-  static async create(
-    data: NotificationCreate
-  ): Promise<number> {
+static async create(
+  data: NotificationCreate
+): Promise<number> {
 
-    const [result] =
-      await db.execute<ResultSetHeader>(
-        `
-        INSERT INTO notifications
-        (
-          uuid,
-          user_id,
-          commande_id,
-          type,
-          titre,
-          message
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
-        `,
-        [
-          data.uuid,
-          data.user_id,
-          data.commande_id ?? null,
-          data.type,
-          data.titre,
-          data.message,
-        ]
-      );
+  const [result] =
+    await db.execute<ResultSetHeader>(
+      `
+      INSERT INTO notifications
+      (
+        uuid,
+        user_id,
+        commande_id,
+        produit_id,
+        type,
+        titre,
+        message
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        data.uuid,
+        data.user_id,
+        data.commande_id ?? null,
+        data.produit_id ?? null,
+        data.type,
+        data.titre,
+        data.message,
+      ]
+    );
 
-    return result.insertId;
-  }
+  return result.insertId;
+}
 
-  static async findByUserId(
-    user_id: number,
-    limit: number = 20,
-    offset: number = 0
-  ): Promise<Notification[]> {
+static async findByUserId(
+  user_id: number,
+  limit: number = 20,
+  offset: number = 0
+): Promise<Notification[]> {
 
-    const [rows] =
-      await db.query<NotificationRow[]>(
-        `
-    SELECT
-      n.*,
-      c.uuid AS commande_uuid
-    FROM notifications n
-    LEFT JOIN commandes c
-      ON c.id = n.commande_id
-    WHERE n.user_id = ?
-    ORDER BY n.created_at DESC
-    LIMIT ? OFFSET ?
-    `,
-        [
-          user_id,
-          limit,
-          offset,
-        ]
-      );
+  const [rows] =
+    await db.query<NotificationRow[]>(
+      `
+      SELECT
+        n.*,
 
-    return rows;
-  }
+        c.uuid AS commande_uuid,
+
+        p.uuid AS produit_uuid,
+        p.slug AS produit_slug,
+
+        b.slug AS boutique_slug
+
+      FROM notifications n
+
+      LEFT JOIN commandes c
+        ON c.id = n.commande_id
+
+      LEFT JOIN produits p
+        ON p.id = n.produit_id
+
+      LEFT JOIN boutiques b
+        ON b.id = p.boutique_id
+
+      WHERE n.user_id = ?
+
+      ORDER BY n.created_at DESC
+
+      LIMIT ? OFFSET ?
+      `,
+      [
+        user_id,
+        limit,
+        offset,
+      ]
+    );
+
+  return rows;
+}
   
 
   static async countUnread(
