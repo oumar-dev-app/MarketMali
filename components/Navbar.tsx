@@ -22,6 +22,7 @@ import {
   Phone,
   Car,
   Tag,
+  Heart,
 } from "lucide-react";
 
 import {
@@ -243,78 +244,78 @@ export default function Navbar() {
      NORMALISER LES NOTIFICATIONS
   ============================================================ */
 
-function normalizeNotifications(
-  data: any
-): Notification[] {
-  const list =
-    data?.notifications ??
-    data?.data?.notifications ??
-    data?.data ??
-    data;
+  function normalizeNotifications(
+    data: any
+  ): Notification[] {
+    const list =
+      data?.notifications ??
+      data?.data?.notifications ??
+      data?.data ??
+      data;
 
-  if (!Array.isArray(list)) {
-    return [];
+    if (!Array.isArray(list)) {
+      return [];
+    }
+
+    return list.map(
+      (notification: any): Notification => ({
+        id: Number(
+          notification.id ?? 0
+        ),
+
+        uuid:
+          notification.uuid ?? "",
+
+        user_id: Number(
+          notification.user_id ?? 0
+        ),
+
+        commande_id:
+          notification.commande_id !== null &&
+            notification.commande_id !== undefined
+            ? Number(notification.commande_id)
+            : null,
+
+        commande_uuid:
+          notification.commande_uuid ?? null,
+
+        type:
+          notification.type ?? "",
+
+        titre:
+          notification.titre ?? "",
+
+        message:
+          notification.message ?? "",
+
+        lu:
+          Number(notification.lu) === 1
+            ? 1
+            : 0,
+
+        read_at:
+          notification.read_at ?? null,
+
+        created_at:
+          notification.created_at ?? "",
+
+        produit_id:
+          notification.produit_id !== null &&
+            notification.produit_id !== undefined
+            ? Number(notification.produit_id)
+            : null,
+
+        produit_uuid:
+          notification.produit_uuid ?? null,
+
+        produit_slug:
+          notification.produit_slug ?? null,
+
+        boutique_slug:
+          notification.boutique_slug ?? null,
+      })
+    );
   }
-
-  return list.map(
-    (notification: any): Notification => ({
-      id: Number(
-        notification.id ?? 0
-      ),
-
-      uuid:
-        notification.uuid ?? "",
-
-      user_id: Number(
-        notification.user_id ?? 0
-      ),
-
-      commande_id:
-        notification.commande_id !== null &&
-        notification.commande_id !== undefined
-          ? Number(notification.commande_id)
-          : null,
-
-      commande_uuid:
-        notification.commande_uuid ?? null,
-
-      type:
-        notification.type ?? "",
-
-      titre:
-        notification.titre ?? "",
-
-      message:
-        notification.message ?? "",
-
-      lu:
-        Number(notification.lu) === 1
-          ? 1
-          : 0,
-
-      read_at:
-        notification.read_at ?? null,
-
-      created_at:
-        notification.created_at ?? "",
-
-      produit_id:
-        notification.produit_id !== null &&
-        notification.produit_id !== undefined
-          ? Number(notification.produit_id)
-          : null,
-
-      produit_uuid:
-        notification.produit_uuid ?? null,
-
-      produit_slug:
-        notification.produit_slug ?? null,
-
-      boutique_slug:
-        notification.boutique_slug ?? null,
-    })
-  );
-}
 
   /* ============================================================
      COMPTER LES NON LUES
@@ -772,37 +773,37 @@ function normalizeNotifications(
      ACTION NOTIFICATION
   ============================================================ */
 
-function getNotificationAction(
-  notification: Notification
-): NotificationAction | null {
-  if (notification.commande_uuid) {
-    return {
-      label: "Voir les détails de la commande",
-      href: `/commandes/${notification.commande_uuid}`,
-      icon: <Package size={16} />,
-    };
-  }
-
-  if (notification.type === "new_product") {
-    if (notification.produit_uuid) {
+  function getNotificationAction(
+    notification: Notification
+  ): NotificationAction | null {
+    if (notification.commande_uuid) {
       return {
-        label: "Voir le produit",
-        href: `/produits/${notification.produit_uuid}`,
-        icon: <ShoppingBag size={16} />,
+        label: "Voir les détails de la commande",
+        href: `/commandes/${notification.commande_uuid}`,
+        icon: <Package size={16} />,
       };
     }
-  }
 
-  if (notification.type === "role_request") {
-    return {
-      label: "Voir ma demande",
-      href: "/demande-role",
-      icon: <ChevronRight size={16} />,
-    };
-  }
+    if (notification.type === "new_product") {
+      if (notification.produit_uuid) {
+        return {
+          label: "Voir le produit",
+          href: `/produits/${notification.produit_uuid}`,
+          icon: <ShoppingBag size={16} />,
+        };
+      }
+    }
 
-  return null;
-}
+    if (notification.type === "role_request") {
+      return {
+        label: "Voir ma demande",
+        href: "/demande-role",
+        icon: <ChevronRight size={16} />,
+      };
+    }
+
+    return null;
+  }
 
   /* ============================================================
      MARQUER COMME LU
@@ -1766,6 +1767,22 @@ function getNotificationAction(
 
                         Mes commandes
                       </Link>
+
+                      {user.role === "client" && (
+                        <Link
+                          href="/favoris"
+                          onClick={() =>
+                            setProfileMenuOpen(false)
+                          }
+                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-700 transition hover:bg-gray-50"
+                        >
+                          <Heart
+                            size={16}
+                          />
+
+                          Mes favoris
+                        </Link>
+                      )}
 
                       <button
                         type="button"

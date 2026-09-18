@@ -100,20 +100,75 @@ export class FavoriRepository {
 
   static async findAllByUser(
     userId: number
-  ): Promise<FavoriRow[]> {
-    const [rows] = await db.query<FavoriRow[]>(
+  ): Promise<
+    Array<
+      FavoriRow & {
+        produit_uuid: string;
+        produit_nom: string;
+        produit_slug: string;
+        produit_prix: string;
+        produit_image: string | null;
+        produit_stock: number;
+        produit_status: string;
+        boutique_id: number;
+        boutique_nom: string;
+        boutique_slug: string;
+      }
+    >
+  > {
+    const [rows] = await db.query<
+      Array<
+        FavoriRow & {
+          produit_uuid: string;
+          produit_nom: string;
+          produit_slug: string;
+          produit_prix: string;
+          produit_image: string | null;
+          produit_stock: number;
+          produit_status: string;
+          boutique_id: number;
+          boutique_nom: string;
+          boutique_slug: string;
+        }
+      >
+    >(
       `
-      SELECT *
-      FROM favoris
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      `,
+    SELECT
+      f.id,
+      f.uuid,
+      f.user_id,
+      f.produit_id,
+      f.created_at,
+
+      p.uuid AS produit_uuid,
+      p.nom AS produit_nom,
+      p.slug AS produit_slug,
+      p.prix AS produit_prix,
+      p.image AS produit_image,
+      p.stock AS produit_stock,
+      p.status AS produit_status,
+
+      b.id AS boutique_id,
+      b.nom AS boutique_nom,
+      b.slug AS boutique_slug
+
+    FROM favoris f
+
+    INNER JOIN produits p
+      ON p.id = f.produit_id
+
+    INNER JOIN boutiques b
+      ON b.id = p.boutique_id
+
+    WHERE f.user_id = ?
+
+    ORDER BY f.created_at DESC
+    `,
       [userId]
     );
 
     return rows;
   }
-
   static async countByProduit(produitId: number): Promise<number> {
     const [rows] = await db.query<
       Array<RowDataPacket & { total: number }>

@@ -16,6 +16,8 @@ import AddToCartButton from "@/components/AddToCartButton";
 import type { ProduitDetail } from "@/lib/api/produits";
 import type { ProduitVariante } from "@/lib/types/produit";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+
 
 interface Props {
   produit: ProduitDetail;
@@ -165,92 +167,20 @@ export default function ProductInteractiveSection({
     produit.boutique?.uuid,
   ]);
 
-  async function handleFavorite() {
-    if (!user || user.role !== "client" || !token) {
-      router.push("/login");
-      return;
-    }
-
-    setFavoriteLoading(true);
-
-    try {
-      if (isFavorite) {
-        const response = await fetch(
-          `/api/favoris/${encodeURIComponent(produit.uuid)}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            "Impossible de retirer le produit des favoris."
-          );
-        }
-
-        setIsFavorite(false);
-      } else {
-        const response = await fetch(
-          "/api/favoris",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              produit_uuid: produit.uuid,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            "Impossible d'ajouter le produit aux favoris."
-          );
-        }
-
-        setIsFavorite(true);
-      }
-    } catch (error) {
-      console.error(
-        "Erreur favori :",
-        error
-      );
-    } finally {
-      setFavoriteLoading(false);
-    }
+async function handleFavorite() {
+  if (!user || user.role !== "client" || !token) {
+    router.push("/login");
+    return;
   }
 
-  async function handleFollowBoutique() {
-    if (!produit.boutique?.uuid) {
-      return;
-    }
+  setFavoriteLoading(true);
 
-    if (
-      !user ||
-      user.role !== "client" ||
-      !token
-    ) {
-      router.push("/login");
-      return;
-    }
-
-    setFollowLoading(true);
-
-    try {
-      const method =
-        isFollowing ? "DELETE" : "POST";
-
+  try {
+    if (isFavorite) {
       const response = await fetch(
-        `/api/boutiques/${encodeURIComponent(
-          produit.boutique.uuid
-        )}/abonnement`,
+        `/api/favoris/${encodeURIComponent(produit.uuid)}`,
         {
-          method,
+          method: "DELETE",
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -259,22 +189,127 @@ export default function ProductInteractiveSection({
 
       if (!response.ok) {
         throw new Error(
-          isFollowing
-            ? "Impossible de ne plus suivre cette boutique."
-            : "Impossible de suivre cette boutique."
+          "Impossible de retirer le produit des favoris."
         );
       }
 
-      setIsFollowing(!isFollowing);
-    } catch (error) {
-      console.error(
-        "Erreur abonnement boutique :",
-        error
+      setIsFavorite(false);
+
+      toast.success("Favori retiré", {
+        description: `« ${produit.nom} » a été retiré de vos favoris.`,
+      });
+    } else {
+      const response = await fetch(
+        "/api/favoris",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            produit_uuid: produit.uuid,
+          }),
+        }
       );
-    } finally {
-      setFollowLoading(false);
+
+      if (!response.ok) {
+        throw new Error(
+          "Impossible d'ajouter le produit aux favoris."
+        );
+      }
+
+      setIsFavorite(true);
+
+      toast.success("Favori ajouté", {
+        description: `« ${produit.nom} » a été ajouté à vos favoris.`,
+      });
     }
+  } catch (error) {
+    console.error(
+      "Erreur favori :",
+      error
+    );
+
+    toast.error("Erreur", {
+      description:
+        isFavorite
+          ? "Impossible de retirer ce produit des favoris."
+          : "Impossible d'ajouter ce produit aux favoris.",
+    });
+  } finally {
+    setFavoriteLoading(false);
   }
+}
+
+ async function handleFollowBoutique() {
+  if (!produit.boutique?.uuid) {
+    return;
+  }
+
+  if (
+    !user ||
+    user.role !== "client" ||
+    !token
+  ) {
+    router.push("/login");
+    return;
+  }
+
+  setFollowLoading(true);
+
+  const wasFollowing = isFollowing;
+
+  try {
+    const method =
+      wasFollowing ? "DELETE" : "POST";
+
+    const response = await fetch(
+      `/api/boutiques/${encodeURIComponent(
+        produit.boutique.uuid
+      )}/abonnement`,
+      {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        wasFollowing
+          ? "Impossible de ne plus suivre cette boutique."
+          : "Impossible de suivre cette boutique."
+      );
+    }
+
+    setIsFollowing(!wasFollowing);
+
+    if (wasFollowing) {
+      toast.success("Abonnement retiré", {
+        description: `Vous ne suivez plus « ${produit.boutique.nom} ».`,
+      });
+    } else {
+      toast.success("Boutique suivie", {
+        description: `Vous suivez maintenant « ${produit.boutique.nom} ».`,
+      });
+    }
+  } catch (error) {
+    console.error(
+      "Erreur abonnement boutique :",
+      error
+    );
+
+    toast.error("Erreur", {
+      description: wasFollowing
+        ? "Impossible de ne plus suivre cette boutique."
+        : "Impossible de suivre cette boutique.",
+    });
+  } finally {
+    setFollowLoading(false);
+  }
+}
 
   /*
    * Photos de la variante sélectionnée uniquement.
