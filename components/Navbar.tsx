@@ -572,49 +572,42 @@ export default function Navbar() {
      POLLING 10 SECONDES
   ============================================================ */
 
-  useEffect(() => {
-    if (
-      !token ||
-      !user
-    ) {
-      setNotifications([]);
+useEffect(() => {
+  if (
+    !token ||
+    !user
+  ) {
+    setNotifications([]);
+    setUnreadCount(0);
+    previousUnreadCountRef.current = null;
+    return;
+  }
 
-      setUnreadCount(0);
+  fetchNotifications(false);
 
-      previousUnreadCountRef.current =
-        null;
-
-      return;
-    }
-
-    fetchNotifications(false);
-
-    const interval =
-      window.setInterval(() => {
-        fetchNotifications(true);
-      }, 10000);
-
-    function handleNotificationsRefresh() {
+  const interval =
+    window.setInterval(() => {
       fetchNotifications(true);
-    }
+    }, 10000);
 
-    window.addEventListener(
+  function handleNotificationsRefresh() {
+    fetchNotifications(false);
+  }
+
+  window.addEventListener(
+    "notifications:refresh",
+    handleNotificationsRefresh
+  );
+
+  return () => {
+    window.clearInterval(interval);
+
+    window.removeEventListener(
       "notifications:refresh",
       handleNotificationsRefresh
     );
-
-    return () => {
-      window.clearInterval(
-        interval
-      );
-
-      window.removeEventListener(
-        "notifications:refresh",
-        handleNotificationsRefresh
-      );
-    };
-  }, [token, user]);
-
+  };
+}, [token, user]);
   /* ============================================================
      CLICK EXTÉRIEUR
   ============================================================ */
