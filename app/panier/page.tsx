@@ -49,6 +49,12 @@ type PermissionState =
   | "prompt"
   | "unknown";
 
+type ModePaiement =
+  | "cash"
+  | "wave"
+  | "orange_money"
+  | "moov_money";
+
 export default function PagePanier() {
   const router = useRouter();
 
@@ -112,6 +118,9 @@ export default function PagePanier() {
 
   const [adresseLivraison, setAdresseLivraison] =
     useState("");
+
+  const [modePaiement, setModePaiement] =
+    useState<ModePaiement | "">("");
 
   const localisationAutomatique =
     useRef(false);
@@ -938,6 +947,8 @@ export default function PagePanier() {
         const data =
           await response.json();
 
+        console.log("RÉPONSE COMMANDE :", data);
+
         if (
           !response.ok ||
           !data.success
@@ -1071,6 +1082,14 @@ export default function PagePanier() {
       return;
     }
 
+    if (!modePaiement) {
+      alert(
+        "Veuillez sélectionner un mode de paiement."
+      );
+
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -1107,6 +1126,10 @@ export default function PagePanier() {
                       item.quantity,
                   })
                 ),
+
+              mode_paiement:
+                modePaiement,
+
               zone_livraison:
                 zoneLivraison,
 
@@ -1136,11 +1159,57 @@ export default function PagePanier() {
         );
       }
 
+      const paiement =
+        data.data?.paiement;
+
+      if (
+        paiement &&
+        paiement.methode !== "cash"
+      ) {
+        const paiementResponse =
+          await fetch(
+            `/api/paiements/${paiement.uuid}/initier`,
+            {
+              method: "POST",
+
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        const paiementData =
+          await paiementResponse.json();
+
+        if (
+          !paiementResponse.ok ||
+          !paiementData.success
+        ) {
+          throw new Error(
+            paiementData.message ||
+            "Impossible d'initialiser le paiement."
+          );
+        }
+
+        const checkoutUrl =
+          paiementData.data?.checkoutUrl;
+
+        if (!checkoutUrl) {
+          throw new Error(
+            "Aucune URL de paiement n'a été retournée."
+          );
+        }
+        clearCart();
+        window.location.href =
+          checkoutUrl;
+
+        return;
+      }
       clearCart();
 
-      router.push(
-        "/commandes"
-      );
+      router.push("/commandes");
+
     } catch (error) {
       console.error(
         "Erreur création commande :",
@@ -2009,7 +2078,131 @@ export default function PagePanier() {
                       </p>
                     </div>
                   )}
+                <div className="mt-5">
+                  <div className="mb-3">
+                    <p className="text-sm font-bold text-gray-900">
+                      Mode de paiement
+                    </p>
 
+                    <p className="mt-1 text-xs text-gray-500">
+                      Choisissez comment vous souhaitez payer cette commande.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModePaiement("cash")
+                      }
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${modePaiement === "cash"
+                        ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                    >
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">
+                          Paiement à la livraison
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          Vous payez au livreur à la réception.
+                        </p>
+                      </div>
+
+                      {modePaiement === "cash" && (
+                        <CheckCircle2
+                          size={20}
+                          className="shrink-0 text-[#14a800]"
+                        />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModePaiement("wave")
+                      }
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${modePaiement === "wave"
+                        ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                    >
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">
+                          Wave
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          Paiement mobile.
+                        </p>
+                      </div>
+
+                      {modePaiement === "wave" && (
+                        <CheckCircle2
+                          size={20}
+                          className="shrink-0 text-[#14a800]"
+                        />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModePaiement("orange_money")
+                      }
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${modePaiement === "orange_money"
+                        ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                    >
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">
+                          Orange Money
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          Paiement mobile.
+                        </p>
+                      </div>
+
+                      {modePaiement === "orange_money" && (
+                        <CheckCircle2
+                          size={20}
+                          className="shrink-0 text-[#14a800]"
+                        />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModePaiement("moov_money")
+                      }
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${modePaiement === "moov_money"
+                        ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                        }`}
+                    >
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">
+                          Moov Money
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          Paiement mobile.
+                        </p>
+                      </div>
+
+                      {modePaiement === "moov_money" && (
+                        <CheckCircle2
+                          size={20}
+                          className="shrink-0 text-[#14a800]"
+                        />
+                      )}
+                    </button>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={
@@ -2021,6 +2214,7 @@ export default function PagePanier() {
                     latitude === null ||
                     longitude === null ||
                     !zoneLivraison ||
+                    !modePaiement ||
                     tarifsLoading
                   }
                   className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#14a800] px-5 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#108f00] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"

@@ -2,6 +2,9 @@ import { BoutiqueRepository } from "../repositories/boutique.repository";
 import { generateUUID } from "../utils/uuid";
 import { generateSlug } from "../utils/slug";
 
+import { db } from "../db";
+import { BoutiquePaiementRepository } from "../repositories/boutiquePaiement.repository";
+
 import { ConflictError } from "../errors/ConflictError";
 import { NotFoundError } from "../errors/NotFoundError";
 import { ForbiddenError } from "../errors/ForbiddenError";
@@ -90,33 +93,75 @@ export class BoutiqueService {
       expiration.getDate() + 30
     );
 
-    const id =
-      await BoutiqueRepository.create({
+    const connection = await db.getConnection();
 
-        uuid,
+    let id: number;
 
-        user_id: data.user_id,
+    try {
+      await connection.beginTransaction();
 
-        nom: data.nom,
+      id = await BoutiqueRepository.create(
+        {
+          uuid,
+          user_id: data.user_id,
+          nom: data.nom,
+          slug,
+          description: data.description,
+          logo: data.logo,
+          telephone: data.telephone,
+          email: data.email,
+          adresse: data.adresse,
+          ville: data.ville,
+          activation_expires_at: expiration,
+        },
+        connection
+      );
 
-        slug,
+      const paiements = data.paiements;
 
-        description: data.description,
+      if (paiements?.wave?.trim()) {
+        await BoutiquePaiementRepository.create(
+          {
+            boutique_id: id,
+            provider: "wave",
+            numero: paiements.wave.trim(),
+            actif: true,
+          },
+          connection
+        );
+      }
 
-        logo: data.logo,
+      if (paiements?.orange_money?.trim()) {
+        await BoutiquePaiementRepository.create(
+          {
+            boutique_id: id,
+            provider: "orange_money",
+            numero: paiements.orange_money.trim(),
+            actif: true,
+          },
+          connection
+        );
+      }
 
-        telephone: data.telephone,
+      if (paiements?.moov_money?.trim()) {
+        await BoutiquePaiementRepository.create(
+          {
+            boutique_id: id,
+            provider: "moov_money",
+            numero: paiements.moov_money.trim(),
+            actif: true,
+          },
+          connection
+        );
+      }
 
-        email: data.email,
-
-        adresse: data.adresse,
-
-        ville: data.ville,
-
-        activation_expires_at:
-          expiration
-
-      });
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     const boutique =
       await BoutiqueRepository.findById(id);
@@ -229,7 +274,6 @@ export class BoutiqueService {
     role: string,
     data: UpdateBoutiqueDTO
   ) {
-
     const boutique =
       await this.verifyOwnership(
         uuid,
@@ -237,14 +281,12 @@ export class BoutiqueService {
         role
       );
 
-    const updateData:
-      UpdateBoutiqueDTO = {};
+    const updateData: UpdateBoutiqueDTO = {};
 
     if (
       data.nom &&
       data.nom !== boutique.nom
     ) {
-
       let slug =
         generateSlug(data.nom);
 
@@ -257,19 +299,15 @@ export class BoutiqueService {
         exists &&
         exists.id !== boutique.id
       ) {
-
         slug =
           `${slug}-${Date.now()}`;
-
       }
 
       updateData.nom =
         data.nom;
 
-
       updateData.slug =
         slug;
-
     }
 
     if (data.description !== undefined)
@@ -292,15 +330,87 @@ export class BoutiqueService {
       updateData.adresse =
         data.adresse;
 
-
     if (data.ville !== undefined)
       updateData.ville =
         data.ville;
 
-    await BoutiqueRepository.update(
-      boutique.id,
-      updateData
-    );
+    const connection =
+      await db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      await BoutiqueRepository.update(
+        boutique.id,
+        updateData,
+        connection
+      );
+
+      if (data.paiements !== undefined) {
+        const paiements = data.paiements;
+
+        const providers = [
+          {
+            key: "wave" as const,
+            provider: "wave" as const,
+          },
+          {
+            key: "orange_money" as const,
+            provider: "orange_money" as const,
+          },
+          {
+            key: "moov_money" as const,
+            provider: "moov_money" as const,
+          },
+        ];
+
+        for (const item of providers) {
+          const numero =
+            paiements[item.key]?.trim() ?? "";
+
+          const existing =
+            await BoutiquePaiementRepository.findByBoutiqueAndProvider(
+              boutique.id,
+              item.provider
+            );
+
+          if (numero) {
+            if (existing) {
+              await BoutiquePaiementRepository.update(
+                existing.id,
+                {
+                  numero,
+                  actif: true,
+                },
+                connection
+              );
+            } else {
+              await BoutiquePaiementRepository.create(
+                {
+                  boutique_id: boutique.id,
+                  provider: item.provider,
+                  numero,
+                  actif: true,
+                },
+                connection
+              );
+            }
+          } else if (existing) {
+            await BoutiquePaiementRepository.delete(
+              existing.id,
+              connection
+            );
+          }
+        }
+      }
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     const updated =
       await BoutiqueRepository.findById(
@@ -308,37 +418,55 @@ export class BoutiqueService {
       );
 
     if (!updated) {
-
       throw new NotFoundError(
         "Boutique introuvable."
       );
-
     }
 
     return boutiqueResponse(
       updated
     );
-
   }
 
-  static async findByUUIDForDashboard(
-    uuid: string,
-    user_id: number,
-    role: string
-  ) {
 
-    const boutique =
-      await this.verifyOwnership(
-        uuid,
-        user_id,
-        role
-      );
-
-    return boutiqueResponse(
-      boutique
+static async findByUUIDForDashboard(
+  uuid: string,
+  user_id: number,
+  role: string
+) {
+  const boutique =
+    await this.verifyOwnership(
+      uuid,
+      user_id,
+      role
     );
 
-  }
+  const paiements =
+    await BoutiquePaiementRepository.findByBoutiqueId(
+      boutique.id
+    );
+
+  return {
+    ...boutiqueResponse(boutique),
+
+    paiements: {
+      wave:
+        paiements.find(
+          paiement => paiement.provider === "wave"
+        )?.numero ?? "",
+
+      orange_money:
+        paiements.find(
+          paiement => paiement.provider === "orange_money"
+        )?.numero ?? "",
+
+      moov_money:
+        paiements.find(
+          paiement => paiement.provider === "moov_money"
+        )?.numero ?? "",
+    },
+  };
+}
 
   static async findByUser(
     user_id: number
@@ -553,7 +681,7 @@ export class BoutiqueService {
 
   }
 
-    static async unverify(
+  static async unverify(
     uuid: string,
     role: string
   ) {

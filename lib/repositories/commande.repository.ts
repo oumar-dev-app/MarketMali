@@ -8,8 +8,11 @@ import {
 import {
   Commande,
   UpdateCommandeDTO,
-  CommandeStatus
+  CommandeStatus,
+  CommandeModePaiement,
+  CommandeStatutPaiement
 } from "../types/commande";
+
 import { db } from "../db";
 
 export interface CommandeRow extends Commande, RowDataPacket { }
@@ -933,17 +936,17 @@ export class CommandeRepository {
   }
 
   static async countStatuses(): Promise<{
-  total: number;
-  pending: number;
-  confirmed: number;
-  preparing: number;
-  shipped: number;
-  delivered: number;
-  cancelled: number;
-}> {
-  const [rows] =
-    await db.query<any[]>(
-      `
+    total: number;
+    pending: number;
+    confirmed: number;
+    preparing: number;
+    shipped: number;
+    delivered: number;
+    cancelled: number;
+  }> {
+    const [rows] =
+      await db.query<any[]>(
+        `
       SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
@@ -954,20 +957,20 @@ export class CommandeRepository {
         SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled
       FROM commandes
       `
-    );
+      );
 
-  const row = rows[0];
+    const row = rows[0];
 
-  return {
-    total: Number(row.total),
-    pending: Number(row.pending),
-    confirmed: Number(row.confirmed),
-    preparing: Number(row.preparing),
-    shipped: Number(row.shipped),
-    delivered: Number(row.delivered),
-    cancelled: Number(row.cancelled)
-  };
-}
+    return {
+      total: Number(row.total),
+      pending: Number(row.pending),
+      confirmed: Number(row.confirmed),
+      preparing: Number(row.preparing),
+      shipped: Number(row.shipped),
+      delivered: Number(row.delivered),
+      cancelled: Number(row.cancelled)
+    };
+  }
 
   static async create(
     data: {
@@ -978,6 +981,8 @@ export class CommandeRepository {
 
       total: number;
       frais_livraison: number;
+      mode_paiement: CommandeModePaiement;
+      statut_paiement?: CommandeStatutPaiement;
       status?: CommandeStatus;
 
       adresse_livraison?: string;
@@ -991,7 +996,7 @@ export class CommandeRepository {
     const [result] =
       await connection.execute<ResultSetHeader>(
         `
-      INSERT INTO commandes
+INSERT INTO commandes
 (
   uuid,
   boutique_id,
@@ -1003,9 +1008,11 @@ export class CommandeRepository {
   gps_precision,
   total,
   frais_livraison,
+  mode_paiement,
+  statut_paiement,
   status
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
         [
           data.uuid,
@@ -1021,6 +1028,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
           data.total,
           data.frais_livraison,
+
+          data.mode_paiement,
+          data.statut_paiement ?? "pending",
 
           data.status ?? "pending"
         ]

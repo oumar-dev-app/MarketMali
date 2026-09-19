@@ -14,6 +14,10 @@ import { ForbiddenError } from "../errors/ForbiddenError";
 import { PromotionRepository } from "../repositories/promotion.repository";
 import { ProduitVarianteRepository } from "../repositories/produitVariante.repository";
 import { ValidationError } from "../errors/ValidationError";
+import { PaiementRepository } from "../repositories/paiement.repository";
+import { generatePaymentReference } from "../utils/payment-reference";
+import { BoutiquePaiementRepository } from "../repositories/boutiquePaiement.repository";
+import { UserRepository } from "../repositories/user.repository";
 
 import {
     CreateCommandeDTO,
@@ -22,543 +26,624 @@ import {
 } from "../types/commande";
 
 import { db } from "../db";
+import { ConflictError } from "../errors/ConflictError";
 
 export class CommandeService {
 
 
-static async create(
-    data: CreateCommandeDTO,
-    client_id: number
-) {
+    static async create(
+        data: CreateCommandeDTO,
+        client_id: number
+    ) {
 
-    const connection =
-        await db.getConnection();
+        const connection =
+            await db.getConnection();
 
-    try {
+        try {
 
-        await connection.beginTransaction();
+            await connection.beginTransaction();
 
-        // =========================================================
-        // 1 - Vérifier la boutique
-        // =========================================================
+            // =========================================================
+            // 1 - Vérifier la boutique
+            // =========================================================
 
-        const boutique =
-            await BoutiqueRepository.findById(
-                data.boutique_id
-            );
+            const boutique =
+                await BoutiqueRepository.findById(
+                    data.boutique_id
+                );
 
-        if (!boutique) {
-            throw new NotFoundError(
-                "Boutique introuvable."
-            );
-        }
+            if (!boutique) {
+                throw new NotFoundError(
+                    "Boutique introuvable."
+                );
+            }
 
-        // =========================================================
-        // 2 - Préparer les produits
-        // =========================================================
+            // =========================================================
+            // 1.2 - Vérifier le client
+            // =========================================================
 
-        let total = 0;
+            const client = await UserRepository.findById(client_id);
 
-        const produitsCommande: {
-            produit_id: number;
-            variante_id: number | null;
-            variante_nom: string | null;
-            quantite: number;
-            prix: number;
-            promotion_id: number | null;
-        }[] = [];
+            if (!client) {
+                throw new NotFoundError(
+                    "Client introuvable."
+                );
+            }
 
-        // Regrouper les lignes ayant le même produit
-        // ET la même variante.
-        const quantitesProduits = new Map<
-            string,
-            {
+            // =========================================================
+            // 1.1 - Vérifier le compte de paiement de la boutique
+            // =========================================================
+
+            if (data.mode_paiement !== "cash") {
+
+                const comptePaiement =
+                    await BoutiquePaiementRepository.findActiveByBoutiqueAndProvider(
+                        data.boutique_id,
+                        data.mode_paiement
+                    );
+
+                if (!comptePaiement) {
+
+                    throw new ValidationError(
+                        `La boutique n'accepte pas actuellement le paiement par ${data.mode_paiement}.`
+                    );
+                }
+            }
+
+            // =========================================================
+            // 2 - Préparer les produits
+            // =========================================================
+
+            let total = 0;
+
+            const produitsCommande: {
                 produit_id: number;
                 variante_id: number | null;
+                variante_nom: string | null;
                 quantite: number;
-            }
-        >();
+                prix: number;
+                promotion_id: number | null;
+            }[] = [];
 
-        for (const item of data.produits) {
+            // Regrouper les lignes ayant le même produit
+            // ET la même variante.
+            const quantitesProduits = new Map<
+                string,
+                {
+                    produit_id: number;
+                    variante_id: number | null;
+                    quantite: number;
+                }
+            >();
 
-            const variante_id =
-                item.variante_id ?? null;
+            for (const item of data.produits) {
 
-            const cle =
-                `${item.produit_id}:${variante_id ?? "null"}`;
+                const variante_id =
+                    item.variante_id ?? null;
 
-            const ligneExistante =
-                quantitesProduits.get(cle);
+                const cle =
+                    `${item.produit_id}:${variante_id ?? "null"}`;
 
-            if (ligneExistante) {
+                const ligneExistante =
+                    quantitesProduits.get(cle);
 
-                ligneExistante.quantite +=
-                    item.quantite;
+                if (ligneExistante) {
 
-            } else {
+                    ligneExistante.quantite +=
+                        item.quantite;
 
-                quantitesProduits.set(
-                    cle,
-                    {
-                        produit_id:
-                            item.produit_id,
+                } else {
 
-                        variante_id,
+                    quantitesProduits.set(
+                        cle,
+                        {
+                            produit_id:
+                                item.produit_id,
 
-                        quantite:
-                            item.quantite
-                    }
-                );
-            }
-        }
+                            variante_id,
 
-        // =========================================================
-        // 3 - Vérifier chaque produit et sa promotion
-        // =========================================================
-
-        for (const ligne of quantitesProduits.values()) {
-
-            const produit_id =
-                ligne.produit_id;
-
-            const variante_id =
-                ligne.variante_id;
-
-            const quantite =
-                ligne.quantite;
-
-            const produit =
-                await ProduitRepository.findById(
-                    produit_id
-                );
-
-            if (!produit) {
-                throw new NotFoundError(
-                    "Produit introuvable."
-                );
+                            quantite:
+                                item.quantite
+                        }
+                    );
+                }
             }
 
-            // Le produit doit appartenir à la boutique
-            if (
-                produit.boutique_id !==
-                data.boutique_id
-            ) {
-                throw new ForbiddenError(
-                    "Ce produit n'appartient pas à cette boutique."
-                );
-            }
+            // =========================================================
+            // 3 - Vérifier chaque produit et sa promotion
+            // =========================================================
 
-            // Le produit doit être actif
-            if (
-                produit.status !== "active"
-            ) {
-                throw new ForbiddenError(
-                    `Le produit "${produit.nom}" n'est pas disponible.`
-                );
-            }
+            for (const ligne of quantitesProduits.values()) {
 
-            // =====================================================
-            // Vérification de la variante
-            // =====================================================
+                const produit_id =
+                    ligne.produit_id;
 
-            let variante_nom: string | null = null;
-            let variante_stock: number | null = null;
+                const variante_id =
+                    ligne.variante_id;
 
-            if (variante_id !== null) {
+                const quantite =
+                    ligne.quantite;
 
-                const variante =
-                    await ProduitVarianteRepository.findById(
-                        variante_id
+                const produit =
+                    await ProduitRepository.findById(
+                        produit_id
                     );
 
-                if (!variante) {
+                if (!produit) {
                     throw new NotFoundError(
-                        "Variante du produit introuvable."
+                        "Produit introuvable."
                     );
                 }
 
-                // La variante doit appartenir au produit
+                // Le produit doit appartenir à la boutique
                 if (
-                    variante.produit_id !==
-                    produit.id
-                ) {
-                    throw new ForbiddenError(
-                        "Cette variante n'appartient pas à ce produit."
-                    );
-                }
-
-                variante_nom =
-                    variante.nom;
-
-                variante_stock =
-                    variante.stock;
-            }
-
-            // =====================================================
-            // Vérification du stock
-            // =====================================================
-
-            if (variante_id !== null) {
-
-                // Avec variante :
-                // le stock de la variante est prioritaire.
-                if (
-                    variante_stock === null ||
-                    variante_stock < quantite
-                ) {
-                    throw new ValidationError(
-                        `Stock insuffisant pour la variante "${variante_nom}".`
-                    );
-                }
-
-            } else {
-
-                // Sans variante :
-                // le stock du produit est utilisé.
-                if (
-                    produit.stock < quantite
-                ) {
-                    throw new ValidationError(
-                        `Stock insuffisant pour le produit "${produit.nom}".`
-                    );
-                }
-            }
-
-            const prixNormal =
-                Number(produit.prix);
-
-            let prixFinal =
-                prixNormal;
-
-            let promotionId:
-                number | null = null;
-
-            // =====================================================
-            // Vérifier la promotion active
-            // =====================================================
-
-            const promotion =
-                await PromotionRepository.findActiveByProduit(
-                    produit.id,
-                    connection
-                );
-
-            if (promotion) {
-
-                // La promotion doit appartenir
-                // à la même boutique que le produit.
-                if (
-                    promotion.boutique_id !==
+                    produit.boutique_id !==
                     data.boutique_id
                 ) {
                     throw new ForbiddenError(
-                        "Promotion invalide pour ce produit."
+                        "Ce produit n'appartient pas à cette boutique."
                     );
                 }
 
-                // -------------------------------------------------
-                // Calcul du prix promotionnel
-                // -------------------------------------------------
-
+                // Le produit doit être actif
                 if (
-                    promotion.type === "percentage"
+                    produit.status !== "active"
                 ) {
-
-                    const reduction =
-                        Number(
-                            promotion.reduction_pourcentage
-                        );
-
-                    if (
-                        !Number.isFinite(reduction) ||
-                        reduction <= 0 ||
-                        reduction >= 100
-                    ) {
-                        throw new ForbiddenError(
-                            `La promotion "${promotion.nom}" est invalide.`
-                        );
-                    }
-
-                    prixFinal =
-                        prixNormal -
-                        (
-                            prixNormal *
-                            reduction /
-                            100
-                        );
-
-                } else if (
-                    promotion.type === "special_price"
-                ) {
-
-                    const prixPromotionnel =
-                        Number(
-                            promotion.prix_promotionnel
-                        );
-
-                    if (
-                        !Number.isFinite(
-                            prixPromotionnel
-                        ) ||
-                        prixPromotionnel < 0 ||
-                        prixPromotionnel >= prixNormal
-                    ) {
-                        throw new ForbiddenError(
-                            `Le prix promotionnel de "${promotion.nom}" est invalide.`
-                        );
-                    }
-
-                    prixFinal =
-                        prixPromotionnel;
+                    throw new ForbiddenError(
+                        `Le produit "${produit.nom}" n'est pas disponible.`
+                    );
                 }
 
-                // -------------------------------------------------
-                // Vérifier la quantité maximale de la promotion
-                // -------------------------------------------------
+                // =====================================================
+                // Vérification de la variante
+                // =====================================================
 
-                if (
-                    promotion.quantite_limite !== null
-                ) {
+                let variante_nom: string | null = null;
+                let variante_stock: number | null = null;
 
-                    const quantiteVendue =
-                        await PromotionRepository.getQuantiteVendue(
-                            promotion.id,
-                            connection
+                if (variante_id !== null) {
+
+                    const variante =
+                        await ProduitVarianteRepository.findById(
+                            variante_id
                         );
 
-                    const quantiteRestante =
-                        Number(
-                            promotion.quantite_limite
-                        ) -
-                        quantiteVendue;
+                    if (!variante) {
+                        throw new NotFoundError(
+                            "Variante du produit introuvable."
+                        );
+                    }
 
+                    // La variante doit appartenir au produit
                     if (
-                        quantite > quantiteRestante
+                        variante.produit_id !==
+                        produit.id
                     ) {
                         throw new ForbiddenError(
-                            `La promotion "${promotion.nom}" ne dispose plus que de ${Math.max(
-                                0,
-                                quantiteRestante
-                            )} unité(s) disponible(s).`
+                            "Cette variante n'appartient pas à ce produit."
+                        );
+                    }
+
+                    variante_nom =
+                        variante.nom;
+
+                    variante_stock =
+                        variante.stock;
+                }
+
+                // =====================================================
+                // Vérification du stock
+                // =====================================================
+
+                if (variante_id !== null) {
+
+                    // Avec variante :
+                    // le stock de la variante est prioritaire.
+                    if (
+                        variante_stock === null ||
+                        variante_stock < quantite
+                    ) {
+                        throw new ValidationError(
+                            `Stock insuffisant pour la variante "${variante_nom}".`
+                        );
+                    }
+
+                } else {
+
+                    // Sans variante :
+                    // le stock du produit est utilisé.
+                    if (
+                        produit.stock < quantite
+                    ) {
+                        throw new ValidationError(
+                            `Stock insuffisant pour le produit "${produit.nom}".`
                         );
                     }
                 }
 
-                promotionId =
-                    promotion.id;
+                const prixNormal =
+                    Number(produit.prix);
+
+                let prixFinal =
+                    prixNormal;
+
+                let promotionId:
+                    number | null = null;
+
+                // =====================================================
+                // Vérifier la promotion active
+                // =====================================================
+
+                const promotion =
+                    await PromotionRepository.findActiveByProduit(
+                        produit.id,
+                        connection
+                    );
+
+                if (promotion) {
+
+                    // La promotion doit appartenir
+                    // à la même boutique que le produit.
+                    if (
+                        promotion.boutique_id !==
+                        data.boutique_id
+                    ) {
+                        throw new ForbiddenError(
+                            "Promotion invalide pour ce produit."
+                        );
+                    }
+
+                    // -------------------------------------------------
+                    // Calcul du prix promotionnel
+                    // -------------------------------------------------
+
+                    if (
+                        promotion.type === "percentage"
+                    ) {
+
+                        const reduction =
+                            Number(
+                                promotion.reduction_pourcentage
+                            );
+
+                        if (
+                            !Number.isFinite(reduction) ||
+                            reduction <= 0 ||
+                            reduction >= 100
+                        ) {
+                            throw new ForbiddenError(
+                                `La promotion "${promotion.nom}" est invalide.`
+                            );
+                        }
+
+                        prixFinal =
+                            prixNormal -
+                            (
+                                prixNormal *
+                                reduction /
+                                100
+                            );
+
+                    } else if (
+                        promotion.type === "special_price"
+                    ) {
+
+                        const prixPromotionnel =
+                            Number(
+                                promotion.prix_promotionnel
+                            );
+
+                        if (
+                            !Number.isFinite(
+                                prixPromotionnel
+                            ) ||
+                            prixPromotionnel < 0 ||
+                            prixPromotionnel >= prixNormal
+                        ) {
+                            throw new ForbiddenError(
+                                `Le prix promotionnel de "${promotion.nom}" est invalide.`
+                            );
+                        }
+
+                        prixFinal =
+                            prixPromotionnel;
+                    }
+
+                    // -------------------------------------------------
+                    // Vérifier la quantité maximale de la promotion
+                    // -------------------------------------------------
+
+                    if (
+                        promotion.quantite_limite !== null
+                    ) {
+
+                        const quantiteVendue =
+                            await PromotionRepository.getQuantiteVendue(
+                                promotion.id,
+                                connection
+                            );
+
+                        const quantiteRestante =
+                            Number(
+                                promotion.quantite_limite
+                            ) -
+                            quantiteVendue;
+
+                        if (
+                            quantite > quantiteRestante
+                        ) {
+                            throw new ForbiddenError(
+                                `La promotion "${promotion.nom}" ne dispose plus que de ${Math.max(
+                                    0,
+                                    quantiteRestante
+                                )} unité(s) disponible(s).`
+                            );
+                        }
+                    }
+
+                    promotionId =
+                        promotion.id;
+                }
+
+                // =====================================================
+                // Calcul serveur du prix
+                // =====================================================
+
+                total +=
+                    prixFinal *
+                    quantite;
+
+                produitsCommande.push({
+                    produit_id:
+                        produit.id,
+
+                    variante_id,
+
+                    variante_nom,
+
+                    quantite,
+
+                    prix:
+                        Number(
+                            prixFinal.toFixed(2)
+                        ),
+
+                    promotion_id:
+                        promotionId
+                });
             }
 
-            // =====================================================
-            // Calcul serveur du prix
-            // =====================================================
+            // =========================================================
+            // 4 - Vérifier la zone de livraison
+            // =========================================================
 
-            total +=
-                prixFinal *
-                quantite;
+            const zoneLivraison =
+                data.zone_livraison?.trim();
 
-            produitsCommande.push({
-                produit_id:
-                    produit.id,
+            if (!zoneLivraison) {
+                throw new ForbiddenError(
+                    "La zone de livraison est obligatoire."
+                );
+            }
 
-                variante_id,
+            // =========================================================
+            // 5 - Calcul serveur des frais de livraison
+            // =========================================================
 
-                variante_nom,
+            const tarifLivraison =
+                await TarifLivraisonRepository.findByBoutiqueAndZone(
+                    data.boutique_id,
+                    zoneLivraison
+                );
 
-                quantite,
+            if (!tarifLivraison) {
+                throw new NotFoundError(
+                    "Aucun tarif de livraison n'est défini pour cette zone."
+                );
+            }
 
-                prix:
-                    Number(
-                        prixFinal.toFixed(2)
-                    ),
+            const fraisLivraison =
+                Number(
+                    tarifLivraison.frais
+                );
 
-                promotion_id:
-                    promotionId
-            });
-        }
+            // =========================================================
+            // 6 - Total final serveur
+            // =========================================================
 
-        // =========================================================
-        // 4 - Vérifier la zone de livraison
-        // =========================================================
+            const totalCommande =
+                Number(
+                    (
+                        total +
+                        fraisLivraison
+                    ).toFixed(2)
+                );
 
-        const zoneLivraison =
-            data.zone_livraison?.trim();
+            // =========================================================
+            // 7 - Créer la commande
+            // =========================================================
 
-        if (!zoneLivraison) {
-            throw new ForbiddenError(
-                "La zone de livraison est obligatoire."
-            );
-        }
+            const uuid =
+                generateUUID();
 
-        // =========================================================
-        // 5 - Calcul serveur des frais de livraison
-        // =========================================================
+            const commandeId =
+                await CommandeRepository.create(
+                    {
+                        uuid,
 
-        const tarifLivraison =
-            await TarifLivraisonRepository.findByBoutiqueAndZone(
-                data.boutique_id,
-                zoneLivraison
-            );
+                        boutique_id:
+                            data.boutique_id,
 
-        if (!tarifLivraison) {
-            throw new NotFoundError(
-                "Aucun tarif de livraison n'est défini pour cette zone."
-            );
-        }
+                        client_id,
 
-        const fraisLivraison =
-            Number(
-                tarifLivraison.frais
-            );
+                        zone_livraison:
+                            zoneLivraison,
 
-        // =========================================================
-        // 6 - Total final serveur
-        // =========================================================
+                        total:
+                            totalCommande,
 
-        const totalCommande =
-            Number(
-                (
-                    total +
-                    fraisLivraison
-                ).toFixed(2)
-            );
+                        frais_livraison:
+                            fraisLivraison,
 
-        // =========================================================
-        // 7 - Créer la commande
-        // =========================================================
+                        mode_paiement:
+                            data.mode_paiement,
 
-        const uuid =
-            generateUUID();
+                        statut_paiement:
+                            "pending",
 
-        const commandeId =
-            await CommandeRepository.create(
-                {
-                    uuid,
+                        adresse_livraison:
+                            data.adresse_livraison,
 
-                    boutique_id:
-                        data.boutique_id,
+                        latitude:
+                            data.latitude,
 
-                    client_id,
+                        longitude:
+                            data.longitude,
 
-                    zone_livraison:
-                        zoneLivraison,
+                        gps_precision:
+                            data.gps_precision
+                    },
+                    connection
+                );
 
-                    total:
-                        totalCommande,
+            // =========================================================
+            // 8 - Créer les lignes de commande
+            // =========================================================
 
-                    frais_livraison:
-                        fraisLivraison,
-
-                    adresse_livraison:
-                        data.adresse_livraison,
-
-                    latitude:
-                        data.latitude,
-
-                    longitude:
-                        data.longitude,
-
-                    gps_precision:
-                        data.gps_precision
-                },
+            await CommandeProduitRepository.createMany(
+                commandeId,
+                produitsCommande,
                 connection
             );
 
-        // =========================================================
-        // 8 - Créer les lignes de commande
-        // =========================================================
+            // =========================================================
+            // 9 - Créer le paiement
+            // =========================================================
 
-        await CommandeProduitRepository.createMany(
-            commandeId,
-            produitsCommande,
-            connection
-        );
+            const paiementUuid =
+                generateUUID();
 
-        // =========================================================
-        // 9 - Historique du statut
-        // =========================================================
+            const referenceInterne =
+                generatePaymentReference();
 
-        await CommandeStatutRepository.create(
-            commandeId,
-            "pending",
-            "Commande créée.",
-            connection
-        );
+            await PaiementRepository.create({
+                uuid: paiementUuid,
+                commande_id: commandeId,
+                client_id,
+                boutique_id: data.boutique_id,
+                methode: data.mode_paiement,
+                statut: "pending",
+                montant: totalCommande,
+                devise: "XOF",
+                provider: null,
+                reference_interne: referenceInterne,
+                telephone: client.telephone,
+            }, connection);
 
-        // =========================================================
-        // 10 - Diminuer les stocks
-        // =========================================================
+            // =========================================================
+            // 9 - Historique du statut
+            // =========================================================
 
-        for (const item of produitsCommande) {
+            await CommandeStatutRepository.create(
+                commandeId,
+                "pending",
+                "Commande créée.",
+                connection
+            );
 
-            if (item.variante_id !== null) {
+            // =========================================================
+            // 10 - Diminuer les stocks
+            // =========================================================
 
-                // Avec variante :
-                // diminuer uniquement le stock de la variante.
-                await ProduitVarianteRepository.decreaseStock(
-                    item.variante_id,
-                    item.quantite,
-                    connection
+            for (const item of produitsCommande) {
+
+                if (item.variante_id !== null) {
+
+                    // Avec variante :
+                    // diminuer uniquement le stock de la variante.
+                    await ProduitVarianteRepository.decreaseStock(
+                        item.variante_id,
+                        item.quantite,
+                        connection
+                    );
+
+                } else {
+
+                    // Sans variante :
+                    // diminuer le stock du produit.
+                    await ProduitRepository.decreaseStock(
+                        item.produit_id,
+                        item.quantite,
+                        connection
+                    );
+                }
+            }
+
+            // =========================================================
+            // 11 - Valider la transaction
+            // =========================================================
+
+            await connection.commit();
+
+            // =========================================================
+            // 12 - Notification vendeur
+            // =========================================================
+
+            await NotificationService.create({
+                user_id:
+                    boutique.user_id,
+
+                commande_id:
+                    commandeId,
+
+                type:
+                    "new_order",
+
+                titre:
+                    "Nouvelle commande",
+
+                message:
+                    `Une nouvelle commande vient d'être passée dans votre boutique. ` +
+                    `Montant total : ${totalCommande} FCFA.`
+            });
+
+            // =========================================================
+            // 13 - Retourner la commande
+            // =========================================================
+
+            const commande =
+                await CommandeRepository.findById(
+                    commandeId
                 );
 
-            } else {
-
-                // Sans variante :
-                // diminuer le stock du produit.
-                await ProduitRepository.decreaseStock(
-                    item.produit_id,
-                    item.quantite,
-                    connection
+            if (!commande) {
+                throw new NotFoundError(
+                    "Commande créée mais introuvable."
                 );
             }
+
+            return {
+                commande,
+                paiement: {
+                    uuid: paiementUuid,
+                    methode: data.mode_paiement,
+                    statut: "pending" as const,
+                    montant: totalCommande,
+                    devise: "XOF"
+                }
+            };
+
+        } catch (error) {
+
+            await connection.rollback();
+
+            throw error;
+
+        } finally {
+
+            connection.release();
         }
-
-        // =========================================================
-        // 11 - Valider la transaction
-        // =========================================================
-
-        await connection.commit();
-
-        // =========================================================
-        // 12 - Notification vendeur
-        // =========================================================
-
-        await NotificationService.create({
-            user_id:
-                boutique.user_id,
-
-            commande_id:
-                commandeId,
-
-            type:
-                "new_order",
-
-            titre:
-                "Nouvelle commande",
-
-            message:
-                `Une nouvelle commande vient d'être passée dans votre boutique. ` +
-                `Montant total : ${totalCommande} FCFA.`
-        });
-
-        // =========================================================
-        // 13 - Retourner la commande
-        // =========================================================
-
-        return CommandeRepository.findById(
-            commandeId
-        );
-
-    } catch (error) {
-
-        await connection.rollback();
-
-        throw error;
-
-    } finally {
-
-        connection.release();
     }
-}
 
     static async findByUUID(
         uuid: string
@@ -585,7 +670,6 @@ static async create(
             await CommandeStatutRepository.findByCommandeId(
                 commande.id
             );
-
         return {
             uuid: commande.uuid,
 
@@ -594,28 +678,17 @@ static async create(
             frais_livraison:
                 commande.frais_livraison,
 
-            status: commande.status,
+            mode_paiement:
+                commande.mode_paiement,
+
+            statut_paiement:
+                commande.statut_paiement,
+
+            status:
+                commande.status,
 
             zone_livraison:
                 commande.zone_livraison,
-
-            created_at:
-                commande.created_at,
-
-            updated_at:
-                commande.updated_at,
-
-            adresse_livraison:
-                commande.adresse_livraison,
-
-            latitude:
-                commande.latitude,
-
-            longitude:
-                commande.longitude,
-
-            gps_precision:
-                commande.gps_precision,
 
             boutique: {
                 uuid:
@@ -1369,6 +1442,22 @@ static async create(
             );
         }
 
+        // =========================================================
+        // Vérification du paiement avant confirmation
+        // =========================================================
+
+        if (
+            commande.status === "pending" &&
+            status === "confirmed" &&
+            commande.mode_paiement !== "cash" &&
+            commande.statut_paiement !== "paid"
+        ) {
+
+            throw new ForbiddenError(
+                "Cette commande ne peut pas être confirmée tant que le paiement n'est pas validé."
+            );
+        }
+
         const transitions: Record<
             CommandeStatus,
             CommandeStatus[]
@@ -1452,16 +1541,30 @@ static async create(
                     await CommandeProduitRepository.findByCommandeId(
                         commande.id
                     );
-
                 for (
                     const produit of produits
                 ) {
 
-                    await ProduitRepository.increaseStock(
-                        produit.produit_id,
-                        produit.quantite,
-                        connection
-                    );
+                    if (produit.variante_id !== null) {
+
+                        // Commande avec variante :
+                        // restaurer le stock de la variante.
+                        await ProduitVarianteRepository.increaseStock(
+                            produit.variante_id,
+                            produit.quantite,
+                            connection
+                        );
+
+                    } else {
+
+                        // Commande sans variante :
+                        // restaurer le stock du produit.
+                        await ProduitRepository.increaseStock(
+                            produit.produit_id,
+                            produit.quantite,
+                            connection
+                        );
+                    }
                 }
 
                 // -----------------------------------------------------
@@ -1625,6 +1728,207 @@ static async create(
         };
     }
 
+        static async cancelForPaymentFailure(
+        commande_id: number
+    ) {
+
+        const connection =
+            await db.getConnection();
+
+        try {
+
+            await connection.beginTransaction();
+
+            // =========================================================
+            // 1 - Verrouiller la commande
+            // =========================================================
+
+            const [rows] =
+                await connection.query<any[]>(
+                    `
+                    SELECT *
+                    FROM commandes
+                    WHERE id = ?
+                    LIMIT 1
+                    FOR UPDATE
+                    `,
+                    [commande_id]
+                );
+
+            if (!rows.length) {
+
+                throw new NotFoundError(
+                    "Commande introuvable."
+                );
+            }
+
+            const commande =
+                rows[0];
+
+            // =========================================================
+            // 2 - Déjà annulée = rien à faire
+            // =========================================================
+
+            if (
+                commande.status ===
+                "cancelled"
+            ) {
+
+                await connection.commit();
+
+                return {
+                    message:
+                        "La commande est déjà annulée."
+                };
+            }
+
+            // =========================================================
+            // 3 - Sécurité : seul une commande pending peut
+            //     être annulée automatiquement après échec paiement
+            // =========================================================
+
+            if (
+                commande.status !==
+                "pending"
+            ) {
+
+                throw new ConflictError(
+                    `Impossible d'annuler automatiquement la commande avec le statut "${commande.status}".`
+                );
+            }
+
+            // =========================================================
+            // 4 - Récupérer les produits de la commande
+            // =========================================================
+
+            const produits =
+                await CommandeProduitRepository.findByCommandeId(
+                    commande.id
+                );
+
+            // =========================================================
+            // 5 - Restaurer les stocks
+            // =========================================================
+
+            for (
+                const produit of produits
+            ) {
+
+                if (
+                    produit.variante_id !==
+                    null
+                ) {
+
+                    await ProduitVarianteRepository.increaseStock(
+                        produit.variante_id,
+                        produit.quantite,
+                        connection
+                    );
+
+                } else {
+
+                    await ProduitRepository.increaseStock(
+                        produit.produit_id,
+                        produit.quantite,
+                        connection
+                    );
+                }
+            }
+
+            // =========================================================
+            // 6 - Annuler la commande
+            // =========================================================
+
+            await CommandeRepository.updateStatus(
+                commande.id,
+                "cancelled",
+                connection
+            );
+
+            // =========================================================
+            // 7 - Historique
+            // =========================================================
+
+            await CommandeStatutRepository.create(
+                commande.id,
+                "cancelled",
+                "Paiement échoué. Commande annulée automatiquement.",
+                connection
+            );
+
+            // =========================================================
+            // 8 - Libérer le livreur si nécessaire
+            // =========================================================
+
+            if (
+                commande.livreur_id
+            ) {
+
+                const livreur =
+                    await LivreurRepository.findById(
+                        commande.livreur_id
+                    );
+
+                if (
+                    livreur &&
+                    livreur.status ===
+                    "active"
+                ) {
+
+                    await LivreurRepository.updateDisponibilite(
+                        livreur.id,
+                        "available",
+                        connection
+                    );
+                }
+
+                await CommandeRepository.unassignLivreur(
+                    commande.id,
+                    connection
+                );
+            }
+
+            await connection.commit();
+
+            // =========================================================
+            // 9 - Notification client
+            // =========================================================
+
+            await NotificationService.create({
+                user_id:
+                    commande.client_id,
+
+                commande_id:
+                    commande.id,
+
+                type:
+                    "order_cancelled",
+
+                titre:
+                    "Paiement échoué",
+
+                message:
+                    "Le paiement a échoué. Votre commande a été annulée automatiquement et les produits ont été remis en stock."
+            });
+
+            return {
+                message:
+                    "Commande annulée automatiquement après échec du paiement."
+            };
+
+        } catch (error) {
+
+            await connection.rollback();
+
+            throw error;
+
+        } finally {
+
+            connection.release();
+        }
+    }
+
+
     static async cancelByClient(
         uuid: string,
         client_id: number,
@@ -1693,17 +1997,31 @@ static async create(
             // ---------------------------------------------------------
             // 1 - Restaurer les stocks
             // ---------------------------------------------------------
+for (
+    const produit of produits
+) {
 
-            for (
-                const produit of produits
-            ) {
+    if (produit.variante_id !== null) {
 
-                await ProduitRepository.increaseStock(
-                    produit.produit_id,
-                    produit.quantite,
-                    connection
-                );
-            }
+        // Commande avec variante :
+        // restaurer le stock de la variante.
+        await ProduitVarianteRepository.increaseStock(
+            produit.variante_id,
+            produit.quantite,
+            connection
+        );
+
+    } else {
+
+        // Commande sans variante :
+        // restaurer le stock du produit.
+        await ProduitRepository.increaseStock(
+            produit.produit_id,
+            produit.quantite,
+            connection
+        );
+    }
+}
 
             // ---------------------------------------------------------
             // 2 - Mettre la commande en cancelled

@@ -154,7 +154,7 @@ export default function MaBoutiquePage() {
         if (productsResult.status === "fulfilled") {
           setHasProducts(
             Array.isArray(productsResult.value?.data) &&
-              productsResult.value.data.length > 0
+            productsResult.value.data.length > 0
           );
         } else {
           console.error(
@@ -168,7 +168,7 @@ export default function MaBoutiquePage() {
         if (livreursResult.status === "fulfilled") {
           setHasLivreur(
             Array.isArray(livreursResult.value?.data) &&
-              livreursResult.value.data.length > 0
+            livreursResult.value.data.length > 0
           );
         } else {
           console.error(
@@ -182,7 +182,7 @@ export default function MaBoutiquePage() {
         if (tarifsResult.status === "fulfilled") {
           setHasDeliveryRates(
             Array.isArray(tarifsResult.value?.data) &&
-              tarifsResult.value.data.length > 0
+            tarifsResult.value.data.length > 0
           );
         } else {
           console.error(
@@ -198,7 +198,7 @@ export default function MaBoutiquePage() {
             Array.isArray(
               promotionsResult.value?.data
             ) &&
-              promotionsResult.value.data.length > 0
+            promotionsResult.value.data.length > 0
           );
         } else {
           console.error(
@@ -710,7 +710,9 @@ export default function MaBoutiquePage() {
                         "Créer votre boutique"}
 
                       {activeStep === 2 &&
-                        "Ajouter votre premier produit"}
+                        (boutique?.status === "pending"
+                          ? "Validation de votre boutique"
+                          : "Ajouter votre premier produit")}
 
                       {activeStep === 3 &&
                         "Organiser vos livraisons"}
@@ -748,9 +750,61 @@ export default function MaBoutiquePage() {
                 )}
 
                 {activeStep === 2 && (
-                  <AddProductStep
-                    onCompleted={handleStepCompleted}
-                  />
+                  boutique?.status === "pending" ? (
+                    <div className="rounded-2xl border border-[#fcd116]/40 bg-[#fcd116]/5 p-6 sm:p-8">
+
+                      <div className="flex flex-col items-center text-center">
+
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fcd116]/15">
+                          <Clock className="h-8 w-8 text-yellow-700" />
+                        </div>
+
+                        <h3 className="mt-5 text-xl font-extrabold tracking-tight text-gray-950">
+                          Votre boutique est en attente de validation
+                        </h3>
+
+                        <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
+                          Votre boutique a bien été créée et les informations
+                          enregistrées. Elle doit maintenant être vérifiée et activée
+                          par un super administrateur avant que vous puissiez poursuivre
+                          la configuration de votre espace vendeur.
+                        </p>
+
+                        <div className="mt-6 w-full max-w-2xl rounded-xl border border-[#fcd116]/30 bg-white p-4 text-left">
+
+                          <div className="flex items-start gap-3">
+
+                            <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#14a800]" />
+
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">
+                                Que va-t-il se passer ?
+                              </p>
+
+                              <p className="mt-1 text-sm leading-6 text-gray-500">
+                                Un super administrateur va vérifier votre boutique et
+                                procéder à son activation. Vous recevrez une notification
+                                dès que cette étape sera terminée.
+                              </p>
+                            </div>
+
+                          </div>
+
+                        </div>
+
+                        <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700">
+                          <Clock className="h-4 w-4" />
+                          En attente de validation
+                        </div>
+
+                      </div>
+
+                    </div>
+                  ) : (
+                    <AddProductStep
+                      onCompleted={handleStepCompleted}
+                    />
+                  )
                 )}
 
                 {activeStep === 3 && (
@@ -1075,17 +1129,17 @@ export default function MaBoutiquePage() {
 
                         {(boutique.adresse ||
                           boutique.ville) && (
-                          <span className="inline-flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-[#14a800]" />
+                            <span className="inline-flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-[#14a800]" />
 
-                            {[
-                              boutique.adresse,
-                              boutique.ville,
-                            ]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </span>
-                        )}
+                              {[
+                                boutique.adresse,
+                                boutique.ville,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </span>
+                          )}
 
                       </div>
 

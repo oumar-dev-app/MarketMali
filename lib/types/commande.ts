@@ -1,3 +1,18 @@
+export type CommandeModePaiement =
+  | "legacy"
+  | "cash"
+  | "wave"
+  | "orange_money"
+  | "moov_money";
+
+export type CommandeStatutPaiement =
+  | "legacy"
+  | "pending"
+  | "paid"
+  | "failed"
+  | "cancelled"
+  | "refunded";
+
 export type CommandeStatus =
   | "pending"
   | "confirmed"
@@ -24,6 +39,9 @@ export interface Commande {
   total: number;
   frais_livraison: number;
 
+  mode_paiement: CommandeModePaiement;
+  statut_paiement: CommandeStatutPaiement;
+
   status: CommandeStatus;
 
   created_at: Date;
@@ -47,6 +65,11 @@ export interface CreateCommandeDTO {
   latitude?: number;
   longitude?: number;
   gps_precision?: number;
+
+  mode_paiement: Exclude<
+    CommandeModePaiement,
+    "legacy"
+  >;
 }
 
 export interface UpdateCommandeDTO {

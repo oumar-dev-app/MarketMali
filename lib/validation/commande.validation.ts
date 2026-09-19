@@ -6,6 +6,13 @@ export const createCommandeSchema = z.object({
     .int()
     .positive(),
 
+  mode_paiement: z.enum([
+    "cash",
+    "wave",
+    "orange_money",
+    "moov_money",
+  ]),
+
   produits: z
     .array(
       z.object({

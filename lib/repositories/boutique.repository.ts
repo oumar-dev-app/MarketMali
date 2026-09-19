@@ -1,5 +1,12 @@
 import { db } from "../db";
-import { ResultSetHeader, RowDataPacket } from "mysql2";
+import {
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2";
+import {
+  Pool,
+  PoolConnection,
+} from "mysql2/promise";
 import { Boutique, BoutiqueUpdate } from "../types/boutique";
 import { ProduitRow } from "./produit.repository";
 import {
@@ -166,7 +173,6 @@ export class BoutiqueRepository {
 
     return rows.length ? rows[0] : null;
   }
-
   static async create(
     data: {
       uuid: string;
@@ -180,28 +186,29 @@ export class BoutiqueRepository {
       adresse?: string;
       ville?: string;
       activation_expires_at?: Date | null;
-    }
+    },
+    connection: Pool | PoolConnection = db
   ): Promise<number> {
 
     const [result] =
-      await db.execute<ResultSetHeader>(
+      await connection.execute<ResultSetHeader>(
         `
-        INSERT INTO boutiques
-        (
-          uuid,
-          user_id,
-          nom,
-          slug,
-          description,
-          logo,
-          telephone,
-          email,
-          adresse,
-          ville,
-          activation_expires_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
+      INSERT INTO boutiques
+      (
+        uuid,
+        user_id,
+        nom,
+        slug,
+        description,
+        logo,
+        telephone,
+        email,
+        adresse,
+        ville,
+        activation_expires_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
         [
           data.uuid,
           data.user_id,
@@ -216,8 +223,8 @@ export class BoutiqueRepository {
           data.activation_expires_at ?? null
         ]
       );
-    return result.insertId;
 
+    return result.insertId;
   }
 
   static async findByUUIDActive(
@@ -240,12 +247,12 @@ export class BoutiqueRepository {
 
   static async update(
     id: number,
-    data: BoutiqueUpdate
+    data: BoutiqueUpdate,
+    connection: Pool | PoolConnection = db
   ) {
 
     const allowedFields:
       (keyof BoutiqueUpdate)[] = [
-
         "nom",
         "slug",
         "description",
@@ -254,7 +261,6 @@ export class BoutiqueRepository {
         "email",
         "adresse",
         "ville"
-
       ];
 
     const fields =
@@ -273,21 +279,20 @@ export class BoutiqueRepository {
 
     const sql = `
     UPDATE boutiques
-    SET 
+    SET
       ${fields.map(
       field => `${field} = ?`
     ).join(", ")}
     WHERE id = ?
   `;
 
-    await db.execute(
+    await connection.execute(
       sql,
       [
         ...values,
         id
       ]
     );
-
   }
 
   static async markLivraisonConfiguree(

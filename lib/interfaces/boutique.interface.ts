@@ -8,6 +8,12 @@ export interface CreateBoutiqueDTO {
   email?: string;
   adresse?: string;
   ville?: string;
+
+  paiements?: {
+    wave?: string;
+    orange_money?: string;
+    moov_money?: string;
+  };
 }
 
 
@@ -21,6 +27,12 @@ export interface UpdateBoutiqueDTO {
   email?: string | null;
   adresse?: string | null;
   ville?: string | null;
+
+  paiements?: {
+    wave?: string;
+    orange_money?: string;
+    moov_money?: string;
+  };
 }
 
 

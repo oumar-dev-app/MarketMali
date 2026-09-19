@@ -23,6 +23,13 @@ interface Boutique {
     email?: string | null;
     adresse?: string | null;
     ville?: string | null;
+
+    paiements?: {
+        wave?: string | null;
+        orange_money?: string | null;
+        moov_money?: string | null;
+    };
+
     status: string;
     activation_expires_at?: string | null;
     created_at: string;

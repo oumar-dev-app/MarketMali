@@ -23,8 +23,13 @@ export interface BoutiqueFormData {
     email: string;
     adresse: string;
     ville: string;
-}
 
+    paiements: {
+        wave: string;
+        orange_money: string;
+        moov_money: string;
+    };
+}
 interface Props {
     initialData?: Partial<BoutiqueFormData>;
     loading?: boolean;
@@ -48,6 +53,14 @@ export default function BoutiqueForm({
         email: initialData?.email ?? "",
         adresse: initialData?.adresse ?? "",
         ville: initialData?.ville ?? "",
+
+        paiements: {
+            wave: initialData?.paiements?.wave ?? "",
+            orange_money:
+                initialData?.paiements?.orange_money ?? "",
+            moov_money:
+                initialData?.paiements?.moov_money ?? "",
+        },
     });
 
     const [error, setError] = useState("");
@@ -73,6 +86,24 @@ export default function BoutiqueForm({
         setForm((current) => ({
             ...current,
             [name]: value,
+        }));
+
+        if (error) {
+            setError("");
+        }
+    }
+
+    function handlePaiementChange(
+        event: React.ChangeEvent<HTMLInputElement>
+    ) {
+        const { name, value } = event.target;
+
+        setForm((current) => ({
+            ...current,
+            paiements: {
+                ...current.paiements,
+                [name]: value,
+            },
         }));
 
         if (error) {
@@ -248,6 +279,15 @@ export default function BoutiqueForm({
         const ville =
             form.ville.trim();
 
+        const wave =
+            form.paiements.wave.trim();
+
+        const orangeMoney =
+            form.paiements.orange_money.trim();
+
+        const moovMoney =
+            form.paiements.moov_money.trim();
+
         if (nom.length < 3) {
             setError(
                 "Le nom de la boutique doit contenir au moins 3 caractères."
@@ -314,6 +354,54 @@ export default function BoutiqueForm({
             return;
         }
 
+        if (wave && wave.length < 8) {
+            setError(
+                "Le numéro Wave doit contenir au moins 8 caractères."
+            );
+            return;
+        }
+
+        if (wave.length > 30) {
+            setError(
+                "Le numéro Wave ne peut pas dépasser 30 caractères."
+            );
+            return;
+        }
+
+        if (
+            orangeMoney &&
+            orangeMoney.length < 8
+        ) {
+            setError(
+                "Le numéro Orange Money doit contenir au moins 8 caractères."
+            );
+            return;
+        }
+
+        if (orangeMoney.length > 30) {
+            setError(
+                "Le numéro Orange Money ne peut pas dépasser 30 caractères."
+            );
+            return;
+        }
+
+        if (
+            moovMoney &&
+            moovMoney.length < 8
+        ) {
+            setError(
+                "Le numéro Moov Money doit contenir au moins 8 caractères."
+            );
+            return;
+        }
+
+        if (moovMoney.length > 30) {
+            setError(
+                "Le numéro Moov Money ne peut pas dépasser 30 caractères."
+            );
+            return;
+        }
+
         if (logo.length > 255) {
             setError(
                 "L'URL du logo ne peut pas dépasser 255 caractères."
@@ -331,6 +419,12 @@ export default function BoutiqueForm({
             email,
             adresse,
             ville,
+
+            paiements: {
+                wave,
+                orange_money: orangeMoney,
+                moov_money: moovMoney,
+            },
         });
     }
 
@@ -699,6 +793,117 @@ export default function BoutiqueForm({
                 </section>
 
             </div>
+
+            {/* MOYENS DE PAIEMENT */}
+
+            <section className="border-t border-gray-100 pt-7">
+
+                <div className="flex items-center gap-2 mb-2">
+                    <FaPhone className="text-gray-400 text-sm" />
+
+                    <h3 className="font-semibold text-gray-900">
+                        Moyens de paiement
+                    </h3>
+                </div>
+
+                <p className="text-sm text-gray-500 mb-5">
+                    Ajoutez les numéros de paiement sur lesquels vos clients
+                    pourront effectuer leurs paiements. Chaque moyen est facultatif.
+                </p>
+
+                <div className="grid md:grid-cols-3 gap-5">
+
+                    {/* WAVE */}
+
+                    <div>
+                        <label
+                            htmlFor="wave"
+                            className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                            Wave
+                        </label>
+
+                        <input
+                            id="wave"
+                            type="tel"
+                            name="wave"
+                            value={form.paiements.wave}
+                            onChange={handlePaiementChange}
+                            disabled={isBusy}
+                            maxLength={30}
+                            placeholder="Ex. 76000000"
+                            className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
+                        />
+
+                        <p className="text-xs text-gray-400 mt-1.5">
+                            Facultatif
+                        </p>
+                    </div>
+
+                    {/* ORANGE MONEY */}
+
+                    <div>
+                        <label
+                            htmlFor="orange_money"
+                            className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                            Orange Money
+                        </label>
+
+                        <input
+                            id="orange_money"
+                            type="tel"
+                            name="orange_money"
+                            value={form.paiements.orange_money}
+                            onChange={handlePaiementChange}
+                            disabled={isBusy}
+                            maxLength={30}
+                            placeholder="Ex. 78000000"
+                            className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
+                        />
+
+                        <p className="text-xs text-gray-400 mt-1.5">
+                            Facultatif
+                        </p>
+                    </div>
+
+                    {/* MOOV MONEY */}
+
+                    <div>
+                        <label
+                            htmlFor="moov_money"
+                            className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                            Moov Money
+                        </label>
+
+                        <input
+                            id="moov_money"
+                            type="tel"
+                            name="moov_money"
+                            value={form.paiements.moov_money}
+                            onChange={handlePaiementChange}
+                            disabled={isBusy}
+                            maxLength={30}
+                            placeholder="Ex. 79000000"
+                            className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition focus:bg-white focus:border-gray-400 focus:ring-4 focus:ring-gray-100 disabled:opacity-60"
+                        />
+
+                        <p className="text-xs text-gray-400 mt-1.5">
+                            Facultatif
+                        </p>
+                    </div>
+
+                </div>
+
+                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                    <p className="text-xs leading-5 text-gray-500">
+                        Vous pouvez renseigner un, deux ou les trois moyens de paiement.
+                        Ces informations seront associées à votre boutique.
+                    </p>
+                </div>
+
+            </section>
 
             {/* ACTIONS */}
 

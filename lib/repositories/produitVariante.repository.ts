@@ -338,4 +338,27 @@ export class ProduitVarianteRepository {
       );
     }
   }
+
+  static async increaseStock(
+    id: number,
+    quantite: number,
+    connection: Pool | PoolConnection = db
+  ): Promise<void> {
+
+    const [result] =
+      await connection.execute<ResultSetHeader>(
+        `
+                UPDATE produit_variantes
+                SET stock = stock + ?
+                WHERE id = ?
+                `,
+        [quantite, id]
+      );
+
+    if (result.affectedRows !== 1) {
+      throw new Error(
+        "Variante introuvable."
+      );
+    }
+  }
 }
