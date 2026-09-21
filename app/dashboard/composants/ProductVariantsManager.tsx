@@ -1,5 +1,7 @@
 "use client";
 
+import { prepareImageForUpload } from "@/lib/utils/imageUpload";
+
 import { useEffect, useRef, useState } from "react";
 import {
     CheckCircle2,
@@ -93,7 +95,7 @@ export default function ProductVariantsManager({
             if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
-                        "Impossible de charger les variantes."
+                    "Impossible de charger les variantes."
                 );
             }
 
@@ -163,7 +165,7 @@ export default function ProductVariantsManager({
             if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
-                        "Impossible de créer la variante."
+                    "Impossible de créer la variante."
                 );
             }
 
@@ -241,7 +243,7 @@ export default function ProductVariantsManager({
             if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
-                        "Impossible de modifier la variante."
+                    "Impossible de modifier la variante."
                 );
             }
 
@@ -288,7 +290,7 @@ export default function ProductVariantsManager({
             if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
-                        "Impossible de supprimer la variante."
+                    "Impossible de supprimer la variante."
                 );
             }
 
@@ -324,23 +326,7 @@ export default function ProductVariantsManager({
 
         if (!files.length || !token) return;
 
-        const images = files.filter((file) => {
-            if (!file.type.startsWith("image/")) {
-                toast.error(
-                    `${file.name} n'est pas une image valide.`
-                );
-                return false;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                toast.error(
-                    `${file.name} dépasse la limite de 5 Mo.`
-                );
-                return false;
-            }
-
-            return true;
-        });
+        const images = files;
 
         if (!images.length) return;
 
@@ -350,22 +336,33 @@ export default function ProductVariantsManager({
             const uploadedUrls: string[] = [];
 
             for (const file of images) {
+                const preparedFile =
+                    await prepareImageForUpload(file);
+
                 const formData = new FormData();
 
-                formData.append("file", file);
-                formData.append("type", "produit");
-
-                const uploadResponse = await fetch(
-                    "/api/upload",
-                    {
-                        method: "POST",
-                        headers: {
-                            Authorization:
-                                `Bearer ${token}`,
-                        },
-                        body: formData,
-                    }
+                formData.append(
+                    "file",
+                    preparedFile
                 );
+
+                formData.append(
+                    "type",
+                    "produit"
+                );
+
+                const uploadResponse =
+                    await fetch(
+                        "/api/upload",
+                        {
+                            method: "POST",
+                            headers: {
+                                Authorization:
+                                    `Bearer ${token}`,
+                            },
+                            body: formData,
+                        }
+                    );
 
                 const uploadResult =
                     await uploadResponse.json();
@@ -377,11 +374,13 @@ export default function ProductVariantsManager({
                 ) {
                     throw new Error(
                         uploadResult.message ||
-                            `Impossible d'envoyer ${file.name}.`
+                        `Impossible d'envoyer ${file.name}.`
                     );
                 }
 
-                uploadedUrls.push(uploadResult.url);
+                uploadedUrls.push(
+                    uploadResult.url
+                );
             }
 
             const startOrder = variante.images.length;
@@ -410,15 +409,13 @@ export default function ProductVariantsManager({
             if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
-                        "Impossible d'associer les photos à la variante."
+                    "Impossible d'associer les photos à la variante."
                 );
             }
 
             toast.success(
-                `${uploadedUrls.length} photo${
-                    uploadedUrls.length > 1 ? "s" : ""
-                } ajoutée${
-                    uploadedUrls.length > 1 ? "s" : ""
+                `${uploadedUrls.length} photo${uploadedUrls.length > 1 ? "s" : ""
+                } ajoutée${uploadedUrls.length > 1 ? "s" : ""
                 } avec succès.`
             );
 
@@ -462,7 +459,7 @@ export default function ProductVariantsManager({
             if (!response.ok || !result.success) {
                 throw new Error(
                     result.message ||
-                        "Impossible de supprimer la photo."
+                    "Impossible de supprimer la photo."
                 );
             }
 
@@ -740,7 +737,7 @@ export default function ProductVariantsManager({
                                                         photo
                                                         {variante.images
                                                             .length >
-                                                        1
+                                                            1
                                                             ? "s"
                                                             : ""}
                                                     </span>
@@ -870,11 +867,11 @@ export default function ProductVariantsManager({
 
                                                             {image.ordre ===
                                                                 0 && (
-                                                                <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-700 shadow-sm">
-                                                                    <CheckCircle2 className="h-3 w-3 text-[#14a800]" />
-                                                                    Principale
-                                                                </span>
-                                                            )}
+                                                                    <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-1 text-[10px] font-bold text-gray-700 shadow-sm">
+                                                                        <CheckCircle2 className="h-3 w-3 text-[#14a800]" />
+                                                                        Principale
+                                                                    </span>
+                                                                )}
                                                         </div>
                                                     )
                                                 )}

@@ -74,6 +74,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (validation.data.mode_paiement !== "cash") {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PAYMENT_METHOD_UNAVAILABLE",
+          message:
+            "Ce mode de paiement n'est pas encore disponible pour le moment. Veuillez choisir le paiement à la livraison.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
     console.log(
       "BODY COMMANDE :",
       validation.data

@@ -2089,15 +2089,24 @@ export default function PagePanier() {
                     </p>
                   </div>
 
+                  {/* Information disponibilité */}
+                  <div className="mb-3 rounded-xl border border-yellow-200 bg-yellow-50 p-3">
+                    <p className="text-xs leading-5 text-yellow-800">
+                      <span className="font-bold">
+                        Paiement mobile bientôt disponible.
+                      </span>{" "}
+                      Pour le moment, seul le paiement à la livraison est disponible.
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-2">
+                    {/* PAIEMENT À LA LIVRAISON */}
                     <button
                       type="button"
-                      onClick={() =>
-                        setModePaiement("cash")
-                      }
+                      onClick={() => setModePaiement("cash")}
                       className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${modePaiement === "cash"
-                        ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
-                        : "border-gray-200 bg-white hover:border-gray-300"
+                          ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
+                          : "border-gray-200 bg-white hover:border-gray-300"
                         }`}
                     >
                       <div>
@@ -2118,88 +2127,73 @@ export default function PagePanier() {
                       )}
                     </button>
 
+                    {/* WAVE */}
                     <button
                       type="button"
-                      onClick={() =>
-                        setModePaiement("wave")
-                      }
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${modePaiement === "wave"
-                        ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                        }`}
+                      disabled
+                      className="flex cursor-not-allowed items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left opacity-70"
                     >
                       <div>
-                        <p className="text-sm font-bold text-gray-900">
-                          Wave
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-gray-700">
+                            Wave
+                          </p>
 
-                        <p className="mt-1 text-xs text-gray-500">
+                          <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-extrabold text-yellow-700">
+                            Bientôt disponible
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-xs text-gray-400">
                           Paiement mobile.
                         </p>
                       </div>
-
-                      {modePaiement === "wave" && (
-                        <CheckCircle2
-                          size={20}
-                          className="shrink-0 text-[#14a800]"
-                        />
-                      )}
                     </button>
 
+                    {/* ORANGE MONEY */}
                     <button
                       type="button"
-                      onClick={() =>
-                        setModePaiement("orange_money")
-                      }
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${modePaiement === "orange_money"
-                        ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                        }`}
+                      disabled
+                      className="flex cursor-not-allowed items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left opacity-70"
                     >
                       <div>
-                        <p className="text-sm font-bold text-gray-900">
-                          Orange Money
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-gray-700">
+                            Orange Money
+                          </p>
 
-                        <p className="mt-1 text-xs text-gray-500">
+                          <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-extrabold text-yellow-700">
+                            Bientôt disponible
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-xs text-gray-400">
                           Paiement mobile.
                         </p>
                       </div>
-
-                      {modePaiement === "orange_money" && (
-                        <CheckCircle2
-                          size={20}
-                          className="shrink-0 text-[#14a800]"
-                        />
-                      )}
                     </button>
 
+                    {/* MOOV MONEY */}
                     <button
                       type="button"
-                      onClick={() =>
-                        setModePaiement("moov_money")
-                      }
-                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${modePaiement === "moov_money"
-                        ? "border-[#14a800] bg-green-50 ring-1 ring-[#14a800]"
-                        : "border-gray-200 bg-white hover:border-gray-300"
-                        }`}
+                      disabled
+                      className="flex cursor-not-allowed items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left opacity-70"
                     >
                       <div>
-                        <p className="text-sm font-bold text-gray-900">
-                          Moov Money
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-gray-700">
+                            Moov Money
+                          </p>
 
-                        <p className="mt-1 text-xs text-gray-500">
+                          <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-[10px] font-extrabold text-yellow-700">
+                            Bientôt disponible
+                          </span>
+                        </div>
+
+                        <p className="mt-1 text-xs text-gray-400">
                           Paiement mobile.
                         </p>
                       </div>
-
-                      {modePaiement === "moov_money" && (
-                        <CheckCircle2
-                          size={20}
-                          className="shrink-0 text-[#14a800]"
-                        />
-                      )}
                     </button>
                   </div>
                 </div>

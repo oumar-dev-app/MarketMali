@@ -1447,7 +1447,7 @@ useEffect(() => {
                 =================================================== */}
 
                 {showNotifications && (
-                  <div className="fixed left-2 right-2 top-17 z-100 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[380px]">
+                  <div className="fixed left-2 right-2 top-17 z-100 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-95">
 
                     {/* HEADER */}
 

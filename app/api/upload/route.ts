@@ -6,6 +6,8 @@ import { UnauthorizedError } from "@/lib/errors/UnauthorizedError";
 
 export const runtime = "nodejs";
 
+const MAX_SIZE = 4 * 1024 * 1024;
+
 export async function POST(request: Request) {
     try {
         const user = await getAuthUser(request);
@@ -14,22 +16,28 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "Votre compte n'est pas actif.",
+                    message:
+                        "Votre compte n'est pas actif.",
                 },
                 { status: 403 }
             );
         }
 
-        const formData = await request.formData();
+        const formData =
+            await request.formData();
 
-        const file = formData.get("file");
-        const type = formData.get("type");
+        const file =
+            formData.get("file");
+
+        const type =
+            formData.get("type");
 
         if (!(file instanceof File)) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "Aucun fichier reçu.",
+                    message:
+                        "Aucun fichier reçu.",
                 },
                 { status: 400 }
             );
@@ -43,37 +51,34 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "Type de fichier invalide.",
+                    message:
+                        "Type de fichier invalide.",
                 },
                 { status: 400 }
             );
         }
 
-        if (!file.type.startsWith("image/")) {
+        if (file.type !== "image/jpeg") {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "Le fichier doit être une image.",
+                    message:
+                        "L'image doit être au format JPEG après préparation.",
                 },
                 { status: 400 }
             );
         }
 
-        const maxSize = 5 * 1024 * 1024;
-
-        if (file.size > maxSize) {
+        if (file.size > MAX_SIZE) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: "L'image ne doit pas dépasser 5 Mo.",
+                    message:
+                        "L'image préparée est encore trop volumineuse.",
                 },
                 { status: 400 }
             );
         }
-
-        const originalName = file.name
-            .replace(/[^a-zA-Z0-9._-]/g, "-")
-            .replace(/-+/g, "-");
 
         const folder =
             type === "boutique"
@@ -83,7 +88,7 @@ export async function POST(request: Request) {
                     : "produits";
 
         const filename =
-            `${folder}/${Date.now()}-${originalName}`;
+            `${folder}/${Date.now()}-${crypto.randomUUID()}.jpg`;
 
         const blob = await put(
             filename,
@@ -91,6 +96,7 @@ export async function POST(request: Request) {
             {
                 access: "public",
                 addRandomSuffix: true,
+                contentType: "image/jpeg",
             }
         );
 
@@ -98,14 +104,16 @@ export async function POST(request: Request) {
             success: true,
             url: blob.url,
         });
-
     } catch (error) {
         console.error(
             "Erreur upload image :",
             error
         );
 
-        if (error instanceof UnauthorizedError) {
+        if (
+            error instanceof
+            UnauthorizedError
+        ) {
             return NextResponse.json(
                 {
                     success: false,

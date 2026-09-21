@@ -12,6 +12,7 @@
     "@vercel/blob": "^2.8.0",
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
+    "heic2any": "^0.0.4",
     "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.3",
     "leaflet": "^1.9.4",

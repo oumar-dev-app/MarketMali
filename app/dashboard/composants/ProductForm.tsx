@@ -1,5 +1,9 @@
 "use client";
 
+import {
+    prepareImageForUpload,
+} from "@/lib/utils/imageUpload";
+
 import { useEffect, useRef, useState } from "react";
 import {
     AlertCircle,
@@ -103,7 +107,7 @@ export default function ProductForm({
                 if (!response.ok || !data.success) {
                     throw new Error(
                         data.message ||
-                            "Impossible de charger les catégories."
+                        "Impossible de charger les catégories."
                     );
                 }
 
@@ -135,8 +139,8 @@ export default function ProductForm({
             ...old,
             [name]:
                 name === "prix" ||
-                name === "stock" ||
-                name === "categorie_id"
+                    name === "stock" ||
+                    name === "categorie_id"
                     ? Number(value)
                     : value,
         }));
@@ -146,103 +150,93 @@ export default function ProductForm({
         }
     }
 
-    async function handleImageChange(
-        e: React.ChangeEvent<HTMLInputElement>
-    ) {
-        const file = e.target.files?.[0];
+async function handleImageChange(
+    e: React.ChangeEvent<HTMLInputElement>
+) {
+    const file = e.target.files?.[0];
 
-        if (!file) return;
+    if (!file) return;
 
-        setError("");
+    setError("");
+    setUploading(true);
 
-        if (!file.type.startsWith("image/")) {
-            setError(
-                "Veuillez sélectionner une image valide."
-            );
-
-            e.target.value = "";
-            return;
-        }
-
-        const maxSize = 5 * 1024 * 1024;
-
-        if (file.size > maxSize) {
-            setError(
-                "L'image ne doit pas dépasser 5 Mo."
-            );
-
-            e.target.value = "";
-            return;
-        }
+    try {
+        const preparedFile =
+            await prepareImageForUpload(file);
 
         const localPreview =
-            URL.createObjectURL(file);
+            URL.createObjectURL(preparedFile);
 
         setPreview(localPreview);
-        setUploading(true);
 
-        try {
-            const formData = new FormData();
+        const formData = new FormData();
 
-            formData.append("file", file);
-            formData.append("type", "produit");
+        formData.append(
+            "file",
+            preparedFile
+        );
 
-            const response = await fetch(
-                "/api/upload",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization:
-                            `Bearer ${token}`,
-                    },
-                    body: formData,
-                }
-            );
+        formData.append(
+            "type",
+            "produit"
+        );
 
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(
-                    data.message ||
-                        "Impossible de télécharger l'image."
-                );
+        const response = await fetch(
+            "/api/upload",
+            {
+                method: "POST",
+                headers: {
+                    Authorization:
+                        `Bearer ${token}`,
+                },
+                body: formData,
             }
+        );
 
-            setForm((old) => ({
-                ...old,
-                image: data.url,
-            }));
+        const data =
+            await response.json();
 
-            setPreview(data.url);
-        } catch (err) {
-            console.error(
-                "Erreur upload image :",
-                err
+        if (
+            !response.ok ||
+            !data.success
+        ) {
+            throw new Error(
+                data.message ||
+                    "Impossible de télécharger l'image."
             );
-
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Impossible de télécharger l'image."
-            );
-
-            setPreview(initialData?.image ?? "");
-
-            setForm((old) => ({
-                ...old,
-                image: initialData?.image ?? "",
-            }));
-        } finally {
-            setUploading(false);
-
-            if (fileInputRef.current) {
-                fileInputRef.current.value = "";
-            }
-
-            URL.revokeObjectURL(localPreview);
         }
-    }
 
+        setForm((old) => ({
+            ...old,
+            image: data.url,
+        }));
+
+        setPreview(data.url);
+    } catch (err) {
+        console.error(
+            "Erreur préparation/upload image :",
+            err
+        );
+
+        setError(
+            err instanceof Error
+                ? err.message
+                : "Impossible de télécharger l'image."
+        );
+
+        setPreview(
+            initialData?.image ?? ""
+        );
+
+        setForm((old) => ({
+            ...old,
+            image:
+                initialData?.image ?? "",
+        }));
+    } finally {
+        setUploading(false);
+    }
+}
     function supprimerImage() {
         setForm((old) => ({
             ...old,
@@ -592,10 +586,9 @@ export default function ProductForm({
                                         gap-2 rounded-xl px-5 py-3
                                         text-sm font-semibold
                                         transition
-                                        ${
-                                            disabled
-                                                ? "cursor-not-allowed bg-gray-200 text-gray-400"
-                                                : "bg-black text-white hover:bg-gray-800"
+                                        ${disabled
+                                            ? "cursor-not-allowed bg-gray-200 text-gray-400"
+                                            : "bg-black text-white hover:bg-gray-800"
                                         }
                                     `}
                                 >
@@ -644,10 +637,9 @@ export default function ProductForm({
                                 border-dashed border-gray-300
                                 px-6 py-12 text-center
                                 transition
-                                ${
-                                    disabled
-                                        ? "cursor-not-allowed bg-gray-50 opacity-60"
-                                        : "hover:border-gray-400 hover:bg-gray-50"
+                                ${disabled
+                                    ? "cursor-not-allowed bg-gray-50 opacity-60"
+                                    : "hover:border-gray-400 hover:bg-gray-50"
                                 }
                             `}
                         >

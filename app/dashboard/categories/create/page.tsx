@@ -9,7 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
+import { prepareImageForUpload } from "@/lib/utils/imageUpload";
 import {
     ArrowLeft,
     Check,
@@ -376,49 +376,57 @@ export default function CreateCategoriePage() {
         setImagePreview(null);
     };
 
-    const uploadImage = async (
-        token: string
-    ): Promise<string> => {
-        if (!imageFile) {
-            return "";
+const uploadImage = async (
+    token: string
+): Promise<string> => {
+    if (!imageFile) {
+        return "";
+    }
+
+    const preparedFile =
+        await prepareImageForUpload(imageFile);
+
+    const formData = new FormData();
+
+    formData.append(
+        "file",
+        preparedFile
+    );
+
+    formData.append(
+        "type",
+        "categorie"
+    );
+
+    const response = await fetch(
+        "/api/upload",
+        {
+            method: "POST",
+            headers: {
+                Authorization:
+                    `Bearer ${token}`,
+            },
+            body: formData,
         }
+    );
 
-        const formData = new FormData();
+    const result =
+        (await response.json()) as ApiResponse<{
+            url?: string;
+        }>;
 
-        formData.append(
-            "file",
-            imageFile
-        );
-
-        const response = await fetch(
-            "/api/upload",
-            {
-                method: "POST",
-                headers: {
-                    Authorization:
-                        `Bearer ${token}`,
-                },
-                body: formData,
-            }
-        );
-
-        const result =
-            (await response.json()) as ApiResponse<{
-                url?: string;
-            }>;
-
-        if (
-            !response.ok ||
-            !result.success
-        ) {
-            throw new Error(
-                result.message ||
+    if (
+        !response.ok ||
+        !result.success
+    ) {
+        throw new Error(
+            result.message ||
                 "Impossible de télécharger l'image."
-            );
-        }
+        );
+    }
 
-        return result.data?.url ?? "";
-    };
+    return result.data?.url ?? "";
+};
 
     const handleSubmit = async (
         event: FormEvent<HTMLFormElement>
@@ -1040,10 +1048,9 @@ export default function CreateCategoriePage() {
                                     p-5
                                     text-left
                                     transition
-                                    ${
-                                        mode === "existing"
-                                            ? "border-[#14a800]/30 bg-[#14a800]/[0.035] shadow-sm ring-2 ring-[#14a800]/10"
-                                            : "border-gray-200 bg-white hover:border-[#14a800]/20 hover:bg-gray-50"
+                                    ${mode === "existing"
+                                        ? "border-[#14a800]/30 bg-[#14a800]/[0.035] shadow-sm ring-2 ring-[#14a800]/10"
+                                        : "border-gray-200 bg-white hover:border-[#14a800]/20 hover:bg-gray-50"
                                     }
                                 `}
                             >
@@ -1065,10 +1072,9 @@ export default function CreateCategoriePage() {
                                             items-center
                                             justify-center
                                             rounded-xl
-                                            ${
-                                                mode === "existing"
-                                                    ? "bg-[#14a800] text-white"
-                                                    : "bg-gray-100 text-gray-500"
+                                            ${mode === "existing"
+                                                ? "bg-[#14a800] text-white"
+                                                : "bg-gray-100 text-gray-500"
                                             }
                                         `}
                                     >
@@ -1105,10 +1111,9 @@ export default function CreateCategoriePage() {
                                     p-5
                                     text-left
                                     transition
-                                    ${
-                                        mode === "new"
-                                            ? "border-[#14a800]/30 bg-[#14a800]/[0.035] shadow-sm ring-2 ring-[#14a800]/10"
-                                            : "border-gray-200 bg-white hover:border-[#14a800]/20 hover:bg-gray-50"
+                                    ${mode === "new"
+                                        ? "border-[#14a800]/30 bg-[#14a800]/[0.035] shadow-sm ring-2 ring-[#14a800]/10"
+                                        : "border-gray-200 bg-white hover:border-[#14a800]/20 hover:bg-gray-50"
                                     }
                                 `}
                             >
@@ -1130,10 +1135,9 @@ export default function CreateCategoriePage() {
                                             items-center
                                             justify-center
                                             rounded-xl
-                                            ${
-                                                mode === "new"
-                                                    ? "bg-[#14a800] text-white"
-                                                    : "bg-gray-100 text-gray-500"
+                                            ${mode === "new"
+                                                ? "bg-[#14a800] text-white"
+                                                : "bg-gray-100 text-gray-500"
                                             }
                                         `}
                                     >
@@ -1280,10 +1284,9 @@ export default function CreateCategoriePage() {
                                                         rounded-2xl
                                                         border
                                                         transition
-                                                        ${
-                                                            isSelected
-                                                                ? "border-[#14a800]/40 bg-[#14a800]/[0.035] shadow-sm ring-2 ring-[#14a800]/10"
-                                                                : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                                                        ${isSelected
+                                                            ? "border-[#14a800]/40 bg-[#14a800]/[0.035] shadow-sm ring-2 ring-[#14a800]/10"
+                                                            : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
                                                         }
                                                     `}
                                                 >
@@ -1309,10 +1312,9 @@ export default function CreateCategoriePage() {
                                                                     items-center
                                                                     justify-center
                                                                     rounded-xl
-                                                                    ${
-                                                                        isSelected
-                                                                            ? "bg-[#14a800] text-white"
-                                                                            : "bg-gray-100 text-gray-500"
+                                                                    ${isSelected
+                                                                        ? "bg-[#14a800] text-white"
+                                                                        : "bg-gray-100 text-gray-500"
                                                                     }
                                                                 `}
                                                             >
@@ -1381,10 +1383,9 @@ export default function CreateCategoriePage() {
                                                                     h-3.5
                                                                     w-3.5
                                                                     transition
-                                                                    ${
-                                                                        isExpanded
-                                                                            ? "rotate-180"
-                                                                            : ""
+                                                                    ${isExpanded
+                                                                        ? "rotate-180"
+                                                                        : ""
                                                                     }
                                                                 `}
                                                             />
@@ -1688,8 +1689,8 @@ export default function CreateCategoriePage() {
                                                     setParentId(
                                                         value
                                                             ? Number(
-                                                                  value
-                                                              )
+                                                                value
+                                                            )
                                                             : null
                                                     );
                                                 }}
