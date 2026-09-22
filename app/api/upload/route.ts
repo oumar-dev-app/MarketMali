@@ -102,7 +102,9 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
             success: true,
-            url: blob.url,
+            data: {
+                url: blob.url,
+            },
         });
     } catch (error) {
         console.error(

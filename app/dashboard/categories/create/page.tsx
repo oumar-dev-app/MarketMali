@@ -706,10 +706,6 @@ const uploadImage = async (
     return (
         <div className="relative min-h-screen overflow-hidden bg-[#f7f9f7]">
 
-            {/* ==========================================================
-                ARRIÈRE-PLAN MARKETMALI
-            ========================================================== */}
-
             <div
                 className="
                     pointer-events-none
