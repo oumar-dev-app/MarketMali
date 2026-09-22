@@ -9,6 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { prepareImageForUpload } from "@/lib/utils/imageUpload";
 
 import {
     ArrowLeft,
@@ -31,6 +32,12 @@ interface Categorie {
     image?: string | null;
     status: string;
     created_at: string;
+}
+
+interface ApiResponse<T = unknown> {
+    success: boolean;
+    message?: string;
+    data?: T;
 }
 
 interface EditCategoriePageProps {
@@ -230,57 +237,52 @@ export default function EditCategoriePage({
         token: string
     ): Promise<string> => {
         if (!imageFile) {
-            return image;
+            return "";
         }
 
-        setUploadingImage(true);
+        const preparedFile =
+            await prepareImageForUpload(imageFile);
 
-        try {
-            const formData =
-                new FormData();
+        const formData = new FormData();
 
-            formData.append(
-                "file",
-                imageFile
-            );
+        formData.append(
+            "file",
+            preparedFile
+        );
 
-            formData.append(
-                "type",
-                "categorie"
-            );
+        formData.append(
+            "type",
+            "categorie"
+        );
 
-            const response =
-                await fetch(
-                    "/api/upload",
-                    {
-                        method: "POST",
-                        headers: {
-                            Authorization:
-                                `Bearer ${token}`,
-                        },
-                        body: formData,
-                    }
-                );
-
-            const result =
-                await response.json();
-
-            if (
-                !response.ok ||
-                !result.success ||
-                !result.url
-            ) {
-                throw new Error(
-                    result.message ||
-                    "Impossible de télécharger l'image."
-                );
+        const response = await fetch(
+            "/api/upload",
+            {
+                method: "POST",
+                headers: {
+                    Authorization:
+                        `Bearer ${token}`,
+                },
+                body: formData,
             }
+        );
 
-            return result.url;
+        const result =
+            (await response.json()) as ApiResponse<{
+                url?: string;
+            }>;
 
-        } finally {
-            setUploadingImage(false);
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.message ||
+                "Impossible de télécharger l'image."
+            );
         }
+
+        return result.data?.url ?? "";
     };
 
     /**
@@ -501,18 +503,16 @@ export default function EditCategoriePage({
                         </div>
 
                         <div
-                            className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                                statusIsActive
+                            className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${statusIsActive
                                     ? "bg-green-100 text-green-700"
                                     : "bg-red-100 text-red-700"
-                            }`}
+                                }`}
                         >
                             <span
-                                className={`h-2 w-2 rounded-full ${
-                                    statusIsActive
+                                className={`h-2 w-2 rounded-full ${statusIsActive
                                         ? "bg-green-500"
                                         : "bg-red-500"
-                                }`}
+                                    }`}
                             />
 
                             {statusIsActive
@@ -622,7 +622,7 @@ export default function EditCategoriePage({
 
                                     <div className="relative aspect-square w-full max-w-[220px] overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
                                         {imagePreview &&
-                                        !imageError ? (
+                                            !imageError ? (
                                             <img
                                                 src={
                                                     imagePreview
@@ -680,11 +680,10 @@ export default function EditCategoriePage({
 
                                             <label
                                                 htmlFor="image"
-                                                className={`mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 ${
-                                                    saving
+                                                className={`mt-5 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 ${saving
                                                         ? "pointer-events-none opacity-50"
                                                         : ""
-                                                }`}
+                                                    }`}
                                             >
                                                 <Upload className="h-4 w-4" />
 

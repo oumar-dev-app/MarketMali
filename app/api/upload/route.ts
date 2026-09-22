@@ -4,6 +4,7 @@ import { put } from "@vercel/blob";
 import { getAuthUser } from "@/lib/auth";
 import { UnauthorizedError } from "@/lib/errors/UnauthorizedError";
 
+
 export const runtime = "nodejs";
 
 const MAX_SIZE = 4 * 1024 * 1024;
@@ -58,12 +59,17 @@ export async function POST(request: Request) {
             );
         }
 
+        console.log("📸 FICHIER REÇU PAR /api/upload :", {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+        });
+
         if (file.type !== "image/jpeg") {
             return NextResponse.json(
                 {
                     success: false,
-                    message:
-                        "L'image doit être au format JPEG après préparation.",
+                    message: `L'image doit être au format JPEG après préparation. Type reçu : ${file.type}`,
                 },
                 { status: 400 }
             );
