@@ -3,12 +3,16 @@
 import Link from "next/link";
 import {
   ArrowLeft,
-  ArrowRight,
   FolderOpen,
   Search,
   Tag,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 
 import Navbar from "@/components/Navbar";
@@ -25,7 +29,7 @@ interface Categorie {
   status?: string;
 }
 
-export default function CategoriesPage() {
+function CategoriesContent() {
   const [categories, setCategories] = useState<Categorie[]>([]);
   const [recherche, setRecherche] = useState("");
   const [loading, setLoading] = useState(true);
@@ -42,9 +46,12 @@ export default function CategoriesPage() {
         setLoading(true);
         setErreur("");
 
-        const response = await fetch("/api/categories", {
-          cache: "no-store",
-        });
+        const response = await fetch(
+          "/api/categories",
+          {
+            cache: "no-store",
+          }
+        );
 
         const data = await response.json();
 
@@ -549,5 +556,25 @@ export default function CategoriesPage() {
 
       </section>
     </main>
+  );
+}
+
+export default function CategoriesPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#f7f8fa]">
+          <Navbar />
+
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+            <div className="text-center text-sm text-gray-500">
+              Chargement des catégories...
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <CategoriesContent />
+    </Suspense>
   );
 }
