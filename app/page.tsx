@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 interface Categorie {
   id: number;
   uuid: string;
+  parent_id: number | null;
   nom: string;
   slug: string;
   image?: string | null;
@@ -106,6 +107,12 @@ export default async function HomePage() {
     getBoutiques(),
     getProduits(),
   ]);
+
+  const categoriesPrincipales =
+    categories.filter(
+      (categorie) =>
+        categorie.parent_id === null
+    );
 
   return (
     <div className="min-h-screen bg-[#f7f8f6]">
@@ -505,7 +512,7 @@ export default async function HomePage() {
             </div>
 
 
-            {categories.length > 6 && (
+            {categoriesPrincipales.length > 6 && (
               <Link
                 href="/categories"
                 className="hidden shrink-0 text-sm font-bold text-[#14a800] transition hover:text-[#087f00] hover:underline sm:block"
@@ -517,17 +524,21 @@ export default async function HomePage() {
           </div>
 
 
-          {categories.length > 0 ? (
+          {categoriesPrincipales.length > 0 ? (
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
 
-              {categories
+              {categoriesPrincipales
                 .slice(0, 6)
                 .map((categorie) => (
 
                   <CategoryCard
                     key={categorie.uuid}
                     categorie={categorie}
+                    hasChildren={categories.some(
+                      (item) =>
+                        item.parent_id === categorie.id
+                    )}
                   />
 
                 ))}
