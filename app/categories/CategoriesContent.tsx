@@ -13,6 +13,8 @@ import {
   useState,
 } from "react";
 
+import { useSearchParams } from "next/navigation";
+
 import Navbar from "@/components/Navbar";
 import CategoryCard from "@/components/CategoryCard";
 
@@ -27,11 +29,10 @@ interface Categorie {
   status?: string;
 }
 
-export default function CategoriesContent({
-  parentSlug,
-}: {
-  parentSlug: string;
-}) {
+export default function CategoriesContent() {
+  const searchParams = useSearchParams();
+  const parentSlug = searchParams.get("parent") ?? "";
+
   const [categories, setCategories] = useState<Categorie[]>([]);
   const [recherche, setRecherche] = useState("");
   const [loading, setLoading] = useState(true);
@@ -55,7 +56,7 @@ export default function CategoriesContent({
         if (!response.ok || !data.success) {
           throw new Error(
             data.message ||
-              "Impossible de récupérer les catégories."
+            "Impossible de récupérer les catégories."
           );
         }
 
@@ -271,7 +272,7 @@ export default function CategoriesContent({
                   <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 sm:text-base sm:leading-7">
                     {categoriePrincipale
                       ? categoriePrincipale.description ||
-                        "Découvrez les sous-catégories disponibles dans cette catégorie."
+                      "Découvrez les sous-catégories disponibles dans cette catégorie."
                       : "Découvrez les différentes catégories disponibles sur MarketMali et trouvez rapidement les produits qui vous intéressent."}
                   </p>
 
