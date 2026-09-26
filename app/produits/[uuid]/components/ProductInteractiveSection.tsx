@@ -167,149 +167,149 @@ export default function ProductInteractiveSection({
     produit.boutique?.uuid,
   ]);
 
-async function handleFavorite() {
-  if (!user || user.role !== "client" || !token) {
-    router.push("/login");
-    return;
-  }
-
-  setFavoriteLoading(true);
-
-  try {
-    if (isFavorite) {
-      const response = await fetch(
-        `/api/favoris/${encodeURIComponent(produit.uuid)}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          "Impossible de retirer le produit des favoris."
-        );
-      }
-
-      setIsFavorite(false);
-
-      toast.success("Favori retiré", {
-        description: `« ${produit.nom} » a été retiré de vos favoris.`,
-      });
-    } else {
-      const response = await fetch(
-        "/api/favoris",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            produit_uuid: produit.uuid,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          "Impossible d'ajouter le produit aux favoris."
-        );
-      }
-
-      setIsFavorite(true);
-
-      toast.success("Favori ajouté", {
-        description: `« ${produit.nom} » a été ajouté à vos favoris.`,
-      });
+  async function handleFavorite() {
+    if (!user || user.role !== "client" || !token) {
+      router.push("/login");
+      return;
     }
-  } catch (error) {
-    console.error(
-      "Erreur favori :",
-      error
-    );
 
-    toast.error("Erreur", {
-      description:
-        isFavorite
-          ? "Impossible de retirer ce produit des favoris."
-          : "Impossible d'ajouter ce produit aux favoris.",
-    });
-  } finally {
-    setFavoriteLoading(false);
-  }
-}
+    setFavoriteLoading(true);
 
- async function handleFollowBoutique() {
-  if (!produit.boutique?.uuid) {
-    return;
-  }
+    try {
+      if (isFavorite) {
+        const response = await fetch(
+          `/api/favoris/${encodeURIComponent(produit.uuid)}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-  if (
-    !user ||
-    user.role !== "client" ||
-    !token
-  ) {
-    router.push("/login");
-    return;
-  }
+        if (!response.ok) {
+          throw new Error(
+            "Impossible de retirer le produit des favoris."
+          );
+        }
 
-  setFollowLoading(true);
+        setIsFavorite(false);
 
-  const wasFollowing = isFollowing;
+        toast.success("Favori retiré", {
+          description: `« ${produit.nom} » a été retiré de vos favoris.`,
+        });
+      } else {
+        const response = await fetch(
+          "/api/favoris",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              produit_uuid: produit.uuid,
+            }),
+          }
+        );
 
-  try {
-    const method =
-      wasFollowing ? "DELETE" : "POST";
+        if (!response.ok) {
+          throw new Error(
+            "Impossible d'ajouter le produit aux favoris."
+          );
+        }
 
-    const response = await fetch(
-      `/api/boutiques/${encodeURIComponent(
-        produit.boutique.uuid
-      )}/abonnement`,
-      {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        setIsFavorite(true);
+
+        toast.success("Favori ajouté", {
+          description: `« ${produit.nom} » a été ajouté à vos favoris.`,
+        });
       }
-    );
+    } catch (error) {
+      console.error(
+        "Erreur favori :",
+        error
+      );
 
-    if (!response.ok) {
-      throw new Error(
-        wasFollowing
+      toast.error("Erreur", {
+        description:
+          isFavorite
+            ? "Impossible de retirer ce produit des favoris."
+            : "Impossible d'ajouter ce produit aux favoris.",
+      });
+    } finally {
+      setFavoriteLoading(false);
+    }
+  }
+
+  async function handleFollowBoutique() {
+    if (!produit.boutique?.uuid) {
+      return;
+    }
+
+    if (
+      !user ||
+      user.role !== "client" ||
+      !token
+    ) {
+      router.push("/login");
+      return;
+    }
+
+    setFollowLoading(true);
+
+    const wasFollowing = isFollowing;
+
+    try {
+      const method =
+        wasFollowing ? "DELETE" : "POST";
+
+      const response = await fetch(
+        `/api/boutiques/${encodeURIComponent(
+          produit.boutique.uuid
+        )}/abonnement`,
+        {
+          method,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          wasFollowing
+            ? "Impossible de ne plus suivre cette boutique."
+            : "Impossible de suivre cette boutique."
+        );
+      }
+
+      setIsFollowing(!wasFollowing);
+
+      if (wasFollowing) {
+        toast.success("Abonnement retiré", {
+          description: `Vous ne suivez plus « ${produit.boutique.nom} ».`,
+        });
+      } else {
+        toast.success("Boutique suivie", {
+          description: `Vous suivez maintenant « ${produit.boutique.nom} ».`,
+        });
+      }
+    } catch (error) {
+      console.error(
+        "Erreur abonnement boutique :",
+        error
+      );
+
+      toast.error("Erreur", {
+        description: wasFollowing
           ? "Impossible de ne plus suivre cette boutique."
-          : "Impossible de suivre cette boutique."
-      );
-    }
-
-    setIsFollowing(!wasFollowing);
-
-    if (wasFollowing) {
-      toast.success("Abonnement retiré", {
-        description: `Vous ne suivez plus « ${produit.boutique.nom} ».`,
+          : "Impossible de suivre cette boutique.",
       });
-    } else {
-      toast.success("Boutique suivie", {
-        description: `Vous suivez maintenant « ${produit.boutique.nom} ».`,
-      });
+    } finally {
+      setFollowLoading(false);
     }
-  } catch (error) {
-    console.error(
-      "Erreur abonnement boutique :",
-      error
-    );
-
-    toast.error("Erreur", {
-      description: wasFollowing
-        ? "Impossible de ne plus suivre cette boutique."
-        : "Impossible de suivre cette boutique.",
-    });
-  } finally {
-    setFollowLoading(false);
   }
-}
 
   /*
    * Photos de la variante sélectionnée uniquement.
@@ -368,126 +368,151 @@ async function handleFavorite() {
 
   return (
     <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-
       {/* GALERIE */}
       <div>
         <div
           className="
-            relative
-            overflow-hidden
-            rounded-3xl
-            border
-            border-gray-200
-            bg-white
-            shadow-sm
-          "
+      relative
+      aspect-square
+      overflow-hidden
+      rounded-3xl
+      border
+      border-gray-200
+      bg-white
+      shadow-sm
+      sm:aspect-4/3
+    "
         >
-          <div
-            className="
-              flex
-              min-h-105
-              items-center
-              justify-center
-              sm:min-h-125
+          {selectedImage ? (
+            <img
+              src={selectedImage}
+              alt={
+                selectedVariante
+                  ? `${produit.nom} - ${selectedVariante.nom}`
+                  : produit.nom
+              }
+             className="
+            absolute
+            inset-0
+            h-full
+            w-full
+            object-contain
+            p-3
+            sm:p-5
             "
-          >
-            {selectedImage ? (
-              <img
-                src={selectedImage}
-                alt={
-                  selectedVariante
-                    ? `${produit.nom} - ${selectedVariante.nom}`
-                    : produit.nom
-                }
-                className="
-                  h-full
-                  max-h-125
-                  w-full
-                  object-contain
-                  p-6
-                  sm:p-10
-                "
-              />
-            ) : (
+        
+            />
+          ) : (
+            <div
+              className="
+          flex
+          h-full
+          w-full
+          flex-col
+          items-center
+          justify-center
+          bg-linear-to-br
+          from-gray-50
+          via-white
+          to-gray-100
+          text-gray-400
+        "
+            >
               <div
                 className="
-                  flex
-                  flex-col
-                  items-center
-                  justify-center
-                  text-gray-400
-                "
+            flex
+            h-20
+            w-20
+            items-center
+            justify-center
+            rounded-3xl
+            bg-white
+            text-green-600/40
+            shadow-sm
+          "
               >
                 <Package
-                  size={58}
+                  size={42}
                   strokeWidth={1.4}
                 />
-
-                <span className="mt-3 text-sm">
-                  Aucune image disponible
-                </span>
               </div>
-            )}
-          </div>
+
+              <span className="mt-4 text-sm font-medium">
+                Aucune image disponible
+              </span>
+            </div>
+          )}
 
           {/* BADGE STOCK */}
-          <div className="absolute left-5 top-5">
+          <div className="absolute left-4 top-4 z-20">
             {stockDisponible > 0 ? (
               <span
                 className="
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-full
-                  bg-green-50
-                  px-3
-                  py-1.5
-                  text-xs
-                  font-semibold
-                  text-green-700
-                  ring-1
-                  ring-green-200
-                "
+            inline-flex
+            items-center
+            gap-2
+            rounded-full
+            border
+            border-white/80
+            bg-white/90
+            px-3
+            py-1.5
+            text-xs
+            font-bold
+            text-green-700
+            shadow-md
+            backdrop-blur-md
+          "
               >
-                <CheckCircle2 size={14} />
+                <span
+                  className="
+              h-2
+              w-2
+              rounded-full
+              bg-green-500
+              shadow-[0_0_0_3px_rgba(34,197,94,0.12)]
+            "
+                />
                 Disponible
               </span>
             ) : (
               <span
                 className="
-                  rounded-full
-                  bg-red-50
-                  px-3
-                  py-1.5
-                  text-xs
-                  font-semibold
-                  text-red-700
-                  ring-1
-                  ring-red-200
-                "
+            inline-flex
+            items-center
+            rounded-full
+            border
+            border-white/80
+            bg-white/90
+            px-3
+            py-1.5
+            text-xs
+            font-bold
+            text-red-700
+            shadow-md
+            backdrop-blur-md
+          "
               >
                 Rupture de stock
               </span>
             )}
           </div>
+
+
         </div>
 
-        {/* MINIATURES DE LA VARIANTE */}
+        {/* MINIATURES */}
         {varianteImages.length > 0 && (
           <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-            {varianteImages.map(
-              (image, index) => {
-                const active =
-                  selectedImage === image;
+            {varianteImages.map((image, index) => {
+              const active = selectedImage === image;
 
-                return (
-                  <button
-                    key={`${image}-${index}`}
-                    type="button"
-                    onClick={() =>
-                      setSelectedImage(image)
-                    }
-                    className={`
+              return (
+                <button
+                  key={`${image}-${index}`}
+                  type="button"
+                  onClick={() => setSelectedImage(image)}
+                  className={`
               relative
               h-20
               w-20
@@ -496,23 +521,31 @@ async function handleFavorite() {
               rounded-xl
               border
               bg-white
-              transition
+              transition-all
+              duration-200
               ${active
-                        ? "border-green-600 ring-2 ring-green-100"
-                        : "border-gray-200 hover:border-gray-300"
-                      }
+                      ? "border-[#14a800] ring-2 ring-[#14a800]/15"
+                      : "border-gray-200 hover:border-[#14a800]/40"
+                    }
             `}
-                    aria-label={`Voir la photo ${index + 1} de ${selectedVariante?.nom ?? "la variante"}`}
-                  >
-                    <img
-                      src={image}
-                      alt={`${produit.nom} - ${selectedVariante?.nom ?? "variante"} - photo ${index + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-                  </button>
-                );
-              }
-            )}
+                  aria-label={`Voir la photo ${index + 1} de ${selectedVariante?.nom ?? "la variante"
+                    }`}
+                >
+                  <img
+                    src={image}
+                    alt={`${produit.nom} - photo ${index + 1}`}
+                    className="
+                h-full
+                w-full
+                object-cover
+                transition-transform
+                duration-300
+                hover:scale-105
+              "
+                  />
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

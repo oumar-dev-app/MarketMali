@@ -10,7 +10,7 @@ export async function GET() {
   return apiHandler(async () => {
 
     const boutiques =
-      await BoutiqueService.findAllActive();
+      await BoutiqueService.findAllActiveWithCategories();
 
 
     return NextResponse.json(

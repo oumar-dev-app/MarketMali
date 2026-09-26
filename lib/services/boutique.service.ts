@@ -219,6 +219,17 @@ export class BoutiqueService {
 
   }
 
+ static async findAllActiveWithCategories() {
+  const boutiques =
+    await BoutiqueRepository.findAllActiveWithCategories();
+
+  return boutiques.map((boutique) => ({
+    ...boutiqueResponse(boutique),
+    categories: boutique.categories,
+    categories_principales: boutique.categories_principales,
+  }));
+}
+
   static async findByUUID(
     uuid: string
   ) {
@@ -429,44 +440,44 @@ export class BoutiqueService {
   }
 
 
-static async findByUUIDForDashboard(
-  uuid: string,
-  user_id: number,
-  role: string
-) {
-  const boutique =
-    await this.verifyOwnership(
-      uuid,
-      user_id,
-      role
-    );
+  static async findByUUIDForDashboard(
+    uuid: string,
+    user_id: number,
+    role: string
+  ) {
+    const boutique =
+      await this.verifyOwnership(
+        uuid,
+        user_id,
+        role
+      );
 
-  const paiements =
-    await BoutiquePaiementRepository.findByBoutiqueId(
-      boutique.id
-    );
+    const paiements =
+      await BoutiquePaiementRepository.findByBoutiqueId(
+        boutique.id
+      );
 
-  return {
-    ...boutiqueResponse(boutique),
+    return {
+      ...boutiqueResponse(boutique),
 
-    paiements: {
-      wave:
-        paiements.find(
-          paiement => paiement.provider === "wave"
-        )?.numero ?? "",
+      paiements: {
+        wave:
+          paiements.find(
+            paiement => paiement.provider === "wave"
+          )?.numero ?? "",
 
-      orange_money:
-        paiements.find(
-          paiement => paiement.provider === "orange_money"
-        )?.numero ?? "",
+        orange_money:
+          paiements.find(
+            paiement => paiement.provider === "orange_money"
+          )?.numero ?? "",
 
-      moov_money:
-        paiements.find(
-          paiement => paiement.provider === "moov_money"
-        )?.numero ?? "",
-    },
-  };
-}
+        moov_money:
+          paiements.find(
+            paiement => paiement.provider === "moov_money"
+          )?.numero ?? "",
+      },
+    };
+  }
 
   static async findByUser(
     user_id: number

@@ -430,5 +430,191 @@ export class BoutiqueRepository {
 
   }
 
+  static async findAllActiveWithCategories() {
+    type CategoryItem = {
+      id: number;
+      uuid: string;
+      parent_id: number | null;
+      nom: string;
+      slug: string;
+      image: string | null;
+    };
+
+    type PrimaryCategory = {
+      id: number;
+      uuid: string;
+      nom: string;
+      slug: string;
+      image: string | null;
+      sous_categories: CategoryItem[];
+    };
+
+    const [rows] = await db.query<
+      (BoutiqueRow & {
+        categorie_id: number | null;
+        categorie_uuid: string | null;
+        categorie_parent_id: number | null;
+        categorie_nom: string | null;
+        categorie_slug: string | null;
+        categorie_image: string | null;
+
+        parent_id: number | null;
+        parent_uuid: string | null;
+        parent_nom: string | null;
+        parent_slug: string | null;
+        parent_image: string | null;
+      })[]
+    >(
+      `
+    SELECT
+      b.*,
+
+      c.id AS categorie_id,
+      c.uuid AS categorie_uuid,
+      c.parent_id AS categorie_parent_id,
+      c.nom AS categorie_nom,
+      c.slug AS categorie_slug,
+      c.image AS categorie_image,
+
+      parent_c.id AS parent_id,
+      parent_c.uuid AS parent_uuid,
+      parent_c.nom AS parent_nom,
+      parent_c.slug AS parent_slug,
+      parent_c.image AS parent_image
+
+    FROM boutiques b
+
+    LEFT JOIN boutique_categories bc
+      ON bc.boutique_id = b.id
+
+    LEFT JOIN categories c
+      ON c.id = bc.categorie_id
+      AND c.status = 'active'
+
+    LEFT JOIN categories parent_c
+      ON parent_c.id = c.parent_id
+      AND parent_c.status = 'active'
+
+    WHERE b.status = 'active'
+
+    ORDER BY
+      b.created_at DESC,
+      parent_c.nom ASC,
+      c.nom ASC
+    `
+    );
+
+    const boutiques = new Map<
+      number,
+      BoutiqueRow & {
+        categories: CategoryItem[];
+        categories_principales: PrimaryCategory[];
+      }
+    >();
+
+    for (const row of rows) {
+      if (!boutiques.has(row.id)) {
+        boutiques.set(row.id, {
+          ...row,
+          categories: [],
+          categories_principales: [],
+        });
+      }
+
+      const boutique = boutiques.get(row.id)!;
+
+      if (
+        row.categorie_id === null ||
+        row.categorie_uuid === null ||
+        row.categorie_nom === null ||
+        row.categorie_slug === null
+      ) {
+        continue;
+      }
+
+      // Catégorie actuellement associée à la boutique
+      const category: CategoryItem = {
+        id: row.categorie_id,
+        uuid: row.categorie_uuid,
+        parent_id: row.categorie_parent_id,
+        nom: row.categorie_nom,
+        slug: row.categorie_slug,
+        image: row.categorie_image,
+      };
+
+      // Conserver la liste plate existante
+      const alreadyExists = boutique.categories.some(
+        (item) => item.id === category.id
+      );
+
+      if (!alreadyExists) {
+        boutique.categories.push(category);
+      }
+
+      // Si la catégorie possède un parent,
+      // le parent devient la catégorie principale.
+      const primaryId =
+        row.parent_id !== null
+          ? row.parent_id
+          : row.categorie_id;
+
+      const primaryUuid =
+        row.parent_uuid !== null
+          ? row.parent_uuid
+          : row.categorie_uuid;
+
+      const primaryNom =
+        row.parent_nom !== null
+          ? row.parent_nom
+          : row.categorie_nom;
+
+      const primarySlug =
+        row.parent_slug !== null
+          ? row.parent_slug
+          : row.categorie_slug;
+
+      const primaryImage =
+        row.parent_image !== null
+          ? row.parent_image
+          : row.categorie_image;
+
+      let primary = boutique.categories_principales.find(
+        (item) => item.id === primaryId
+      );
+
+      if (!primary) {
+        primary = {
+          id: primaryId,
+          uuid: primaryUuid,
+          nom: primaryNom,
+          slug: primarySlug,
+          image: primaryImage,
+          sous_categories: [],
+        };
+
+        boutique.categories_principales.push(primary);
+      }
+
+      // Si la catégorie est elle-même la catégorie principale,
+      // elle ne doit pas apparaître comme sa propre sous-catégorie.
+      const isSubcategory =
+        row.parent_id !== null &&
+        row.parent_id !== row.categorie_id;
+
+      if (isSubcategory) {
+        const alreadyInSubcategories =
+          primary.sous_categories.some(
+            (item) => item.id === category.id
+          );
+
+        if (!alreadyInSubcategories) {
+          primary.sous_categories.push(category);
+        }
+      }
+    }
+
+    return Array.from(boutiques.values());
+  }
+
 
 }

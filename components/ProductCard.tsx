@@ -1,9 +1,9 @@
-
 import Link from "next/link";
 import {
   ArrowRight,
   Package,
   ShoppingBag,
+  Star,
   Tag,
 } from "lucide-react";
 
@@ -30,17 +30,20 @@ export default function ProductCard({
   produit,
 }: ProductCardProps) {
   /* =====================================================
-      PRIX NORMAL
+     PRIX
   ====================================================== */
 
   const prix = Number(produit.prix);
 
-  const prixFormate = Number.isFinite(prix)
-    ? prix.toLocaleString("fr-FR")
+  const prixValide =
+    Number.isFinite(prix) && prix >= 0;
+
+  const prixFormate = prixValide
+    ? Math.round(prix).toLocaleString("fr-FR")
     : String(produit.prix);
 
   /* =====================================================
-      PROMOTION
+     PROMOTION
   ====================================================== */
 
   const promotionActive =
@@ -48,57 +51,59 @@ export default function ProductCard({
 
   const reductionPourcentage =
     produit.promotion_reduction_pourcentage !== null &&
-    produit.promotion_reduction_pourcentage !== undefined
-      ? Number(produit.promotion_reduction_pourcentage)
+      produit.promotion_reduction_pourcentage !== undefined
+      ? Number(
+        produit.promotion_reduction_pourcentage
+      )
       : null;
 
   const prixPromotionnel =
     produit.promotion_prix_promotionnel !== null &&
-    produit.promotion_prix_promotionnel !== undefined
-      ? Number(produit.promotion_prix_promotionnel)
+      produit.promotion_prix_promotionnel !== undefined
+      ? Number(
+        produit.promotion_prix_promotionnel
+      )
       : null;
 
-  /*
-   * Pour une promotion spéciale, le prix promotionnel
-   * vient directement de la base.
-   *
-   * Pour une promotion en pourcentage, on calcule
-   * également le prix final par sécurité côté affichage.
-   */
-
-  let prixFinalPromotion = prixPromotionnel;
+  let prixFinalPromotion: number | null =
+    prixPromotionnel;
 
   if (
     produit.promotion_type === "percentage" &&
     reductionPourcentage !== null &&
-    Number.isFinite(prix) &&
-    Number.isFinite(reductionPourcentage)
+    Number.isFinite(reductionPourcentage) &&
+    prixValide
   ) {
     prixFinalPromotion =
-      prix - (prix * reductionPourcentage) / 100;
+      prix -
+      (prix * reductionPourcentage) / 100;
   }
 
-  const prixPromotionFormate =
+  const promotionValide =
+    promotionActive &&
     prixFinalPromotion !== null &&
-    Number.isFinite(prixFinalPromotion)
-      ? Math.round(prixFinalPromotion).toLocaleString(
-          "fr-FR"
-        )
+    Number.isFinite(prixFinalPromotion) &&
+    prixFinalPromotion >= 0;
+
+  const prixPromotionFormate =
+    typeof prixFinalPromotion === "number" &&
+      Number.isFinite(prixFinalPromotion)
+      ? Math.round(prixFinalPromotion).toLocaleString("fr-FR")
       : null;
 
   /* =====================================================
-      NOTES / AVIS
+     NOTES / AVIS
   ====================================================== */
 
   const noteMoyenne =
     produit.note_moyenne !== null &&
-    produit.note_moyenne !== undefined
+      produit.note_moyenne !== undefined
       ? Number(produit.note_moyenne)
       : null;
 
   const totalAvis =
     produit.total_avis !== null &&
-    produit.total_avis !== undefined
+      produit.total_avis !== undefined
       ? Number(produit.total_avis)
       : 0;
 
@@ -110,9 +115,13 @@ export default function ProductCard({
     Number.isFinite(totalAvis) &&
     totalAvis > 0;
 
+  const avisLabel =
+    totalAvis === 1 ? "avis" : "avis";
+
   return (
     <Link
       href={`/produits/${produit.uuid}`}
+      aria-label={`Voir le produit ${produit.nom}`}
       className="
         group
         relative
@@ -121,16 +130,16 @@ export default function ProductCard({
         min-w-0
         flex-col
         overflow-hidden
-        rounded-2xl
+        rounded-3xl
         border
         border-gray-100
         bg-white
-        shadow-sm
+        shadow-[0_4px_20px_rgba(0,0,0,0.04)]
         transition-all
         duration-300
         hover:-translate-y-1
         hover:border-[#14a800]/20
-        hover:shadow-xl
+        hover:shadow-[0_16px_40px_rgba(0,0,0,0.09)]
         focus:outline-none
         focus:ring-2
         focus:ring-[#14a800]/30
@@ -147,51 +156,89 @@ export default function ProductCard({
           aspect-square
           w-full
           overflow-hidden
-          bg-gray-50
+          bg-[#f7f9f7]
         "
       >
+        {/* Décorations */}
+
+        <div
+          className="
+            pointer-events-none
+            absolute
+            -right-12
+            -top-12
+            h-32
+            w-32
+            rounded-full
+            bg-[#14a800]/5
+            transition-transform
+            duration-500
+            group-hover:scale-125
+          "
+        />
+
+        <div
+          className="
+            pointer-events-none
+            absolute
+            -bottom-12
+            -left-10
+            h-w
+            w-w
+            rounded-full
+            bg-[#fcd116]/5
+          "
+        />
+
+        {/* Image produit */}
+
         {produit.image ? (
           <img
             src={produit.image}
             alt={produit.nom}
             loading="lazy"
             className="
-              h-full
-              w-full
-              object-cover
-              transition-transform
-              duration-500
-              ease-out
-              group-hover:scale-105
-            "
+      absolute
+      inset-0
+      z-10
+      h-full
+      w-full
+      object-cover
+      transition-transform
+      duration-500
+      ease-out
+      group-hover:scale-[1.03]
+    "
           />
         ) : (
           <div
             className="
-              flex
-              h-full
-              w-full
-              flex-col
-              items-center
-              justify-center
-              bg-linear-to-br
-              from-gray-50
-              via-white
-              to-gray-100
-            "
+      relative
+      z-10
+      flex
+      h-full
+      w-full
+      flex-col
+      items-center
+      justify-center
+      bg-linear-to-br
+      from-gray-50
+      via-white
+      to-gray-100
+    "
           >
             <div
               className="
-                flex
-                h-16
-                w-16
-                items-center
-                justify-center
-                rounded-2xl
-                bg-white
-                text-[#14a800]/50
-                shadow-sm
-              "
+        flex
+        h-16
+        w-16
+        items-center
+        justify-center
+        rounded-2xl
+        bg-white
+        text-[#14a800]/40
+        shadow-sm
+      "
             >
               <Package
                 size={28}
@@ -201,11 +248,11 @@ export default function ProductCard({
 
             <span
               className="
-                mt-3
-                text-[11px]
-                font-semibold
-                text-gray-400
-              "
+        mt-3
+        text-[10px]
+        font-semibold
+        text-gray-400
+      "
             >
               Aucune image
             </span>
@@ -213,88 +260,54 @@ export default function ProductCard({
         )}
 
         {/* =================================================
-            BADGES
+            PROMOTION
         ================================================== */}
 
-        <div
-          className="
-            absolute
-            left-3
-            top-3
-            flex
-            flex-col
-            items-start
-            gap-2
-          "
-        >
-          {/* DISPONIBLE */}
-
-          <span
+        {promotionActive && (
+          <div
             className="
+              absolute
+              left-3
+              top-3
+              z-20
               inline-flex
               items-center
               gap-1.5
               rounded-full
-              border
-              border-white/80
-              bg-white/95
-              px-2.5
+              bg-[#ce1126]
+              px-3
               py-1.5
               text-[10px]
-              font-bold
-              text-[#087f00]
-              shadow-sm
-              backdrop-blur-sm
+              font-extrabold
+              text-white
+              shadow-lg
+              shadow-[#ce1126]/20
             "
           >
-            <span
-              className="
-                h-1.5
-                w-1.5
-                rounded-full
-                bg-[#14a800]
-                shadow-[0_0_0_3px_rgba(20,168,0,0.12)]
-              "
+            <Tag
+              size={11}
+              strokeWidth={2.5}
             />
 
-            Disponible
-          </span>
-
-          {/* PROMOTION */}
-
-          {promotionActive && (
-            <span
-              className="
-                inline-flex
-                items-center
-                gap-1
-                rounded-full
-                border
-                border-white/80
-                bg-[#ce1126]
-                px-2.5
-                py-1.5
-                text-[10px]
-                font-extrabold
-                text-white
-                shadow-md
-              "
-            >
-              <Tag
-                size={11}
-                strokeWidth={2.5}
-              />
-
-              {reductionPourcentage !== null &&
-              Number.isFinite(reductionPourcentage)
-                ? `-${reductionPourcentage}%`
-                : "PROMOTION"}
-            </span>
-          )}
-        </div>
+            {reductionPourcentage !== null &&
+              Number.isFinite(
+                reductionPourcentage
+              ) ? (
+              <>
+                -
+                {Math.round(
+                  reductionPourcentage
+                )}
+                %
+              </>
+            ) : (
+              "PROMOTION"
+            )}
+          </div>
+        )}
 
         {/* =================================================
-            ICÔNE PRODUIT
+            ACTION VISUELLE
         ================================================== */}
 
         <div
@@ -302,33 +315,79 @@ export default function ProductCard({
             absolute
             right-3
             top-3
+            z-20
             flex
-            h-9
-            w-9
+            h-10
+            w-10
+            translate-y-1
             items-center
             justify-center
-            rounded-xl
+            rounded-full
             border
-            border-white/70
+            border-white/80
             bg-white/90
-            text-gray-500
+            text-gray-600
             opacity-0
-            shadow-sm
-            backdrop-blur-sm
+            shadow-md
+            backdrop-blur-md
             transition-all
             duration-300
             group-hover:translate-y-0
             group-hover:opacity-100
           "
+          aria-hidden="true"
         >
           <ShoppingBag
-            size={16}
-            strokeWidth={1.8}
+            size={17}
+            strokeWidth={1.9}
           />
         </div>
 
         {/* =================================================
-            BANDE MALI AU SURVOL
+            DISPONIBLE
+        ================================================== */}
+
+        <div
+          className="
+            absolute
+            bottom-3
+            left-3
+            z-20
+            inline-flex
+            items-center
+            gap-1.5
+            rounded-full
+            border
+            border-white/80
+            bg-white/90
+            px-2.5
+            py-1.5
+            text-[9px]
+            font-bold
+            text-[#087f00]
+            opacity-0
+            shadow-sm
+            backdrop-blur-md
+            transition-opacity
+            duration-300
+            group-hover:opacity-100
+          "
+        >
+          <span
+            className="
+              h-1.5
+              w-1.5
+              rounded-full
+              bg-[#14a800]
+              shadow-[0_0_0_3px_rgba(20,168,0,0.10)]
+            "
+          />
+
+          Disponible
+        </div>
+
+        {/* =================================================
+            BANDE MALI
         ================================================== */}
 
         <div
@@ -336,6 +395,7 @@ export default function ProductCard({
             absolute
             bottom-0
             left-0
+            z-20
             flex
             h-1
             w-full
@@ -352,20 +412,29 @@ export default function ProductCard({
       </div>
 
       {/* =====================================================
-          CONTENU
+          INFORMATIONS
       ====================================================== */}
 
-      <div className="flex flex-1 flex-col p-4">
+      <div
+        className="
+          flex
+          flex-1
+          flex-col
+          p-4
+          sm:p-4.5
+        "
+      >
         {/* NOM */}
 
         <h3
           className="
             line-clamp-2
             min-h-10
-            text-sm
-            font-bold
+            text-[14px]
+            font-extrabold
             leading-5
-            text-gray-900
+            tracking-[-0.01em]
+            text-gray-950
             transition-colors
             duration-200
             group-hover:text-[#14a800]
@@ -374,227 +443,203 @@ export default function ProductCard({
           {produit.nom}
         </h3>
 
-        {/* DESCRIPTION */}
+        {/* NOTE */}
 
-        <div className="mt-2 min-h-10">
-          {produit.description ? (
-            <p
-              className="
-                line-clamp-2
-                text-xs
-                leading-5
-                text-gray-500
-              "
-            >
-              {produit.description}
-            </p>
-          ) : (
-            <p className="text-xs text-transparent">
-              -
-            </p>
-          )}
-        </div>
-
-        {/* =================================================
-            NOTE / AVIS
-        ================================================== */}
-
-        {noteValide && (
-          <div className="mt-3 flex min-w-0 items-center gap-2">
+        {noteValide ? (
+          <div
+            className="
+              mt-2.5
+              flex
+              items-center
+              gap-1.5
+            "
+          >
             <div
-              className="flex shrink-0 items-center gap-0.5"
+              className="
+                flex
+                items-center
+                gap-0.5
+              "
               aria-label={`Note moyenne : ${noteMoyenne.toFixed(
                 1
               )} sur 5`}
             >
-              {[1, 2, 3, 4, 5].map((etoile) => (
-                <span
-                  key={etoile}
-                  className={`
-                    text-sm
-                    leading-none
-                    ${
-                      etoile <= Math.round(noteMoyenne)
-                        ? "text-[#fcd116]"
-                        : "text-gray-200"
-                    }
-                  `}
-                >
-                  ★
-                </span>
-              ))}
+              <Star
+                size={13}
+                fill="currentColor"
+                className="text-[#fcd116]"
+              />
+
+              <span
+                className="
+                  text-[11px]
+                  font-extrabold
+                  text-gray-700
+                "
+              >
+                {noteMoyenne.toFixed(1)}
+              </span>
             </div>
 
-            <span className="shrink-0 text-xs font-bold text-gray-700">
-              {noteMoyenne.toFixed(1)}
+            <span
+              className="
+                text-[10px]
+                text-gray-300
+              "
+            >
+              •
             </span>
 
-            <span className="truncate text-[11px] text-gray-400">
-              ({totalAvis}{" "}
-              {totalAvis === 1 ? "avis" : "avis"})
+            <span
+              className="
+                text-[10px]
+                font-medium
+                text-gray-400
+              "
+            >
+              {totalAvis} {avisLabel}
             </span>
           </div>
+        ) : (
+          <div className="mt-2.5 h-4" />
+        )}
+
+        {/* DESCRIPTION */}
+
+        {produit.description ? (
+          <p
+            className="
+              mt-2
+              line-clamp-2
+              text-[11px]
+              leading-4
+              text-gray-400
+            "
+          >
+            {produit.description}
+          </p>
+        ) : (
+          <div className="mt-2 h-4" />
         )}
 
         {/* =================================================
-            PRIX + ACTION
+            PRIX
         ================================================== */}
 
-        <div className="mt-auto pt-4">
-          <div
-            className="
-              flex
-              items-end
-              justify-between
-              gap-3
-              border-t
-              border-gray-100
-              pt-3
-            "
-          >
-            {/* PRIX */}
+        <div
+          className="
+            mt-auto
+            flex
+            items-end
+            justify-between
+            gap-3
+            border-t
+            border-gray-100
+            pt-4
+          "
+        >
+          <div className="min-w-0">
+            {promotionValide ? (
+              <>
+                <p
+                  className="
+                    text-[10px]
+                    font-semibold
+                    text-gray-400
+                    line-through
+                  "
+                >
+                  {prixFormate} FCFA
+                </p>
 
-            <div className="min-w-0">
-              <p
-                className="
-                  text-[10px]
-                  font-semibold
-                  uppercase
-                  tracking-wider
-                  text-gray-400
-                "
-              >
-                {promotionActive
-                  ? "Prix promotionnel"
-                  : "Prix"}
-              </p>
-
-              {promotionActive &&
-              prixPromotionFormate ? (
-                <div className="mt-0.5">
-                  {/* ANCIEN PRIX */}
-
-                  <p
-                    className="
-                      truncate
-                      text-xs
-                      font-semibold
-                      text-gray-400
-                      line-through
-                      sm:text-sm
-                    "
-                  >
-                    {prixFormate}
-
-                    <span
-                      className="
-                        ml-1
-                        text-[9px]
-                        font-bold
-                        tracking-normal
-                        text-gray-400
-                        sm:text-[10px]
-                      "
-                    >
-                      FCFA
-                    </span>
-                  </p>
-
-                  {/* NOUVEAU PRIX */}
-
-                  <p
-                    className="
-                      truncate
-                      text-base
-                      font-extrabold
-                      tracking-tight
-                      text-[#ce1126]
-                      sm:text-lg
-                    "
-                  >
-                    {prixPromotionFormate}
-
-                    <span
-                      className="
-                        ml-1
-                        text-[10px]
-                        font-bold
-                        tracking-normal
-                        text-[#ce1126]
-                        sm:text-xs
-                      "
-                    >
-                      FCFA
-                    </span>
-                  </p>
-                </div>
-              ) : (
                 <p
                   className="
                     mt-0.5
                     truncate
-                    text-base
-                    font-extrabold
+                    text-lg
+                    font-black
                     tracking-tight
-                    text-[#14a800]
-                    sm:text-lg
+                    text-[#ce1126]
+                    sm:text-xl
                   "
                 >
-                  {prixFormate}
+                  {prixPromotionFormate}
 
                   <span
                     className="
                       ml-1
                       text-[10px]
                       font-bold
-                      tracking-normal
-                      text-[#14a800]
+                      text-[#ce1126]
                       sm:text-xs
                     "
                   >
                     FCFA
                   </span>
                 </p>
-              )}
-            </div>
-
-            {/* ACTION */}
-
-            <div
-              className="
-                flex
-                h-9
-                w-9
-                shrink-0
-                items-center
-                justify-center
-                rounded-xl
-                bg-[#14a800]/10
-                text-[#14a800]
-                transition-all
-                duration-300
-                group-hover:bg-[#14a800]
-                group-hover:text-white
-                group-hover:shadow-md
-              "
-            >
-              <ArrowRight
-                size={17}
-                strokeWidth={2.2}
+              </>
+            ) : (
+              <p
                 className="
-                  transition-transform
-                  duration-300
-                  group-hover:translate-x-0.5
+                  truncate
+                  text-lg
+                  font-black
+                  tracking-tight
+                  text-[#14a800]
+                  sm:text-xl
                 "
-              />
-            </div>
+              >
+                {prixFormate}
+
+                <span
+                  className="
+                    ml-1
+                    text-[10px]
+                    font-bold
+                    text-[#14a800]
+                    sm:text-xs
+                  "
+                >
+                  FCFA
+                </span>
+              </p>
+            )}
+          </div>
+
+          {/* ACTION */}
+
+          <div
+            className="
+              flex
+              h-10
+              w-10
+              shrink-0
+              items-center
+              justify-center
+              rounded-xl
+              bg-[#14a800]/10
+              text-[#14a800]
+              transition-all
+              duration-300
+              group-hover:bg-[#14a800]
+              group-hover:text-white
+              group-hover:shadow-md
+            "
+            aria-hidden="true"
+          >
+            <ArrowRight
+              size={17}
+              strokeWidth={2.2}
+              className="
+                transition-transform
+                duration-300
+                group-hover:translate-x-0.5
+              "
+            />
           </div>
         </div>
       </div>
     </Link>
   );
 }
-
-
-
 

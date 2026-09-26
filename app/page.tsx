@@ -25,6 +25,31 @@ interface Boutique {
   description?: string | null;
   logo?: string | null;
   ville?: string | null;
+
+  categories?: {
+    id: number;
+    uuid: string;
+    parent_id: number | null;
+    nom: string;
+    slug: string;
+    image: string | null;
+  }[];
+
+  categories_principales?: {
+    id: number;
+    uuid: string;
+    nom: string;
+    slug: string;
+    image: string | null;
+    sous_categories: {
+      id: number;
+      uuid: string;
+      parent_id: number | null;
+      nom: string;
+      slug: string;
+      image: string | null;
+    }[];
+  }[];
 }
 
 interface Produit {

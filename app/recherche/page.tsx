@@ -54,6 +54,13 @@ interface Boutique {
   nom: string;
   slug: string;
   status: string;
+    categories: {
+    id: number;
+    uuid: string;
+    nom: string;
+    slug: string;
+    image: string | null;
+  }[];
 }
 
 interface CategoriesResponse {

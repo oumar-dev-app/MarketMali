@@ -1,3 +1,6 @@
+import type { Categorie } from "./categorie";
+
+
 export interface Boutique {
   id: number;
   uuid: string;
@@ -40,4 +43,14 @@ export type BoutiqueUpdate = {
 
   adresse?: string | null;
   ville?: string | null;
+};
+
+
+export type BoutiqueCategorie = Pick<
+  Categorie,
+  "id" | "uuid" | "nom" | "slug" | "image"
+>;
+
+export type BoutiqueWithCategories = Boutique & {
+  categories: BoutiqueCategorie[];
 };
