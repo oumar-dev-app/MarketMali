@@ -53,7 +53,7 @@ export default function VendeurDashboard({
         {/* Décorations discrètes */}
         <div className=" pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full bg-[#14a800]/5 " />
         <div className=" pointer-events-none absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-[#fcd116]/5 " />
-        <div className=" pointer-events-none absolute right-[12%] top-[42%] h-40 w-40 rounded-full bg-[#ce1126]/[0.025] " />
+        <div className=" pointer-events-none absolute right-[12%] top-[42%] h-40 w-40 rounded-full bg-[#ce1126]/2.5 " />
         <div className="relative px-5 py-7 sm:px-7 sm:py-8 lg:px-8">
           {/* Bande Mali */}
           <div className="mb-5 flex items-center gap-1">
