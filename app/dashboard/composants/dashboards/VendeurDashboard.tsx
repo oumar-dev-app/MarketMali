@@ -94,13 +94,13 @@ export default function VendeurDashboard({
       ===================================================== */}
 
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-4 flex items-end justify-between">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">
+            <h2 className="text-base font-bold tracking-tight text-gray-900 sm:text-lg">
               Vue commerciale
             </h2>
 
-            <p className="text-xs text-gray-500 sm:text-sm">
+            <p className="mt-0.5 text-xs text-gray-500 sm:text-sm">
               Les chiffres clés de votre activité.
             </p>
           </div>
